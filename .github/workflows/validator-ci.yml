@@ -1,0 +1,39 @@
+name: "validator-ci"
+
+on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Go module path to test"
+        required: false
+        type: string
+        default: "pkg/component/validator"
+  push:
+    branches:
+      - "feat**"
+      - "fix**"
+      - "hotfix**"
+      - "chore**"
+      - "main"
+    paths:
+      - "pkg/component/validator/**.go"
+      - "pkg/component/validator/go.mod"
+      - "pkg/component/validator/go.sum"
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    branches:
+      - main
+    paths:
+      - "pkg/component/validator/**.go"
+      - "pkg/component/validator/go.mod"
+      - "pkg/component/validator/go.sum"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/common-ci.yml
+    secrets: inherit
+    with:
+      module: "pkg/component/validator"
