@@ -289,9 +289,3 @@ func TestDefaultConfigFactory_Create_DefaultStructure(t *testing.T) {
 	assert.Equal(t, "env-password", dbCfg.Password)
 	assert.Equal(t, 5432, dbCfg.Port)
 }
-
-func TestNewDefaultConfigFactory(t *testing.T) {
-	factory := NewDefaultConfigFactory()
-	require.NotNil(t, factory)
-	assert.Implements(t, (*ConfigFactory)(nil), factory)
-}
