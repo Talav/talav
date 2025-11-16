@@ -62,3 +62,8 @@ linters:
     - unused
     - usestdlibvars
     - whitespace
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
