@@ -55,8 +55,7 @@ func (f *DefaultLoggerFactory) Create(cfg LoggerConfig) (*slog.Logger, error) {
 	if cfg.Output == "stdout" || cfg.Output == "" {
 		output = os.Stdout
 	} else {
-		//bearer:disable go_gosec_file_permissions_file_perm
-		file, err := os.OpenFile(cfg.Output, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		file, err := os.OpenFile(cfg.Output, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 		if err != nil {
 			// Fall back to stdout if file creation fails
 			output = os.Stdout
