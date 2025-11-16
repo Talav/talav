@@ -7,7 +7,7 @@ on:
         description: "Go module path to test"
         required: false
         type: string
-        default: "pkg/component/config"
+        default: "pkg/fx/fxconfig"
   push:
     branches:
       - "feat**"
