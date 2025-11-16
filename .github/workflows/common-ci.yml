@@ -14,7 +14,7 @@ on:
       linter_version:
         required: false
         type: string
-        default: "1.55.2"
+        default: "2.6.2"
 
 permissions:
   contents: read

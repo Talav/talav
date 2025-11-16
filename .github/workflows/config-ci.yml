@@ -8,6 +8,11 @@ on:
         required: false
         type: string
         default: "pkg/component/config"
+      linter_version:
+        description: "Linter version to use"
+        required: false
+        type: string
+        default: "2.6.2"
   push:
     branches:
       - "feat**"
