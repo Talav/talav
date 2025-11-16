@@ -1,4 +1,4 @@
-name: "fxconfig-ci"
+name: "logger-ci"
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
         description: "Go module path to test"
         required: false
         type: string
-        default: "pkg/fx/fxconfig"
+        default: "pkg/component/logger"
   push:
     branches:
       - "feat**"
@@ -16,9 +16,9 @@ on:
       - "chore**"
       - "main"
     paths:
-      - "pkg/fx/fxconfig/**.go"
-      - "pkg/fx/fxconfig/go.mod"
-      - "pkg/fx/fxconfig/go.sum"
+      - "pkg/component/logger/**.go"
+      - "pkg/component/logger/go.mod"
+      - "pkg/component/logger/go.sum"
   pull_request:
     types:
       - opened
@@ -27,13 +27,13 @@ on:
     branches:
       - main
     paths:
-      - "pkg/fx/fxconfig/**.go"
-      - "pkg/fx/fxconfig/go.mod"
-      - "pkg/fx/fxconfig/go.sum"
+      - "pkg/component/logger/**.go"
+      - "pkg/component/logger/go.mod"
+      - "pkg/component/logger/go.sum"
 
 jobs:
   ci:
     uses: ./.github/workflows/common-ci.yml
     secrets: inherit
     with:
-      module: "pkg/fx/fxconfig"
+      module: "pkg/component/logger"
