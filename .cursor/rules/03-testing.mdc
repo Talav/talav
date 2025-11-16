@@ -1,0 +1,44 @@
+---
+description: Set of best practices for testing
+alwaysApply: false
+globs: ["*.go"]
+---
+
+## Testing Best Practices
+
+### Test Naming Conventions
+
+**Unit Tests:** `Test[Component]_[Method]_[Scenario]` or `Test[Component]_[Method]`
+- Test in isolation (no external dependencies, use mocks/stubs)
+- No build tags, same package, fast execution
+- Use table-driven tests with `t.Run()` for multiple scenarios
+
+**Integration Tests:** `Test[Component]_[Method]_[Scenario]`
+- Use build tag `//go:build integration`
+- Get dependencies from DI container
+- Use subtests (`t.Run`) for multiple scenarios
+
+**E2E Tests:** `Test[Feature]_[Scenario]`
+- Test full feature/endpoint flows
+- Common scenarios: `ValidRequest`, `NotFound`, `Unauthorized`, `ValidationErrors`
+
+### Test File Organization
+- Mirror application structure: `user_repository.go` → `user_repository_test.go`
+
+### Test Structure
+1. **Setup**: Initialize dependencies (DI container for integration, mocks for unit tests)
+2. **Action**: Execute the method being tested
+3. **Assertion**: Verify results using `testify/assert` or `testify/require`
+
+### Best Practices
+- Use table-driven tests for multiple scenarios
+- Test both happy path and error conditions
+- Use `require` for critical assertions (stops test on failure), `assert` for non-critical
+- Use descriptive test names and error messages
+- Unit tests: fast, isolated, no I/O/database/network
+- Integration tests: use DI container, follow consistent patterns
+
+### Test data
+- Always use faker for generating test data - never hardcode test values
+- Get faker from DI container: `faker := do.MustInvoke[*faker.Faker](Injector)` for integration and e2e tests, create it for unit tests
+- Generate realistic test data: `faker.Person().Name()`, `faker.Internet().Email()`, etc.

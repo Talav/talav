@@ -1,0 +1,31 @@
+name: "config-ci"
+
+on:
+  push:
+    branches:
+      - "feat**"
+      - "fix**"
+      - "hotfix**"
+      - "chore**"
+    paths:
+      - "pkg/component/config/**.go"
+      - "pkg/component/config/go.mod"
+      - "pkg/component/config/go.sum"
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    branches:
+      - main
+    paths:
+      - "pkg/component/config/**.go"
+      - "pkg/component/config/go.mod"
+      - "pkg/component/config/go.sum"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/common-ci.yml
+    secrets: inherit
+    with:
+      module: "pkg/component/config"

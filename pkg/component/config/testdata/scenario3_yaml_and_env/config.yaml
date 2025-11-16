@@ -1,0 +1,9 @@
+app:
+  name: yaml-value
+  env: dev
+
+database:
+  host: yaml-host
+  port: 5432
+  user: yamluser
+

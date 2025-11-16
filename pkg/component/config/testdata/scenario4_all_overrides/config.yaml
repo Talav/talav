@@ -1,0 +1,8 @@
+app:
+  name: base
+  version: 1.0.0
+
+server:
+  port: 8080
+  host: base-host
+

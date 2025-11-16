@@ -1,0 +1,8 @@
+app:
+  name: myapp
+  data_dir: ${HOME}/data
+  config_path: ${CONFIG_ROOT}/settings
+
+database:
+  url: postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:5432/mydb
+

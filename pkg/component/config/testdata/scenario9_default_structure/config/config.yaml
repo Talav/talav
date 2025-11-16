@@ -1,0 +1,11 @@
+app:
+  name: from-yaml
+  version: 1.0.0
+
+database:
+  host: yaml-host
+  user: yaml-user
+  password: ""
+  name: yaml-db
+  port: 5432
+
