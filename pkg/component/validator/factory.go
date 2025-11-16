@@ -35,7 +35,7 @@ func (f *DefaultValidatorFactory) Create(
 	structValidationDefs []StructValidationDefinition,
 	customTypeDefs []CustomTypeDefinition,
 ) (*validator.Validate, error) {
-	v := validator.New()
+	v := validator.New(validator.WithRequiredStructEnabled())
 
 	f.registerTagNameFunc(v)
 	f.registerAliases(v, aliasDefs)

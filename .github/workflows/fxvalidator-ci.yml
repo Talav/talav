@@ -1,0 +1,39 @@
+name: "fxvalidator-ci"
+
+on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Go module path to test"
+        required: false
+        type: string
+        default: "pkg/fx/fxvalidator"
+  push:
+    branches:
+      - "feat**"
+      - "fix**"
+      - "hotfix**"
+      - "chore**"
+      - "main"
+    paths:
+      - "pkg/fx/fxvalidator/**.go"
+      - "pkg/fx/fxvalidator/go.mod"
+      - "pkg/fx/fxvalidator/go.sum"
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    branches:
+      - main
+    paths:
+      - "pkg/fx/fxvalidator/**.go"
+      - "pkg/fx/fxvalidator/go.mod"
+      - "pkg/fx/fxvalidator/go.sum"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/common-ci.yml
+    secrets: inherit
+    with:
+      module: "pkg/fx/fxvalidator"

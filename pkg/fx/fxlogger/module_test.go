@@ -34,9 +34,8 @@ func TestModule_FxLoggerModule_ProvidesLogger(t *testing.T) {
 	).RequireStart().RequireStop()
 
 	require.NotNil(t, log)
-	
+
 	// Verify logger can log without error
 	log.Info("test message", "key", "value")
 	assert.NotNil(t, log.Handler())
 }
-

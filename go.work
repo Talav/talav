@@ -6,4 +6,5 @@ use (
 	./pkg/component/validator
 	./pkg/fx/fxconfig
 	./pkg/fx/fxlogger
+	./pkg/fx/fxvalidator
 )
