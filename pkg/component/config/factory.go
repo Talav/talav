@@ -12,7 +12,7 @@ import (
 	"github.com/knadh/koanf/v2"
 )
 
-// ConfigSource defines a config source with path, patterns, and parser
+// ConfigSource defines a config source with path, patterns, and parser.
 type ConfigSource struct {
 	Path     string       // Directory path (prepended to patterns)
 	Patterns []string     // File patterns with placeholder: {env}
@@ -89,7 +89,7 @@ func (f *DefaultConfigFactory) Create(sources ...ConfigSource) (*Config, error) 
 	return &Config{k}, nil
 }
 
-// expandPatterns expands file patterns by replacing placeholders
+// expandPatterns expands file patterns by replacing placeholders.
 func (f *DefaultConfigFactory) expandPatterns(path string, patterns []string) []string {
 	env := f.getEnvironment()
 	files := make([]string, 0, len(patterns))
@@ -102,10 +102,11 @@ func (f *DefaultConfigFactory) expandPatterns(path string, patterns []string) []
 		}
 		files = append(files, file)
 	}
+
 	return files
 }
 
-// loadSource loads a config source by expanding patterns and loading files
+// loadSource loads a config source by expanding patterns and loading files.
 func (f *DefaultConfigFactory) loadSource(k *koanf.Koanf, source ConfigSource) error {
 	files := f.expandPatterns(source.Path, source.Patterns)
 	for _, filePath := range files {
@@ -113,22 +114,25 @@ func (f *DefaultConfigFactory) loadSource(k *koanf.Koanf, source ConfigSource) e
 			return err
 		}
 	}
+
 	return nil
 }
 
-// loadFile loads a single config file with the given parser
+// loadFile loads a single config file with the given parser.
 func (f *DefaultConfigFactory) loadFile(k *koanf.Koanf, filePath string, parser koanf.Parser) error {
 	if err := k.Load(file.Provider(filePath), parser); err != nil {
 		// File not found → skip (safe!)
 		if os.IsNotExist(err) {
 			return nil
 		}
+
 		return fmt.Errorf("failed to load config file %s: %w", filePath, err)
 	}
+
 	return nil
 }
 
-// expandEnvPlaceholders expands ${VAR} placeholders in string values
+// expandEnvPlaceholders expands ${VAR} placeholders in string values.
 func (f *DefaultConfigFactory) expandEnvPlaceholders(k *koanf.Koanf) {
 	for _, key := range k.Keys() {
 		val := k.String(key)
@@ -138,10 +142,12 @@ func (f *DefaultConfigFactory) expandEnvPlaceholders(k *koanf.Koanf) {
 	}
 }
 
+// getEnvironment returns the environment.
 func (f *DefaultConfigFactory) getEnvironment() string {
 	env := os.Getenv("APP_ENV")
 	if env == "" {
 		env = "dev"
 	}
+
 	return env
 }

@@ -3,14 +3,12 @@ package config
 import (
 	"testing"
 
-	"github.com/knadh/koanf/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewDotenvParser_KeyNormalizationAndInterface(t *testing.T) {
 	parser := NewDotenvParser()
-	var _ koanf.Parser = parser
 
 	envContent := `APP_NAME=test
 DATABASE_HOST=localhost

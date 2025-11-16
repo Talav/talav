@@ -6,7 +6,8 @@ FROM qmcgaw/godevcontainer:debian
 RUN go install github.com/air-verse/air@latest && \
     go install golang.org/x/tools/gopls@latest && \
     go install github.com/jmattheis/goverter/cmd/goverter@v1.9.1 && \
-    go install github.com/cweill/gotests/...@latest
+    go install github.com/cweill/gotests/...@latest && \ 
+    go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.6.2
 
 # Copy the entrypoint script into the image
 COPY .devcontainer/entrypoint.sh /usr/local/bin/entrypoint.sh
