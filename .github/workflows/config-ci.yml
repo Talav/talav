@@ -1,12 +1,20 @@
 name: "config-ci"
 
 on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Go module path to test"
+        required: false
+        type: string
+        default: "pkg/component/config"
   push:
     branches:
       - "feat**"
       - "fix**"
       - "hotfix**"
       - "chore**"
+      - "main"
     paths:
       - "pkg/component/config/**.go"
       - "pkg/component/config/go.mod"
