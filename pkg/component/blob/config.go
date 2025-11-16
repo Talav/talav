@@ -1,6 +1,6 @@
 package blob
 
-// FilesystemConfig represents configuration for a single filesystem
+// FilesystemConfig represents configuration for a single filesystem.
 type FilesystemConfig struct {
 	URL string `config:"url"`
 }

@@ -99,22 +99,12 @@ func (f *DefaultValidatorFactory) registerFieldValidationsCtx(v *validator.Valid
 
 func (f *DefaultValidatorFactory) registerStructValidations(v *validator.Validate, structValidationDefs []StructValidationDefinition) {
 	for _, def := range structValidationDefs {
-		types := def.Types()
-		typeArgs := make([]any, len(types))
-		for i, t := range types {
-			typeArgs[i] = t
-		}
-		v.RegisterStructValidationCtx(def.Fn(), typeArgs...)
+		v.RegisterStructValidationCtx(def.Fn(), def.Types()...)
 	}
 }
 
 func (f *DefaultValidatorFactory) registerCustomTypeValidations(v *validator.Validate, customTypeDefs []CustomTypeDefinition) {
 	for _, def := range customTypeDefs {
-		types := def.Types()
-		typeArgs := make([]any, len(types))
-		for i, t := range types {
-			typeArgs[i] = t
-		}
-		v.RegisterCustomTypeFunc(def.Fn(), typeArgs...)
+		v.RegisterCustomTypeFunc(def.Fn(), def.Types()...)
 	}
 }

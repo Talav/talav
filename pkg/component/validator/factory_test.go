@@ -3,7 +3,6 @@ package validator
 import (
 	"context"
 	"errors"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -44,11 +43,11 @@ func (t *testValidationDefinitionCtx) CallEvenIfNull() bool  { return t.callEven
 
 type testStructValidationDefinition struct {
 	fn    validator.StructLevelFuncCtx
-	types []reflect.Type
+	types []any
 }
 
 func (t *testStructValidationDefinition) Fn() validator.StructLevelFuncCtx { return t.fn }
-func (t *testStructValidationDefinition) Types() []reflect.Type            { return t.types }
+func (t *testStructValidationDefinition) Types() []any                     { return t.types }
 
 func TestDefaultValidatorFactory_Create_JSONTagNameFunction(t *testing.T) {
 	factory := NewDefaultValidatorFactory()
@@ -165,10 +164,8 @@ func TestDefaultValidatorFactory_Create_StructLevelValidation(t *testing.T) {
 
 	structDefs := []StructValidationDefinition{
 		&testStructValidationDefinition{
-			fn: structValidationFn,
-			types: []reflect.Type{
-				reflect.TypeOf(TestStruct{}),
-			},
+			fn:    structValidationFn,
+			types: []any{TestStruct{}},
 		},
 	}
 

@@ -1,6 +1,7 @@
 package fxvalidator
 
 import (
+	playgroundvalidator "github.com/go-playground/validator/v10"
 	"github.com/talav/talav/pkg/component/validator"
 	"go.uber.org/fx"
 )
@@ -80,10 +81,16 @@ func AsValidatorConstructorCtx(constructor any, annotations ...fx.Annotation) fx
 	)
 }
 
-// AsStructValidator registers a struct validation definition.
-// Additional annotations can be passed as variadic arguments.
-func AsStructValidator(def validator.StructValidationDefinition, annotations ...fx.Annotation) fx.Option {
-	annotations = append(annotations, fx.ResultTags(`group:"talav-validator-struct-validations"`))
+// AsStructValidation registers a struct level validation.
+func AsStructValidation(fn playgroundvalidator.StructLevelFuncCtx, types ...any) fx.Option {
+	def := &structValidationDefinition{
+		fn:    fn,
+		types: types,
+	}
+	annotations := []fx.Annotation{
+		fx.ResultTags(`group:"talav-validator-struct-validations"`),
+		fx.As(new(validator.StructValidationDefinition)),
+	}
 
 	return fx.Supply(
 		fx.Annotate(
@@ -93,10 +100,29 @@ func AsStructValidator(def validator.StructValidationDefinition, annotations ...
 	)
 }
 
-// AsCustomTypeValidator registers a custom type definition.
-// Additional annotations can be passed as variadic arguments.
-func AsCustomTypeValidator(def validator.CustomTypeDefinition, annotations ...fx.Annotation) fx.Option {
-	annotations = append(annotations, fx.ResultTags(`group:"talav-validator-custom-types"`))
+type structValidationDefinition struct {
+	fn    playgroundvalidator.StructLevelFuncCtx
+	types []any
+}
+
+func (d *structValidationDefinition) Fn() playgroundvalidator.StructLevelFuncCtx {
+	return d.fn
+}
+
+func (d *structValidationDefinition) Types() []any {
+	return d.types
+}
+
+// AsCustomType registers a custom type.
+func AsCustomType(fn playgroundvalidator.CustomTypeFunc, types ...any) fx.Option {
+	def := &customTypeDefinition{
+		fn:    fn,
+		types: types,
+	}
+	annotations := []fx.Annotation{
+		fx.ResultTags(`group:"talav-validator-custom-types"`),
+		fx.As(new(validator.CustomTypeDefinition)),
+	}
 
 	return fx.Supply(
 		fx.Annotate(
@@ -104,6 +130,19 @@ func AsCustomTypeValidator(def validator.CustomTypeDefinition, annotations ...fx
 			annotations...,
 		),
 	)
+}
+
+type customTypeDefinition struct {
+	fn    playgroundvalidator.CustomTypeFunc
+	types []any
+}
+
+func (d *customTypeDefinition) Fn() playgroundvalidator.CustomTypeFunc {
+	return d.fn
+}
+
+func (d *customTypeDefinition) Types() []any {
+	return d.types
 }
 
 // AsTranslation registers a translation definition.

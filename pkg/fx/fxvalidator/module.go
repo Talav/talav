@@ -48,12 +48,26 @@ func NewFxValidator(p FxValidatorParam) (*playgroundvalidator.Validate, error) {
 		}
 	}
 
+	structDefs := make([]validator.StructValidationDefinition, 0, len(p.StructValidationDefinitions))
+	for _, def := range p.StructValidationDefinitions {
+		if def != nil {
+			structDefs = append(structDefs, def)
+		}
+	}
+
+	customTypeDefs := make([]validator.CustomTypeDefinition, 0, len(p.CustomTypeDefinitions))
+	for _, def := range p.CustomTypeDefinitions {
+		if def != nil {
+			customTypeDefs = append(customTypeDefs, def)
+		}
+	}
+
 	return p.Factory.Create(
 		p.AliasDefinitions,
 		validDefs,
 		validDefsCtx,
-		p.StructValidationDefinitions,
-		p.CustomTypeDefinitions,
+		structDefs,
+		customTypeDefs,
 	)
 }
 

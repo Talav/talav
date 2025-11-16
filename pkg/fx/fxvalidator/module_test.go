@@ -28,22 +28,6 @@ func (t *testValidationDefinition) Tag() string                  { return t.tag 
 func (t *testValidationDefinition) Fn() playgroundvalidator.Func { return t.fn }
 func (t *testValidationDefinition) CallEvenIfNull() bool         { return t.callEvenIfNull }
 
-type testStructValidationDefinition struct {
-	fn    playgroundvalidator.StructLevelFuncCtx
-	types []reflect.Type
-}
-
-func (t *testStructValidationDefinition) Fn() playgroundvalidator.StructLevelFuncCtx { return t.fn }
-func (t *testStructValidationDefinition) Types() []reflect.Type                      { return t.types }
-
-type testCustomTypeDefinition struct {
-	fn    playgroundvalidator.CustomTypeFunc
-	types []reflect.Type
-}
-
-func (t *testCustomTypeDefinition) Fn() playgroundvalidator.CustomTypeFunc { return t.fn }
-func (t *testCustomTypeDefinition) Types() []reflect.Type                  { return t.types }
-
 type testTranslationDefinition struct {
 	tag     string
 	message string
@@ -129,32 +113,36 @@ func TestModule_NewFxValidator_StructValidator(t *testing.T) {
 		t,
 		fx.NopLogger,
 		FxValidatorModule,
-		AsStructValidator(&testStructValidationDefinition{
-			fn:    structValidationFn,
-			types: []reflect.Type{reflect.TypeOf(PasswordStruct{})},
-		}),
+		AsStructValidation(structValidationFn, PasswordStruct{}),
 		fx.Populate(&v),
 	).RequireStart().RequireStop()
 
 	require.NotNil(t, v)
 
-	// Valid case - passwords match
-	err := v.StructCtx(context.Background(), PasswordStruct{
+	// Test that struct validator is registered and validator instance is functional
+	// Struct validators are registered and will be called during validation
+	// Note: Struct validators are called after field-level validations pass
+	testStruct := PasswordStruct{
 		Password:        "password123",
 		PasswordConfirm: "password123",
-	})
+	}
+
+	// Valid case - passwords match (field validations pass, struct validator should pass)
+	err := v.StructCtx(context.Background(), testStruct)
 	assert.NoError(t, err)
 
 	// Invalid case - passwords don't match
+	// Struct validator should report an error when passwords don't match
 	err = v.StructCtx(context.Background(), PasswordStruct{
 		Password:        "password123",
 		PasswordConfirm: "different",
 	})
-	require.Error(t, err)
-	var validationErrors playgroundvalidator.ValidationErrors
-	require.True(t, errors.As(err, &validationErrors))
+	require.Error(t, err, "struct validator should report error when passwords don't match")
 
-	// Find the password_match error
+	var validationErrors playgroundvalidator.ValidationErrors
+	require.True(t, errors.As(err, &validationErrors), "error should be validation errors")
+
+	// Check if password_match error is present
 	found := false
 	for _, ve := range validationErrors {
 		if ve.Tag() == "password_match" {
@@ -164,7 +152,7 @@ func TestModule_NewFxValidator_StructValidator(t *testing.T) {
 			break
 		}
 	}
-	assert.True(t, found, "should have password_match validation error")
+	require.True(t, found, "struct validator MUST report password_match error when passwords don't match")
 }
 
 func TestModule_NewFxValidator_CustomTypeValidator(t *testing.T) {
@@ -187,10 +175,7 @@ func TestModule_NewFxValidator_CustomTypeValidator(t *testing.T) {
 		t,
 		fx.NopLogger,
 		FxValidatorModule,
-		AsCustomTypeValidator(&testCustomTypeDefinition{
-			fn:    customTypeFn,
-			types: []reflect.Type{reflect.TypeOf(MyString(""))},
-		}),
+		AsCustomType(customTypeFn, MyString("")),
 		fx.Populate(&v),
 	).RequireStart().RequireStop()
 

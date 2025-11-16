@@ -1,8 +1,6 @@
 package validator
 
 import (
-	"reflect"
-
 	ut "github.com/go-playground/universal-translator"
 	v "github.com/go-playground/validator/v10"
 )
@@ -30,13 +28,13 @@ type ValidationDefinitionCtx interface {
 // StructValidationDefinition defines a struct-level validator.
 type StructValidationDefinition interface {
 	Fn() v.StructLevelFuncCtx
-	Types() []reflect.Type
+	Types() []any
 }
 
 // CustomTypeDefinition defines a custom type validator.
 type CustomTypeDefinition interface {
 	Fn() v.CustomTypeFunc
-	Types() []reflect.Type
+	Types() []any
 }
 
 // TranslationDefinition defines a validator translation.
