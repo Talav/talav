@@ -45,7 +45,6 @@ type User struct {
 
 func main() {
 	fx.New(
-		fxconfig.FxConfigModule,                    // Required: validator depends on config
 		fxvalidator.FxValidatorModule,              // Load the validator module
 		fx.Invoke(func(v *playgroundvalidator.Validate) {
 			user := User{
@@ -64,12 +63,11 @@ func main() {
 
 ## Dependencies
 
-The `FxValidatorModule` requires `*config.Config` to be provided by `FxConfigModule`. Always include `fxconfig.FxConfigModule` before `fxvalidator.FxValidatorModule`:
+The `FxValidatorModule` has no external dependencies. It can be used standalone or alongside other Fx modules:
 
 ```go
 fx.New(
-	fxconfig.FxConfigModule,      // Must come first
-	fxvalidator.FxValidatorModule, // Depends on config
+	fxvalidator.FxValidatorModule, // Can be used standalone
 	// ...
 )
 ```
@@ -114,7 +112,6 @@ func (v *uppercaseValidator) CallEvenIfNull() bool {
 
 func main() {
 	fx.New(
-		fxconfig.FxConfigModule,
 		fxvalidator.FxValidatorModule,
 		fxvalidator.AsValidator(&uppercaseValidator{tag: "uppercase"}),
 		fx.Invoke(func(v *playgroundvalidator.Validate) {
@@ -157,7 +154,6 @@ func (v *uppercaseValidatorCtx) CallEvenIfNull() bool {
 }
 
 fx.New(
-	fxconfig.FxConfigModule,
 	fxvalidator.FxValidatorModule,
 	fxvalidator.AsValidatorCtx(&uppercaseValidatorCtx{tag: "uppercase_ctx"}),
 	// ...
@@ -189,21 +185,15 @@ func (v *configurableValidator) CallEvenIfNull() bool {
 	return false
 }
 
-func NewConfigurableValidator(cfg *config.Config) validator.ValidationDefinition {
-	var minLen int
-	cfg.UnmarshalKey("validator.min_length", &minLen)
-	if minLen == 0 {
-		minLen = 5 // default
-	}
-	
+func NewConfigurableValidator() validator.ValidationDefinition {
+	// Can inject dependencies via Fx
 	return &configurableValidator{
 		tag:    "minlen",
-		minLen: minLen,
+		minLen: 5, // default or from injected config
 	}
 }
 
 fx.New(
-	fxconfig.FxConfigModule,
 	fxvalidator.FxValidatorModule,
 	fxvalidator.AsValidatorConstructor(NewConfigurableValidator),
 	// ...
@@ -254,7 +244,6 @@ func (v *passwordMatchValidator) Types() []reflect.Type {
 }
 
 fx.New(
-	fxconfig.FxConfigModule,
 	fxvalidator.FxValidatorModule,
 	fxvalidator.AsStructValidator(&passwordMatchValidator{}),
 	// ...
@@ -282,7 +271,6 @@ func (v *customTypeValidator) Types() []reflect.Type {
 }
 
 fx.New(
-	fxconfig.FxConfigModule,
 	fxvalidator.FxValidatorModule,
 	fxvalidator.AsCustomTypeValidator(&customTypeValidator{
 		types: []reflect.Type{reflect.TypeOf(MyCustomType{})},
@@ -307,7 +295,6 @@ func (a *notEmptyAlias) Tags() string {
 }
 
 fx.New(
-	fxconfig.FxConfigModule,
 	fxvalidator.FxValidatorModule,
 	fxvalidator.AsValidatorAlias(&notEmptyAlias{}),
 	fx.Invoke(func(v *playgroundvalidator.Validate) {
@@ -355,7 +342,6 @@ func (t *uppercaseTranslation) Register(v *playgroundvalidator.Validate, trans u
 }
 
 fx.New(
-	fxconfig.FxConfigModule,
 	fxvalidator.FxValidatorModule,
 	fxvalidator.AsValidator(&uppercaseValidator{tag: "uppercase"}),
 	fxvalidator.AsTranslation(&uppercaseTranslation{tag: "uppercase"}),
@@ -386,7 +372,6 @@ func NewUppercaseTranslation(cfg *config.Config) validator.TranslationDefinition
 }
 
 fx.New(
-	fxconfig.FxConfigModule,
 	fxvalidator.FxValidatorModule,
 	fxvalidator.AsTranslationConstructor(NewUppercaseTranslation),
 	// ...
@@ -408,7 +393,6 @@ The module provides the following for injection:
 
 The module automatically collects:
 
-- `*config.Config` - Configuration instance (must be provided by `FxConfigModule`)
 - `[]validator.AliasDefinition` (group: `"talav-validator-aliases"`) - Validator aliases
 - `[]validator.ValidationDefinition` (group: `"talav-validator-validations"`) - Field validators (non-context)
 - `[]validator.ValidationDefinitionCtx` (group: `"talav-validator-validations-ctx"`) - Field validators (with context)
@@ -436,7 +420,7 @@ var FxValidatorModule = fx.Module(
 )
 ```
 
-The main Fx module. Include this in your `fx.New()` call after `fxconfig.FxConfigModule`.
+The main Fx module. Include this in your `fx.New()` call.
 
 ### AsValidatorAlias
 
@@ -624,7 +608,6 @@ func (f *CustomValidatorFactory) Create(
 
 func main() {
 	fx.New(
-		fxconfig.FxConfigModule,
 		fx.Decorate(NewCustomValidatorFactory),     // Override the factory
 		fxvalidator.FxValidatorModule,
 		fx.Invoke(func(v *validator.Validate) {
@@ -640,7 +623,6 @@ Validation errors during module construction cause the application to fail:
 
 ```go
 fx.New(
-	fxconfig.FxConfigModule,
 	fxvalidator.FxValidatorModule,
 	fxvalidator.AsValidator(&invalidValidator{}), // Invalid validator
 ).Run()
@@ -651,19 +633,7 @@ This fail-fast behavior ensures validator issues are caught early rather than ca
 
 ## Best Practices
 
-### 1. Always Include Config Module
-
-The validator module requires configuration. Always include `fxconfig.FxConfigModule` first:
-
-```go
-fx.New(
-	fxconfig.FxConfigModule,      // Required first
-	fxvalidator.FxValidatorModule,
-	// ...
-)
-```
-
-### 2. Use Constructors for Configurable Validators
+### 1. Use Constructors for Configurable Validators
 
 When validators need configuration or other dependencies, use constructors:
 
@@ -675,7 +645,7 @@ fxvalidator.AsValidatorConstructor(NewConfigurableValidator)
 fxvalidator.AsValidator(&staticValidator{})
 ```
 
-### 3. Group Related Validators
+### 2. Group Related Validators
 
 Create a module for related validators:
 
@@ -695,13 +665,12 @@ var UserValidatorsModule = fx.Module(
 )
 ```
 
-### 4. Provide Translations
+### 3. Provide Translations
 
 Always provide translations for custom validators:
 
 ```go
 fx.New(
-	fxconfig.FxConfigModule,
 	fxvalidator.FxValidatorModule,
 	fxvalidator.AsValidator(&uppercaseValidator{tag: "uppercase"}),
 	fxvalidator.AsTranslation(&uppercaseTranslation{tag: "uppercase"}), // Provide translation
@@ -709,7 +678,7 @@ fx.New(
 )
 ```
 
-### 5. Use Context Validators When Needed
+### 4. Use Context Validators When Needed
 
 Use context validators when you need access to request context or other contextual data:
 
@@ -742,12 +711,6 @@ func TestMyComponent(t *testing.T) {
 	fxtest.New(
 		t,
 		fx.NopLogger,
-		fxconfig.FxConfigModule,
-		fxconfig.AsConfigSource(config.ConfigSource{
-			Path:     "./testdata",
-			Patterns: []string{"config.yaml"},
-			Parser:   yaml.Parser(),
-		}),
 		fxvalidator.FxValidatorModule,
 		fx.Populate(&v),
 	).RequireStart().RequireStop()
@@ -762,9 +725,7 @@ func TestMyComponent(t *testing.T) {
 ## Dependencies
 
 - [go.uber.org/fx](https://github.com/uber-go/fx) v1.24.0+
-- [github.com/talav/talav/pkg/component/config](../component/config)
 - [github.com/talav/talav/pkg/component/validator](../component/validator)
-- [github.com/talav/talav/pkg/fx/fxconfig](../fxconfig)
 - [github.com/go-playground/validator/v10](https://github.com/go-playground/validator)
 - [github.com/go-playground/universal-translator](https://github.com/go-playground/universal-translator)
 

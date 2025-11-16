@@ -1,6 +1,7 @@
 go 1.25.0
 
 use (
+	./pkg/component/blob
 	./pkg/component/config
 	./pkg/component/logger
 	./pkg/component/validator
