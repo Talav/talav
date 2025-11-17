@@ -4,9 +4,12 @@ use (
 	./pkg/component/blob
 	./pkg/component/config
 	./pkg/component/logger
+	./pkg/component/orm
 	./pkg/component/validator
 	./pkg/fx/fxblob
 	./pkg/fx/fxconfig
+	./pkg/fx/fxcore
 	./pkg/fx/fxlogger
+	./pkg/fx/fxorm
 	./pkg/fx/fxvalidator
 )
