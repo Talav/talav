@@ -6,7 +6,7 @@ import (
 	"github.com/talav/talav/pkg/component/validator"
 )
 
-// Ensure UniqueTranslation implements TranslationDefinition
+// Ensure UniqueTranslation implements TranslationDefinition.
 var _ validator.TranslationDefinition = (*UniqueTranslation)(nil)
 
 // UniqueTranslation defines the translation for the "unique" validator.
@@ -30,6 +30,7 @@ func (t *UniqueTranslation) Register(validator *v.Validate, trans ut.Translator)
 		},
 		func(ut ut.Translator, fe v.FieldError) string {
 			t, _ := ut.T(fe.Tag(), fe.Field())
+
 			return t
 		})
 }

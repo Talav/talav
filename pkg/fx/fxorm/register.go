@@ -19,7 +19,7 @@ import (
 //	)
 func AsRepository[T any](constructor any, annotations ...fx.Annotation) fx.Option {
 	// Provide to the group as ExistsChecker
-	groupAnnotations := append(annotations,
+	annotations = append(annotations,
 		fx.ResultTags(`group:"repository-checkers"`),
 		fx.As(new(orm.ExistsChecker)),
 	)
@@ -32,7 +32,7 @@ func AsRepository[T any](constructor any, annotations ...fx.Annotation) fx.Optio
 		fx.Provide(
 			fx.Annotate(
 				constructor,
-				groupAnnotations...,
+				annotations...,
 			),
 		),
 		// Provide as concrete type

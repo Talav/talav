@@ -54,6 +54,7 @@ type FxUniqueValidatorDefinitionParam struct {
 func NewFxUniqueValidatorDefinition(p FxUniqueValidatorDefinitionParam) validator.ValidationDefinitionCtx {
 	registry := orm.NewRepositoryRegistryFromRepos(p.Repositories)
 	validator := orm.NewUniqueValidator(registry)
+
 	return &uniqueValidatorDefinition{
 		validator: validator,
 	}
