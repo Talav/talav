@@ -1,0 +1,196 @@
+---
+description: Go idiomatic function and method ordering conventions
+alwaysApply: false
+globs: ["*.go"]
+---
+
+## Function and Method Ordering in Go Files
+
+Follow this idiomatic ordering when organizing functions and methods in Go files. This convention improves readability and makes the file's purpose immediately clear.
+
+### Standard Order for Production Code
+
+1. **Package declaration and imports**
+   ```go
+   package schema
+   
+   import (...)
+   ```
+
+2. **Type definitions**
+   ```go
+   type DefaultDecoder struct{}
+   ```
+
+3. **Constructor functions** (New* functions)
+   ```go
+   func NewDefaultDecoder() Decoder { ... }
+   ```
+
+4. **Public methods** (exported, capitalized) - **PRIMARY ENTRY POINTS FIRST**
+   - Main public API methods should appear immediately after constructors
+   - These are the primary entry points that users of the package will call
+   - Order by importance/usage frequency
+   ```go
+   func (d *DefaultDecoder) Decode(...) { ... }
+   ```
+
+5. **Private methods called by public methods** (unexported, lowercase)
+   - Group by call hierarchy: methods called by public methods come first
+   - Order should reflect the call chain from public to private
+   ```go
+   func (d *DefaultDecoder) decodeQuery(...) { ... }
+   func (d *DefaultDecoder) decodeCookie(...) { ... }
+   ```
+
+6. **Implementation/helper methods**
+   - Methods that implement specific functionality
+   - Called by the methods in step 5
+   ```go
+   func (d *DefaultDecoder) decodeFormStyle(...) { ... }
+   func (d *DefaultDecoder) decodeSimpleStyle(...) { ... }
+   ```
+
+7. **Utility/helper functions**
+   - Low-level utilities used throughout
+   - String manipulation, type conversions, etc.
+   ```go
+   func (d *DefaultDecoder) parseQuery(...) { ... }
+   func (d *DefaultDecoder) stringSliceToAny(...) { ... }
+   ```
+
+### Test File Ordering
+
+For `*_test.go` files, use this ordering:
+
+1. **Package declaration and imports**
+   ```go
+   package schema
+   
+   import (
+       "testing"
+       ...
+   )
+   ```
+
+2. **Test helper types and functions** (optional, but recommended before tests)
+   - Setup/teardown functions
+   - Helper functions used by multiple tests
+   - Mock types used by multiple tests
+   ```go
+   // Helper function for creating test instances
+   func defaultMarshaler() Marshaler { ... }
+   
+   // Mock types
+   type mockDecoder struct { ... }
+   ```
+
+3. **Test functions** (Test* functions)
+   - **Important**: Go does NOT guarantee test execution order
+   - Tests should be independent and order-agnostic
+   - Group related tests together for readability
+   - Order by logical grouping (e.g., by feature, by method being tested)
+   ```go
+   func TestMarshal_BasicTypes(t *testing.T) { ... }
+   func TestMarshal_EmbeddedStruct(t *testing.T) { ... }
+   func TestMarshal_Slices(t *testing.T) { ... }
+   ```
+
+4. **Test-specific helpers and mocks** (optional, after tests)
+   - Mock types used by only one or few tests
+   - Helper functions specific to certain tests
+   ```go
+   // Mock used only by TestCodec_WithDecoder_WithEncoder
+   type mockEncoder struct { ... }
+   ```
+
+### Key Principles
+
+**For Production Code:**
+- **Public API first**: The main exported functions/methods should be visible at the top of the file
+- **Top-down reading**: File should read naturally from high-level to low-level
+- **Group by responsibility**: Related functions should be grouped together
+- **Call hierarchy**: Functions should be ordered to minimize forward references (though Go allows forward references, ordering by call hierarchy improves readability)
+
+**For Test Code:**
+- **Test independence**: Each test must be independent and order-agnostic (Go randomizes test execution)
+- **Helper visibility**: Place commonly-used helpers before tests for easy discovery
+- **Logical grouping**: Group related tests together (e.g., all tests for one method)
+- **Mock placement**: Shared mocks before tests, test-specific mocks after tests
+
+### Anti-patterns to Avoid
+
+**Production Code:**
+- ❌ Burying main public methods in the middle of helper functions
+- ❌ Mixing public and private methods randomly
+- ❌ Placing utility functions before the methods that use them (unless they're truly independent)
+
+**Test Code:**
+- ❌ Writing tests that depend on execution order
+- ❌ Using global state that persists between tests
+- ❌ Placing commonly-used helpers at the end of the file
+
+### Example Structure - Production Code
+
+```go
+package schema
+
+import (...)
+
+type DefaultDecoder struct{}
+
+// Constructor
+func NewDefaultDecoder() Decoder { ... }
+
+// Main public API (PRIMARY ENTRY POINT)
+func (d *DefaultDecoder) Decode(...) { ... }
+
+// Location-specific handlers (called by Decode)
+func (d *DefaultDecoder) decodeQuery(...) { ... }
+func (d *DefaultDecoder) decodeCookie(...) { ... }
+func (d *DefaultDecoder) decodeHeader(...) { ... }
+func (d *DefaultDecoder) decodePath(...) { ... }
+
+// Style-specific handlers (called by location handlers)
+func (d *DefaultDecoder) decodeFormStyle(...) { ... }
+func (d *DefaultDecoder) decodeSimpleStyle(...) { ... }
+func (d *DefaultDecoder) decodeLabelStyle(...) { ... }
+
+// Utility functions (used by handlers)
+func (d *DefaultDecoder) parseQuery(...) { ... }
+func (d *DefaultDecoder) processFormValue(...) { ... }
+func (d *DefaultDecoder) stringSliceToAny(...) { ... }
+```
+
+### Example Structure - Test Code
+
+```go
+package schema
+
+import (
+    "testing"
+    ...
+)
+
+// Helper function used by multiple tests
+func defaultMarshaler() Marshaler {
+    fieldCache := NewFieldCache()
+    return NewDefaultMarshaler("schema", fieldCache)
+}
+
+// Test functions (order doesn't matter for execution)
+func TestMarshal_BasicTypes(t *testing.T) { ... }
+func TestMarshal_EmbeddedStruct(t *testing.T) { ... }
+func TestMarshal_Slices(t *testing.T) { ... }
+
+// Mock used only by specific test
+type mockEncoder struct { ... }
+func (m *mockEncoder) Encode(...) { ... }
+```
+
+### Notes
+
+- Go allows forward references, so function order doesn't affect compilation
+- Function ordering is about **readability and maintainability**, not correctness
+- Test execution order is intentionally non-deterministic in Go (since Go 1.17, use `-shuffle` flag to randomize)
+- If you need sequential test execution, use subtests with `t.Run()` within a single test function

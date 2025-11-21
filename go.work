@@ -5,6 +5,7 @@ use (
 	./pkg/component/config
 	./pkg/component/logger
 	./pkg/component/orm
+	./pkg/component/schema
 	./pkg/component/validator
 	./pkg/fx/fxblob
 	./pkg/fx/fxconfig
