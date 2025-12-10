@@ -7,6 +7,7 @@ use (
 	./pkg/component/negotiation
 	./pkg/component/orm
 	./pkg/component/schema
+	./pkg/component/tagparser
 	./pkg/component/validator
 	./pkg/fx/fxblob
 	./pkg/fx/fxconfig
