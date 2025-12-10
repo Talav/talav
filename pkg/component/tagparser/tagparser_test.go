@@ -73,42 +73,57 @@ func TestParse(t *testing.T) {
 		t.Run(test.testName, func(t *testing.T) {
 			tag, err := Parse(test.tag)
 
-			if err != nil {
-				ae := err.Error()
-				if test.error == "" {
-					t.Errorf("** Parse(%q) error %q, wanted no error", test.tag, ae)
-				} else if ae != test.error {
-					t.Errorf("** Parse(%q) error %q, wanted error %q", test.tag, ae, test.error)
-				}
-			} else if test.error != "" {
-				t.Errorf("** Parse(%q) no error, wanted error %q", test.tag, test.error)
-			}
-
+			checkError(t, test.tag, err, test.error)
 			if err != nil {
 				return
 			}
 
-			if tag.Name != test.name {
-				t.Errorf("** Parse(%q) name = %q, wanted %q", test.tag, tag.Name, test.name)
-			}
-
-			if !reflect.DeepEqual(tag.Options, test.opts) {
-				for k, ev := range test.opts {
-					av, ok := tag.Options[k]
-					if !ok {
-						t.Errorf("** Parse(%q) missing option %q = %q", test.tag, k, ev)
-					} else if av != ev {
-						t.Fatalf("** Parse(%q) option %q = %q, wanted %q", test.tag, k, av, ev)
-					}
-				}
-				for k, av := range tag.Options {
-					_, ok := test.opts[k]
-					if !ok {
-						t.Errorf("** Parse(%q) extra option %q = %q", test.tag, k, av)
-					}
-				}
-			}
+			checkName(t, test.tag, tag.Name, test.name)
+			checkOptions(t, test.tag, tag.Options, test.opts)
 		})
+	}
+}
+
+func checkError(t *testing.T, tag string, err error, wantErr string) {
+	t.Helper()
+	if err != nil {
+		ae := err.Error()
+		if wantErr == "" {
+			t.Errorf("** Parse(%q) error %q, wanted no error", tag, ae)
+		} else if ae != wantErr {
+			t.Errorf("** Parse(%q) error %q, wanted error %q", tag, ae, wantErr)
+		}
+	} else if wantErr != "" {
+		t.Errorf("** Parse(%q) no error, wanted error %q", tag, wantErr)
+	}
+}
+
+func checkName(t *testing.T, tag string, got, want string) {
+	t.Helper()
+	if got != want {
+		t.Errorf("** Parse(%q) name = %q, wanted %q", tag, got, want)
+	}
+}
+
+func checkOptions(t *testing.T, tag string, got, want map[string]string) {
+	t.Helper()
+	if reflect.DeepEqual(got, want) {
+		return
+	}
+
+	for k, ev := range want {
+		av, ok := got[k]
+		if !ok {
+			t.Errorf("** Parse(%q) missing option %q = %q", tag, k, ev)
+		} else if av != ev {
+			t.Fatalf("** Parse(%q) option %q = %q, wanted %q", tag, k, av, ev)
+		}
+	}
+	for k, av := range got {
+		_, ok := want[k]
+		if !ok {
+			t.Errorf("** Parse(%q) extra option %q = %q", tag, k, av)
+		}
 	}
 }
 
@@ -128,12 +143,14 @@ func TestParseFunc_custom_error_in_name(t *testing.T) {
 		if key == "" {
 			return errSimulated
 		}
+
 		return nil
 	})
 	if err.Error() != expErr {
 		t.Errorf("** error = %v, wanted %v", err, expErr)
 	}
-	if err.(*Error).Cause != errSimulated {
+	var errType *Error
+	if !errors.As(err, &errType) || !errors.Is(errType.Cause, errSimulated) {
 		t.Errorf("** Cause = %v, wanted %v", err, expErr)
 	}
 }
@@ -145,12 +162,14 @@ func TestParseFunc_custom_error_in_key(t *testing.T) {
 		if key == "bar" {
 			return errSimulated
 		}
+
 		return nil
 	})
 	if err.Error() != expErr {
 		t.Errorf("** error = %v, wanted %v", err, expErr)
 	}
-	if err.(*Error).Cause != errSimulated {
+	var errType *Error
+	if !errors.As(err, &errType) || !errors.Is(errType.Cause, errSimulated) {
 		t.Errorf("** Cause = %v, wanted %v", err, expErr)
 	}
 }
@@ -161,6 +180,7 @@ func BenchmarkParseFunc(t *testing.B) {
 		slice = slice[:0]
 		err := ParseFunc(`foo,bar:boz,fubar,bar:zob,oof`, func(key, value string) error {
 			slice = append(slice, key, value)
+
 			return nil
 		})
 		if err != nil {

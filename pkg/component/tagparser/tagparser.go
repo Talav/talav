@@ -4,54 +4,51 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"unsafe"
 )
 
 // ErrDuplicateKey is returned as Error.Cause for duplicate tag keys.
 var ErrDuplicateKey = errors.New("duplicate option key")
 
+const (
+	errQuotesMustEnclose  = "quotes must enclose the entire value"
+	errUnterminatedQuote  = "unterminated quote"
+	errEmptyKey           = "empty key"
+	errUnterminatedEscape = "unterminated escape sequence"
+	errInvalidEscape      = "invalid escape character"
+	errInvalidQuote       = "invalid quote"
+)
+
 // Error is the type of error returned by parse funcs in this package.
 type Error struct {
-	// Tag is the original tag string that has a syntax error.
-	Tag string
-	// Pos is a 0-based position within the Tag string appropriate to report
-	// as errorneous.
-	Pos int
-	// Msg is an error message, or an optional prefix to the error message of
-	// the Cause.
-	Msg string
-	// Cause is an optional underlying error returned by ParseFunc callback, or
-	// ErrDuplicateKey.
-	Cause error
-}
-
-type Tag struct {
-	Name    string
-	Options map[string]string
+	Tag   string // Original tag string
+	Pos   int    // 0-based position of error
+	Msg   string // Error message
+	Cause error  // Optional underlying error
 }
 
 func (e *Error) Error() string {
 	if e.Cause != nil {
 		if e.Msg != "" {
 			return fmt.Sprintf("%s: %v (at %d)", e.Msg, e.Cause, e.Pos+1)
-		} else {
-			return fmt.Sprintf("%v (at %d)", e.Cause, e.Pos+1)
 		}
-	} else {
-		return fmt.Sprintf("%s (at %d)", e.Msg, e.Pos+1)
+
+		return fmt.Sprintf("%v (at %d)", e.Cause, e.Pos+1)
 	}
+
+	return fmt.Sprintf("%s (at %d)", e.Msg, e.Pos+1)
 }
 
-func (e *Error) Unwrap() error {
-	return e.Cause
+func (e *Error) Unwrap() error { return e.Cause }
+
+// Tag represents a parsed struct tag.
+type Tag struct {
+	Name    string
+	Options map[string]string
 }
 
-// Parse parses a tag treating the first item as a name. See ParseFunc for
-// the full syntax and details.
+// Parse parses a tag treating the first item as a name.
 func Parse(tag string) (*Tag, error) {
-	result := &Tag{
-		Options: make(map[string]string),
-	}
+	result := &Tag{Options: make(map[string]string)}
 	err := ParseFunc(tag, func(key, value string) error {
 		if key == "" {
 			result.Name = value
@@ -61,219 +58,233 @@ func Parse(tag string) (*Tag, error) {
 			}
 			result.Options[key] = value
 		}
+
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
+
 	return result, nil
 }
 
 // ParseFunc enumerates fields of a tag formatted as a list of keys and/or
 // key-value pairs, treating the first item as a name.
 //
-// The format of the tag is:
+// Format: name,key1,key2:value2,key3:'quoted, value',key4
 //
-//	name,key1,key2:value2,key3:'quoted, value',key4
-//
-// Tag syntax:
-//
-//  1. A tag is a list of comma-separated items.
-//
-//  2. An item is either a key:value pair or just a single string.
-//
-//  3. Both keys and values can be bare words (`foo: bar`) or single-quoted
-//     strings (`foo: 'bar: boz, buzz and fubar'`). Quotes, if present, must
-//     enclose the entire value after trimming whitespace. Mixed quoting like
-//     `foo'bar'` is not allowed.
-//
-//  4. Both keys and values can use a backslash to escape special characters
-//     (`foo\ bar`, `foo\:bar`, `foo\,bar`, `'foo\'n\'bar'`). In bare strings,
-//     escape colons and commas. In quoted strings, escape quotes and backslashes.
-//     Examples:
-//     - Bare: `foo\:bar` → "foo:bar"
-//     - Quoted: `'foo\'bar'` → "foo'bar"
-//     - Quoted: `'foo\\bar'` → "foo\bar"
-//     The escapes are processed and removed from the values (so `foo:\:\,\!` is
-//     returned as `map[string]string{"foo": ":,!"}`); you can escape any
-//     non-alphabetical characters.
-//
-//  5. Non-escaped unquoted leading and trailing ASCII whitespace is trimmed
-//     from keys and values. (There seems to be no reason to handle Unicode
-//     whitespace within struct tags.)
-//
-//  6. Parse and ParseFunc give special treatment to the first item of
-//     the tag if it does not have a colon. Such an item is returned as Tag.Name
-//     by Parse / as a value with an empty key by ParseFunc. If the first
-//     item does have a colon, it is treated as a normal key; Parse returns an
-//     empty Tag.Name, and ParseFunc reports a normal item and does not report
-//     an item with an empty key.
-//
-//  7. For normal items, empty key names are not allowed. Empty values are
-//     allowed (e.g., `key:` is valid and represents an empty string value).
-//
-// The error, if present, is *Error. If your callback returns an error, it will
-// be wrapped in an Error with your error stored in Error.Cause.
+// Rules:
+//   - Items are comma-separated; key:value pairs use colon
+//   - Values can be bare words or single-quoted strings
+//   - Backslash escapes special characters
+//   - Leading/trailing ASCII whitespace is trimmed
+//   - First item without colon becomes the name (empty key)
+//   - Empty keys are not allowed for normal items
 func ParseFunc(tag string, callback func(key, value string) error) error {
-	return parseFunc(tag, callback)
+	p := parser{tag: tag, callback: callback}
+
+	return p.parse()
 }
 
-func parseFunc(tag string, callback func(key, value string) error) error {
-	var parseErr error
-	fail := func(i int, msg string, cause error) {
-		if parseErr == nil {
-			parseErr = &Error{tag, i, msg, cause}
+type parser struct {
+	tag      string
+	callback func(key, value string) error
+	pos      int
+	start    int
+	keyStart int
+	key      string
+	inValue  bool
+	inQuote  bool
+	count    int
+}
+
+func (p *parser) parse() error {
+	for p.pos < len(p.tag) {
+		c := p.tag[p.pos]
+		if p.inQuote {
+			if err := p.handleQuoted(c); err != nil {
+				return err
+			}
+		} else {
+			if err := p.handleUnquoted(c); err != nil {
+				return err
+			}
+		}
+		p.pos++
+	}
+
+	if p.inQuote {
+		return &Error{p.tag, p.start, errUnterminatedQuote, nil}
+	}
+
+	return p.emitItem()
+}
+
+func (p *parser) handleQuoted(c byte) error {
+	switch c {
+	case '\'':
+		p.inQuote = false
+	case '\\':
+		if err := p.consumeEscape(); err != nil {
+			return err
 		}
 	}
 
-	var count int
-	var inValue bool
-	var start int
-	var key string
-	var keyStart int
+	return nil
+}
 
-	flush := func(i int) {
-		count++
-		var value string
-
-		parseValue := func(s string, pos int) (string, bool) {
-			v, msg, p, quoted := unquoteTrim(s)
-			if msg != "" {
-				fail(pos+p, msg, nil)
-			}
-			return v, quoted
+func (p *parser) handleUnquoted(c byte) error {
+	switch c {
+	case '\'':
+		p.inQuote = true
+	case '\\':
+		return p.consumeEscape()
+	case ':':
+		if !p.inValue {
+			return p.setKey()
 		}
-
-		if count == 1 && !inValue {
-			key = ""
-			keyStart = start
-			value, _ = parseValue(tag[start:i], start)
-		} else {
-			if inValue {
-				key, _ = parseValue(key, keyStart)
-				valueStr := tag[start:i]
-				value, _ = parseValue(valueStr, start)
-			} else if start < i {
-				keyStart = start
-				key, _ = parseValue(tag[start:i], start)
-			} else {
-				return
-			}
-			if key == "" {
-				fail(keyStart, "empty key", nil)
-				return
-			}
+	case ',':
+		if err := p.emitItem(); err != nil {
+			return err
 		}
+		p.start = p.pos + 1
+		p.inValue = false
+	}
 
-		if parseErr != nil {
-			return // Early return on parse error
-		}
+	return nil
+}
 
-		err := callback(key, value)
+func (p *parser) consumeEscape() error {
+	next := p.pos + 1
+	if next >= len(p.tag) {
+		return &Error{p.tag, p.pos, errUnterminatedEscape, nil}
+	}
+	c := p.tag[next]
+	if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') {
+		return &Error{p.tag, next, errInvalidEscape, nil}
+	}
+	p.pos = next
+
+	return nil
+}
+
+func (p *parser) setKey() error {
+	keyStr := p.tag[p.start:p.pos]
+	key, err := unquoteTrim(keyStr)
+	if err != nil {
+		return p.wrapUnquoteError(err, p.start)
+	}
+	if key == "" {
+		return &Error{p.tag, p.start, errEmptyKey, nil}
+	}
+	p.key = keyStr
+	p.keyStart = p.start
+	p.start = p.pos + 1
+	p.inValue = true
+
+	return nil
+}
+
+func (p *parser) emitItem() error {
+	p.count++
+
+	// Skip empty items after first
+	if p.start >= p.pos && p.count > 1 {
+		return nil
+	}
+
+	key, value, err := p.getKeyValue()
+	if err != nil {
+		return err
+	}
+
+	if err := p.callback(key, value); err != nil {
+		return &Error{p.tag, p.keyStart, p.key, err}
+	}
+
+	return nil
+}
+
+func (p *parser) getKeyValue() (string, string, error) {
+	switch {
+	case p.count == 1 && !p.inValue:
+		// First item is the name
+		value, err := unquoteTrim(p.tag[p.start:p.pos])
 		if err != nil {
-			fail(keyStart, key, err)
+			return "", "", p.wrapUnquoteError(err, p.start)
 		}
+
+		return "", value, nil
+
+	case p.inValue:
+		// Key-value pair
+		key, err := unquoteTrim(p.key)
+		if err != nil {
+			return "", "", p.wrapUnquoteError(err, p.keyStart)
+		}
+		value, err := unquoteTrim(p.tag[p.start:p.pos])
+		if err != nil {
+			return "", "", p.wrapUnquoteError(err, p.start)
+		}
+
+		return key, value, nil
+
+	case p.start < p.pos:
+		// Key-only item
+		key, err := unquoteTrim(p.tag[p.start:p.pos])
+		if err != nil {
+			return "", "", p.wrapUnquoteError(err, p.start)
+		}
+		if key == "" {
+			return "", "", &Error{p.tag, p.start, errEmptyKey, nil}
+		}
+
+		return key, "", nil
 	}
 
-	n := len(tag)
-
-	checkEscape := func(i int) {
-		if i >= n {
-			fail(i-1, "unterminated escape sequence", nil)
-			return
-		}
-		c := tag[i]
-		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') {
-			fail(i, "invalid escape character", nil)
-		}
-	}
-
-	var quoteStart int = -1
-	for i := 0; i < n; i++ {
-		if quoteStart >= 0 {
-			switch tag[i] {
-			case '\'':
-				quoteStart = -1
-			case '\\':
-				i++
-				checkEscape(i)
-			}
-		} else {
-			switch tag[i] {
-			case '\'':
-				quoteStart = i
-			case '\\':
-				i++
-				checkEscape(i)
-			case ':':
-				if !inValue {
-					key = tag[start:i]
-					keyStart = start
-					start = i + 1
-					inValue = true
-				}
-			case ',':
-				flush(i)
-				start = i + 1
-				inValue = false
-			}
-		}
-	}
-	if quoteStart >= 0 {
-		fail(quoteStart, "unterminated quote", nil)
-	}
-	if start < n || inValue {
-		flush(n)
-	}
-	return parseErr
+	return "", "", nil
 }
+
+func (p *parser) wrapUnquoteError(err error, offset int) error {
+	var ue *unquoteError
+	if errors.As(err, &ue) {
+		return &Error{p.tag, offset + ue.pos, ue.msg, nil}
+	}
+
+	return &Error{p.tag, offset, err.Error(), nil}
+}
+
+// unquoteError represents an error during unquoting.
+type unquoteError struct {
+	msg string
+	pos int
+}
+
+func (e *unquoteError) Error() string { return e.msg }
 
 var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 
-// unquoteTrim trims leading and trailing unescaped ASCII whitespace, processes
-// escape sequences within the string and removes single quotes.
-// Quotes, if present, must enclose the entire value after trimming whitespace.
-// Returns whether the input was quoted (after trimming).
-func unquoteTrim(s string) (result string, parseErr string, errPos int, wasQuoted bool) {
-	n := len(s)
-
-	// Trim leading unescaped whitespace
-	var start int
-	for start < n && asciiSpace[s[start]] != 0 {
-		start++
+// unquoteTrim trims whitespace, processes escapes, and removes quotes.
+func unquoteTrim(s string) (string, error) {
+	start, end := trimWhitespace(s)
+	if start >= end {
+		return "", nil
 	}
 
-	// Trim trailing unescaped whitespace
-	// Need to check for escapes to avoid trimming escaped spaces
-	var end int = n
-	for end > start && asciiSpace[s[end-1]] != 0 {
-		// Check if this whitespace is escaped
-		// Count preceding backslashes
-		numBackslashes := 0
-		for j := end - 2; j >= start && s[j] == '\\'; j-- {
-			numBackslashes++
-		}
-		// If odd number of backslashes, the space is escaped
-		if numBackslashes%2 == 1 {
-			break
-		}
-		end--
+	// Fast path: no escapes or quotes
+	if strings.IndexByte(s, '\\') < 0 && strings.IndexByte(s, '\'') < 0 {
+		return s[start:end], nil
 	}
 
-	// Check if value starts/ends with quotes (after trimming)
-	hasQuotes := start < end && s[start] == '\'' && s[end-1] == '\''
-	hasAnyQuote := strings.IndexByte(s, '\'') >= 0
+	return processQuotedString(s, start, end)
+}
 
-	// Fast path: no escapes and no quotes at all
-	if strings.IndexByte(s, '\\') < 0 && !hasAnyQuote {
-		return s[start:end], "", 0, false
-	}
+func processQuotedString(s string, start, end int) (string, error) {
+	hasQuotes := s[start] == '\'' && s[end-1] == '\''
+	b := make([]byte, 0, end-start)
+	quoteCount := 0
+	firstQuotePos := -1
 
-	b := make([]byte, 0, n)
-	var quoteCount int
-	var firstQuotePos int = -1
-
-mainLoop:
 	for i := start; i < end; i++ {
 		c := s[i]
 		switch c {
@@ -282,53 +293,71 @@ mainLoop:
 				b = append(b, s[i+1])
 				i++
 			}
-			continue mainLoop
 		case '\'':
 			quoteCount++
-			switch quoteCount {
-			case 1:
+			if firstQuotePos < 0 {
 				firstQuotePos = i
-				// First quote must be at start (after trimming)
-				if i != start {
-					if parseErr == "" {
-						parseErr, errPos = "quotes must enclose the entire value", i
-					}
-				}
-			case 2:
-				// Second quote must be at end (after trimming)
-				if i != end-1 {
-					if parseErr == "" {
-						parseErr, errPos = "quotes must enclose the entire value", i
-					}
-				}
-			default:
-				// More than 2 quotes
-				if parseErr == "" {
-					parseErr, errPos = "invalid quote", i
-				}
 			}
-			continue mainLoop
-		}
-		b = append(b, c)
-	}
-
-	// Validate strict quoting: if quotes present, must be exactly 2 and enclose entire value
-	if hasQuotes {
-		if quoteCount != 2 {
-			if parseErr == "" {
-				parseErr, errPos = "quotes must enclose the entire value", firstQuotePos
+			if err := validateQuoteAt(quoteCount, i, start, end); err != nil {
+				return string(b), err
 			}
-		}
-		wasQuoted = quoteCount == 2
-	} else if quoteCount > 0 {
-		// Quotes found but not at boundaries
-		if parseErr == "" {
-			parseErr, errPos = "quotes must enclose the entire value", firstQuotePos
+		default:
+			b = append(b, c)
 		}
 	}
 
-	if len(b) > 0 {
-		result = unsafe.String(&b[0], len(b))
+	if err := validateFinalQuotes(hasQuotes, quoteCount, firstQuotePos); err != nil {
+		return string(b), err
 	}
-	return
+
+	return string(b), nil
+}
+
+func validateQuoteAt(quoteCount, pos, start, end int) error {
+	switch quoteCount {
+	case 1:
+		if pos != start {
+			return &unquoteError{errQuotesMustEnclose, pos}
+		}
+	case 2:
+		if pos != end-1 {
+			return &unquoteError{errQuotesMustEnclose, pos}
+		}
+	default:
+		return &unquoteError{errInvalidQuote, pos}
+	}
+
+	return nil
+}
+
+func validateFinalQuotes(hasQuotes bool, quoteCount, firstQuotePos int) error {
+	if hasQuotes && quoteCount != 2 {
+		return &unquoteError{errQuotesMustEnclose, firstQuotePos}
+	}
+	if !hasQuotes && quoteCount > 0 {
+		return &unquoteError{errQuotesMustEnclose, firstQuotePos}
+	}
+
+	return nil
+}
+
+func trimWhitespace(s string) (start, end int) {
+	n := len(s)
+	for start < n && asciiSpace[s[start]] != 0 {
+		start++
+	}
+	end = n
+	for end > start && asciiSpace[s[end-1]] != 0 {
+		// Check if space is escaped
+		backslashes := 0
+		for j := end - 2; j >= start && s[j] == '\\'; j-- {
+			backslashes++
+		}
+		if backslashes%2 == 1 {
+			break
+		}
+		end--
+	}
+
+	return start, end
 }
