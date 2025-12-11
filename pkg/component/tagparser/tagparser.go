@@ -71,14 +71,14 @@ func Parse(tag string) (*Tag, error) {
 // ParseFunc enumerates fields of a tag formatted as a list of keys and/or
 // key-value pairs, treating the first item as a name.
 //
-// Format: name,key1,key2:value2,key3:'quoted, value',key4
+// Format: name,key1,key2=value2,key3='quoted, value',key4
 //
 // Rules:
-//   - Items are comma-separated; key:value pairs use colon
+//   - Items are comma-separated; key=value pairs use equals sign
 //   - Values can be bare words or single-quoted strings
 //   - Backslash escapes special characters
 //   - Leading/trailing ASCII whitespace is trimmed
-//   - First item without colon becomes the name (empty key)
+//   - First item without equals becomes the name (empty key)
 //   - Empty keys are not allowed for normal items
 func ParseFunc(tag string, callback func(key, value string) error) error {
 	p := parser{tag: tag, callback: callback}
@@ -139,7 +139,7 @@ func (p *parser) handleUnquoted(c byte) error {
 		p.inQuote = true
 	case '\\':
 		return p.consumeEscape()
-	case ':':
+	case '=':
 		if !p.inValue {
 			return p.setKey()
 		}
