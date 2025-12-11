@@ -4,6 +4,7 @@ use (
 	./pkg/component/blob
 	./pkg/component/config
 	./pkg/component/logger
+	./pkg/component/mapstructure
 	./pkg/component/negotiation
 	./pkg/component/orm
 	./pkg/component/schema

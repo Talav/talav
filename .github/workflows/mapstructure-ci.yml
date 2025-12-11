@@ -1,0 +1,39 @@
+name: "mapstructure-ci"
+
+on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Go module path to test"
+        required: false
+        type: string
+        default: "pkg/component/mapstructure"
+  push:
+    branches:
+      - "feat**"
+      - "fix**"
+      - "hotfix**"
+      - "chore**"
+      - "main"
+    paths:
+      - "pkg/component/mapstructure/**.go"
+      - "pkg/component/mapstructure/go.mod"
+      - "pkg/component/mapstructure/go.sum"
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    branches:
+      - main
+    paths:
+      - "pkg/component/mapstructure/**.go"
+      - "pkg/component/mapstructure/go.mod"
+      - "pkg/component/mapstructure/go.sum"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/common-ci.yml
+    secrets: inherit
+    with:
+      module: "pkg/component/mapstructure"
