@@ -1,8 +1,11 @@
 package mapstructure
 
 import (
+	"bytes"
+	"io"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -298,6 +301,205 @@ func TestUnmarshaler_Unmarshal_Errors(t *testing.T) {
 
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.errContains)
+		})
+	}
+}
+
+//nolint:forcetypeassert,thelper // Test code - type assertions are expected to succeed
+func TestUnmarshaler_Unmarshal_DirectAssignment(t *testing.T) {
+	type Inner struct {
+		Value int
+		Name  string
+	}
+
+	type WithReader struct {
+		Reader io.Reader
+	}
+	type WithReadCloser struct {
+		Body io.ReadCloser
+	}
+	type WithWriter struct {
+		Writer io.Writer
+	}
+	type WithBytes struct {
+		Data []byte
+	}
+	type WithTime struct {
+		CreatedAt time.Time
+	}
+	type WithInner struct {
+		Inner Inner
+	}
+	type WithInnerPtr struct {
+		Inner *Inner
+	}
+	type WithInnerSlice struct {
+		Items []Inner
+	}
+	type WithMap struct {
+		Metadata map[string]string
+	}
+
+	now := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+
+	tests := []struct {
+		name     string
+		data     map[string]any
+		target   any
+		validate func(t *testing.T, target any)
+	}{
+		{
+			name:   "[]byte direct assignment",
+			data:   map[string]any{"Data": []byte{0x01, 0x02, 0x03}},
+			target: &WithBytes{},
+			validate: func(t *testing.T, target any) {
+				r := target.(*WithBytes)
+				assert.Equal(t, []byte{0x01, 0x02, 0x03}, r.Data)
+			},
+		},
+		{
+			name:   "[]byte empty",
+			data:   map[string]any{"Data": []byte{}},
+			target: &WithBytes{},
+			validate: func(t *testing.T, target any) {
+				r := target.(*WithBytes)
+				assert.Equal(t, []byte{}, r.Data)
+			},
+		},
+		{
+			name:   "io.Reader direct assignment",
+			data:   map[string]any{"Reader": bytes.NewReader([]byte("hello"))},
+			target: &WithReader{},
+			validate: func(t *testing.T, target any) {
+				r := target.(*WithReader)
+				require.NotNil(t, r.Reader)
+				content, err := io.ReadAll(r.Reader)
+				require.NoError(t, err)
+				assert.Equal(t, []byte("hello"), content)
+			},
+		},
+		{
+			name:   "io.ReadCloser direct assignment",
+			data:   map[string]any{"Body": io.NopCloser(bytes.NewReader([]byte("body")))},
+			target: &WithReadCloser{},
+			validate: func(t *testing.T, target any) {
+				r := target.(*WithReadCloser)
+				require.NotNil(t, r.Body)
+				content, err := io.ReadAll(r.Body)
+				require.NoError(t, err)
+				assert.Equal(t, []byte("body"), content)
+			},
+		},
+		{
+			name:   "io.Writer interface satisfaction",
+			data:   map[string]any{"Writer": &bytes.Buffer{}},
+			target: &WithWriter{},
+			validate: func(t *testing.T, target any) {
+				r := target.(*WithWriter)
+				require.NotNil(t, r.Writer)
+				_, err := r.Writer.Write([]byte("test"))
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name:   "custom struct direct assignment",
+			data:   map[string]any{"Inner": Inner{Value: 42, Name: "test"}},
+			target: &WithInner{},
+			validate: func(t *testing.T, target any) {
+				r := target.(*WithInner)
+				assert.Equal(t, Inner{Value: 42, Name: "test"}, r.Inner)
+			},
+		},
+		{
+			name:   "custom struct pointer direct assignment",
+			data:   map[string]any{"Inner": &Inner{Value: 99, Name: "ptr"}},
+			target: &WithInnerPtr{},
+			validate: func(t *testing.T, target any) {
+				r := target.(*WithInnerPtr)
+				require.NotNil(t, r.Inner)
+				assert.Equal(t, 99, r.Inner.Value)
+				assert.Equal(t, "ptr", r.Inner.Name)
+			},
+		},
+		{
+			name:   "slice of custom structs",
+			data:   map[string]any{"Items": []Inner{{Value: 1, Name: "a"}, {Value: 2, Name: "b"}}},
+			target: &WithInnerSlice{},
+			validate: func(t *testing.T, target any) {
+				r := target.(*WithInnerSlice)
+				require.Len(t, r.Items, 2)
+				assert.Equal(t, "a", r.Items[0].Name)
+				assert.Equal(t, "b", r.Items[1].Name)
+			},
+		},
+		{
+			name:   "map[string]string direct assignment",
+			data:   map[string]any{"Metadata": map[string]string{"key": "value"}},
+			target: &WithMap{},
+			validate: func(t *testing.T, target any) {
+				r := target.(*WithMap)
+				assert.Equal(t, "value", r.Metadata["key"])
+			},
+		},
+		{
+			name:   "time.Time direct assignment",
+			data:   map[string]any{"CreatedAt": now},
+			target: &WithTime{},
+			validate: func(t *testing.T, target any) {
+				r := target.(*WithTime)
+				assert.Equal(t, now, r.CreatedAt)
+			},
+		},
+	}
+
+	u := testUnmarshaler()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := u.Unmarshal(tt.data, tt.target)
+
+			require.NoError(t, err)
+			tt.validate(t, tt.target)
+		})
+	}
+}
+
+func TestUnmarshaler_Unmarshal_DirectAssignment_FallbackToConverter(t *testing.T) {
+	type Target struct {
+		Count int
+	}
+
+	tests := []struct {
+		name     string
+		data     map[string]any
+		expected int
+	}{
+		{
+			name:     "string to int uses converter",
+			data:     map[string]any{"Count": "42"},
+			expected: 42,
+		},
+		{
+			name:     "int64 to int uses converter",
+			data:     map[string]any{"Count": int64(42)},
+			expected: 42,
+		},
+		{
+			name:     "float64 to int uses converter",
+			data:     map[string]any{"Count": float64(42.0)},
+			expected: 42,
+		},
+	}
+
+	u := testUnmarshaler()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var result Target
+			err := u.Unmarshal(tt.data, &result)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, result.Count)
 		})
 	}
 }

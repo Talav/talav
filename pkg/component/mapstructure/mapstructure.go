@@ -51,6 +51,16 @@ func (u *Unmarshaler) unmarshalValue(data any, rv reflect.Value, fieldPath strin
 	kind := rv.Kind()
 	typ := rv.Type()
 
+	// Direct assignment if types are compatible
+	if data != nil {
+		dataType := reflect.TypeOf(data)
+		if dataType.AssignableTo(typ) {
+			rv.Set(reflect.ValueOf(data))
+
+			return nil
+		}
+	}
+
 	// Try converter for the target type
 	if conv, ok := u.converters.Find(typ); ok {
 		converted, err := conv(data)
