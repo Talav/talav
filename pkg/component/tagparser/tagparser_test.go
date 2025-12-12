@@ -85,7 +85,7 @@ func TestParse(t *testing.T) {
 					assert.Empty(t, tag.Options)
 				} else {
 					assert.Equal(t, test.opts, tag.Options)
-		}
+				}
 			}
 		})
 	}
