@@ -3,6 +3,7 @@ package tagparser
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -48,14 +49,17 @@ type Tag struct {
 
 // Parse parses a tag treating the first item as a name.
 func Parse(tag string) (*Tag, error) {
+	// Handle Go struct tag quoting convention - try to unquote if it looks quoted
+	if unquoted, err := strconv.Unquote(tag); err == nil {
+		tag = unquoted
+	}
+
 	result := &Tag{Options: make(map[string]string)}
 	err := ParseFunc(tag, func(key, value string) error {
 		if key == "" {
 			result.Name = value
 		} else {
-			if _, ok := result.Options[key]; ok {
-				return ErrDuplicateKey
-			}
+			// Allow duplicates, last value wins
 			result.Options[key] = value
 		}
 

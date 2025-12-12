@@ -62,8 +62,8 @@ func TestParse(t *testing.T) {
 		{`malformed empty key 2`, `,=alfa`, "", nil, `empty key (at 2)`},
 		{`malformed empty key 3`, `''=alfa`, "", nil, `empty key (at 1)`},
 		{`malformed empty key 4`, ` '' =alfa`, "", nil, `empty key (at 1)`},
-		{`malformed duplicate key`, `alfa,bravo=charlie,bravo=delta`, "alfa", M{"bravo": "charlie"}, `bravo: duplicate option key (at 20)`},
-		{`malformed duplicate key first item`, `foo=bar,foo=boz`, "", M{"foo": "bar"}, `foo: duplicate option key (at 9)`},
+		{`duplicate key last wins`, `alfa,bravo=charlie,bravo=delta`, "alfa", M{"bravo": "delta"}, ``},
+		{`duplicate key first item last wins`, `foo=bar,foo=boz`, "", M{"foo": "boz"}, ``},
 		{`malformed unterminated quote 1`, `alfa,'bravo=charlie`, "alfa", M{"bravo=charlie": ""}, `unterminated quote (at 6)`},
 		{`malformed unterminated quote 2`, `alfa,bravo='charlie`, "alfa", M{"bravo": "charlie"}, `unterminated quote (at 12)`},
 		{`malformed unterminated quote 3`, `'alfa`, "alfa", nil, `unterminated quote (at 1)`},
@@ -85,16 +85,31 @@ func TestParse(t *testing.T) {
 					assert.Empty(t, tag.Options)
 				} else {
 					assert.Equal(t, test.opts, tag.Options)
-				}
+		}
 			}
 		})
 	}
 }
 
 func TestParse_duplicate(t *testing.T) {
-	_, err := Parse(`foo=bar,foo=boz`)
-	require.Error(t, err)
-	assert.True(t, errors.Is(err, ErrDuplicateKey))
+	tag, err := Parse(`foo=bar,foo=boz`)
+	require.NoError(t, err)
+	assert.Equal(t, "", tag.Name)
+	assert.Equal(t, M{"foo": "boz"}, tag.Options) // last value wins
+}
+
+func TestParse_unquoting(t *testing.T) {
+	// Test that Go struct tag quoted inputs are automatically unquoted
+	tag, err := Parse(`"name=value,other=key"`)
+	require.NoError(t, err)
+	assert.Equal(t, "", tag.Name) // No name part, just options
+	assert.Equal(t, M{"name": "value", "other": "key"}, tag.Options)
+
+	// Test that unquoted inputs work the same way
+	tag2, err := Parse(`name=value,other=key`)
+	require.NoError(t, err)
+	assert.Equal(t, "", tag2.Name)
+	assert.Equal(t, M{"name": "value", "other": "key"}, tag2.Options)
 }
 
 var errSimulated = errors.New("simulated error")

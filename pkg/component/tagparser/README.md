@@ -5,6 +5,8 @@ A parser for conventional Go struct tags
 
 Parses the conventional format of struct field tags: `name,key1,key2=value2,key3='value with spaces, equals signs, and \' quotes',key4`.
 
+Automatically handles Go struct tag quoting conventions (e.g., `"name=value"` → `name=value`).
+
 This parser enforces strict quoting rules and provides comprehensive error reporting with position information.
 
 
@@ -28,7 +30,7 @@ Use `ParseFunc` for customized parsing and zero allocations:
 
 ```go
 var name string
-opts := make(map[string][]string)
+opts := make(map[string]string)
 
 err := tagparser.ParseFunc(`foo,bar=xx,bar=yy`, func(key, value string) error {
     // Empty key means this is the first item (name)
@@ -36,12 +38,12 @@ err := tagparser.ParseFunc(`foo,bar=xx,bar=yy`, func(key, value string) error {
         name = value
         return nil
     }
-    // Collect options, allowing duplicates
-    opts[key] = append(opts[key], value)
+    // Last value wins for duplicates
+    opts[key] = value
     return nil
 })
 // name == "foo"
-// opts == map[string][]string{"bar": {"xx", "yy"}}
+// opts == map[string]string{"bar": "yy"}
 ```
 
 Empty values are allowed:
@@ -80,5 +82,7 @@ Tag syntax
 * Non-escaped unquoted leading and trailing ASCII whitespace is trimmed from keys and values. Escaped whitespace is preserved (e.g., `\ ` remains as a space character).
 
 * `Parse` and `ParseFunc` give special treatment to the first item of the tag if it does not have an equals sign. Such an item is returned as `Tag.Name` by `Parse` / as a value with an empty key by `ParseFunc`. If the first item does have an equals sign, it is treated as a normal key; `Parse` returns an empty `Tag.Name`, and `ParseFunc` reports a normal item and does not report an item with an empty key.
+
+* Duplicate keys are allowed; the last value wins (e.g., `key=first,key=second` results in `key=second`).
 
 * For normal items, empty key names are not allowed. Empty values are allowed (e.g., `key=` is valid and represents an empty string value).
