@@ -31,6 +31,10 @@ func NewUnmarshaler(fieldCache *StructMetadataCache, converters *ConverterRegist
 	}
 }
 
+func NewDefaultUnmarshaler(additional map[reflect.Type]Converter) *Unmarshaler {
+	return NewUnmarshaler(NewStructMetadataCache(DefaultCacheBuilder), NewDefaultConverterRegistry(additional))
+}
+
 // Unmarshal transforms map[string]any into a Go struct pointed to by result.
 // result must be a pointer to the target type.
 func (u *Unmarshaler) Unmarshal(data map[string]any, result any) error {
