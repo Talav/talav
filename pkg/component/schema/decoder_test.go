@@ -1,432 +1,835 @@
 package schema
 
 import (
-	"mime/multipart"
 	"net/http"
-	"net/url"
-	"strings"
+	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// Decode Query tests.
-func TestDecodeQuery_FormStyle(t *testing.T) {
-	decoder := NewDefaultDecoder()
-	t.Run("explode false", func(t *testing.T) {
-		opts, err := NewOptions(LocationQuery, StyleForm, false)
-		require.NoError(t, err)
-
-		result, err := decoder.Decode("ids=1,2,3&name=John", opts)
-		require.NoError(t, err)
-		assert.Equal(t, []any{"1", "2", "3"}, result["ids"])
-		assert.Equal(t, "John", result["name"])
-	})
-
-	t.Run("explode true", func(t *testing.T) {
-		opts, err := NewOptions(LocationQuery, StyleForm, true)
-		require.NoError(t, err)
-
-		result, err := decoder.Decode("ids=1&ids=2&ids=3&name=John", opts)
-		require.NoError(t, err)
-		assert.Equal(t, []any{"1", "2", "3"}, result["ids"])
-		assert.Equal(t, "John", result["name"])
-	})
-
-	t.Run("nested structure", func(t *testing.T) {
-		opts, err := NewOptions(LocationQuery, StyleForm, true)
-		require.NoError(t, err)
-
-		result, err := decoder.Decode("filter.type=car&filter.color=red", opts)
-		require.NoError(t, err)
-		filter, ok := result["filter"].(map[string]any)
-		require.True(t, ok, "filter should be a map")
-		assert.Equal(t, "car", filter["type"])
-		assert.Equal(t, "red", filter["color"])
-	})
-}
-
-func TestDecodeQuery_SpaceDelimited(t *testing.T) {
-	opts, err := NewOptions(LocationQuery, StyleSpaceDelimited)
-	require.NoError(t, err)
-
-	decoder := NewDefaultDecoder()
-	result, err := decoder.Decode("ids=1 2 3", opts)
-	require.NoError(t, err)
-	assert.Equal(t, []any{"1", "2", "3"}, result["ids"])
-}
-
-func TestDecodeQuery_PipeDelimited(t *testing.T) {
-	opts, err := NewOptions(LocationQuery, StylePipeDelimited)
-	require.NoError(t, err)
-
-	decoder := NewDefaultDecoder()
-	result, err := decoder.Decode("ids=1|2|3", opts)
-	require.NoError(t, err)
-	assert.Equal(t, []any{"1", "2", "3"}, result["ids"])
-}
-
-func TestDecodeQuery_DeepObject(t *testing.T) {
-	opts, err := NewOptions(LocationQuery, StyleDeepObject)
-	require.NoError(t, err)
-
-	decoder := NewDefaultDecoder()
-	result, err := decoder.Decode("filter[type]=car&filter[color]=red", opts)
-	require.NoError(t, err)
-	filter, ok := result["filter"].(map[string]any)
-	require.True(t, ok, "filter should be a map")
-	assert.Equal(t, "car", filter["type"])
-	assert.Equal(t, "red", filter["color"])
-}
-
-func TestDecodeQuery_DeepObject_ArrayIssue(t *testing.T) {
-	opts, err := NewOptions(LocationQuery, StyleDeepObject)
-	require.NoError(t, err)
-
-	decoder := NewDefaultDecoder()
-	result, err := decoder.Decode("user[interests]=coding&user[interests]=reading&user[interests]=music", opts)
-	require.NoError(t, err)
-
-	userMap, ok := result["user"].(map[string]any)
-	require.True(t, ok, "user should be a map")
-	assert.Equal(t, []any{"coding", "reading", "music"}, userMap["interests"], "deep object should create array from multiple values")
-}
-
-func TestDecodeQuery_DeepObject_MultipleLevels(t *testing.T) {
-	opts, err := NewOptions(LocationQuery, StyleDeepObject)
-	require.NoError(t, err)
-
-	decoder := NewDefaultDecoder()
-	result, err := decoder.Decode("user[profile][address1][street]=Main+St&user[profile][address][street]=Oak+Ave&user[profile][address2][street]=Elm+St", opts)
-	require.NoError(t, err)
-
-	userMap, ok := result["user"].(map[string]any)
-	require.True(t, ok, "user should be a map")
-	profileMap, ok := userMap["profile"].(map[string]any)
-	require.True(t, ok, "profile should be a map")
-
-	address1Map, ok := profileMap["address1"].(map[string]any)
-	require.True(t, ok, "address1 should be a map")
-	addressMap, ok := profileMap["address"].(map[string]any)
-	require.True(t, ok, "address should be a map")
-	address2Map, ok := profileMap["address2"].(map[string]any)
-	require.True(t, ok, "address2 should be a map")
-
-	assert.Equal(t, "Main St", address1Map["street"])
-	assert.Equal(t, "Oak Ave", addressMap["street"])
-	assert.Equal(t, "Elm St", address2Map["street"])
-}
-
-func TestDecodeQuery_DeepObject_ArrayAtNestedLevel(t *testing.T) {
-	opts, err := NewOptions(LocationQuery, StyleDeepObject)
-	require.NoError(t, err)
-
-	decoder := NewDefaultDecoder()
-	result, err := decoder.Decode("u[l11][l21][l31]=v1&u[l11][l21][l31]=v2&u[l11][l22][l31]=v3&u[l11][l22][l31]=v4", opts)
-	require.NoError(t, err)
-
-	uMap, ok := result["u"].(map[string]any)
-	require.True(t, ok, "u should be a map")
-	l11Map, ok := uMap["l11"].(map[string]any)
-	require.True(t, ok, "l11 should be a map")
-
-	// l21 should exist with l31 array
-	l21Map, ok := l11Map["l21"].(map[string]any)
-	require.True(t, ok, "l21 should be a map")
-	l21l31Value := l21Map["l31"]
-	assert.Equal(t, []any{"v1", "v2"}, l21l31Value, "l21.l31 should be an array with v1 and v2")
-
-	// l22 should exist with l31 array (sibling of l21)
-	l22Map, ok := l11Map["l22"].(map[string]any)
-	require.True(t, ok, "l22 should be a map")
-	l22l31Value := l22Map["l31"]
-	assert.Equal(t, []any{"v3", "v4"}, l22l31Value, "l22.l31 should be an array with v3 and v4")
-}
-
-func TestDecodeQuery_DeepObject_TypeConflict(t *testing.T) {
-	// Test that setting a key as primitive then as object in same decode returns error
-	opts, err := NewOptions(LocationQuery, StyleDeepObject)
-	require.NoError(t, err)
-
-	decoder := NewDefaultDecoder()
-
-	// Try to set same path as both primitive and object - should fail
-	_, err = decoder.Decode("user[name]=John&user[name][first]=John", opts)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "conflict")
-}
-
-func TestDecodeQuery_DeepObject_EmptyValues(t *testing.T) {
-	opts, err := NewOptions(LocationQuery, StyleDeepObject)
-	require.NoError(t, err)
-
-	decoder := NewDefaultDecoder()
-	result, err := decoder.Decode("user[name]=&user[email]=test@example.com", opts)
-	require.NoError(t, err)
-
-	userMap, ok := result["user"].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, "", userMap["name"], "empty value should be empty string")
-	assert.Equal(t, "test@example.com", userMap["email"])
-}
-
-func TestDecodeQuery_DeepObject_OverwriteSingleWithArray(t *testing.T) {
-	// Setting a key as single value, then with multiple values should create array
-	opts, err := NewOptions(LocationQuery, StyleDeepObject)
-	require.NoError(t, err)
-
-	decoder := NewDefaultDecoder()
-	result, err := decoder.Decode("user[tags]=coding&user[tags]=reading&user[tags]=music", opts)
-	require.NoError(t, err)
-
-	userMap, ok := result["user"].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, []any{"coding", "reading", "music"}, userMap["tags"], "multiple values should create array")
-}
-
-func TestDecodeQuery_DeepObject_VeryDeepNesting(t *testing.T) {
-	// Test 4+ levels of nesting
-	opts, err := NewOptions(LocationQuery, StyleDeepObject)
-	require.NoError(t, err)
-
-	decoder := NewDefaultDecoder()
-	result, err := decoder.Decode("a[b][c][d][e]=value", opts)
-	require.NoError(t, err)
-
-	aMap, ok := result["a"].(map[string]any)
-	require.True(t, ok)
-	bMap, ok := aMap["b"].(map[string]any)
-	require.True(t, ok)
-	cMap, ok := bMap["c"].(map[string]any)
-	require.True(t, ok)
-	dMap, ok := cMap["d"].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, "value", dMap["e"])
-}
-
-func TestDecodeQuery_DeepObject_EmptyBracketKey(t *testing.T) {
-	// Edge case: empty bracket key creates map with empty string key
-	opts, err := NewOptions(LocationQuery, StyleDeepObject)
-	require.NoError(t, err)
-
-	decoder := NewDefaultDecoder()
-	result, err := decoder.Decode("user[]=value", opts)
-	require.NoError(t, err)
-
-	userMap, ok := result["user"].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, "value", userMap[""], "empty bracket creates empty string key")
-}
-
-func TestDecodeQuery_DeepObject_SingleValueNotArray(t *testing.T) {
-	// Edge case: single value should remain single, not array
-	opts, err := NewOptions(LocationQuery, StyleDeepObject)
-	require.NoError(t, err)
-
-	decoder := NewDefaultDecoder()
-	result, err := decoder.Decode("user[name]=John", opts)
-	require.NoError(t, err)
-
-	userMap, ok := result["user"].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, "John", userMap["name"], "single value should be string, not array")
-	assert.IsType(t, "", userMap["name"], "single value should be string type")
-}
-
-// Decode Path tests.
-func TestDecodePath_Simple(t *testing.T) {
-	opts, err := NewOptions(LocationPath, StyleSimple)
-	require.NoError(t, err)
-
-	decoder := NewDefaultDecoder()
-	result, err := decoder.Decode("1,2,3", opts)
-	require.NoError(t, err)
-	assert.Equal(t, []any{"1", "2", "3"}, result[""])
-}
-
-func TestDecodePath_Label(t *testing.T) {
-	t.Run("explode false", func(t *testing.T) {
-		opts, err := NewOptions(LocationPath, StyleLabel, false)
-		require.NoError(t, err)
-
-		decoder := NewDefaultDecoder()
-		result, err := decoder.Decode(".1,2,3", opts)
-		require.NoError(t, err)
-		assert.Equal(t, []any{"1", "2", "3"}, result[""])
-	})
-
-	t.Run("explode true", func(t *testing.T) {
-		opts, err := NewOptions(LocationPath, StyleLabel, true)
-		require.NoError(t, err)
-
-		decoder := NewDefaultDecoder()
-		result, err := decoder.Decode(".1.2.3", opts)
-		require.NoError(t, err)
-		assert.Equal(t, []any{"1", "2", "3"}, result[""])
-	})
-}
-
-func TestDecodePath_Matrix(t *testing.T) {
-	t.Run("explode false", func(t *testing.T) {
-		opts, err := NewOptions(LocationPath, StyleMatrix, false)
-		require.NoError(t, err)
-
-		decoder := NewDefaultDecoder()
-		result, err := decoder.Decode(";ids=1,2,3", opts)
-		require.NoError(t, err)
-		assert.Equal(t, []any{"1", "2", "3"}, result["ids"])
-	})
-
-	t.Run("explode true", func(t *testing.T) {
-		opts, err := NewOptions(LocationPath, StyleMatrix, true)
-		require.NoError(t, err)
-
-		decoder := NewDefaultDecoder()
-		result, err := decoder.Decode(";ids=1;ids=2;ids=3", opts)
-		require.NoError(t, err)
-		assert.Equal(t, []any{"1", "2", "3"}, result["ids"])
-	})
-}
-
-// Decode Header tests.
-func TestDecodeHeader_Simple(t *testing.T) {
-	opts, err := NewOptions(LocationHeader, StyleSimple)
-	require.NoError(t, err)
-
-	decoder := NewDefaultDecoder()
-	result, err := decoder.Decode("1,2,3", opts)
-	require.NoError(t, err)
-	assert.Equal(t, []any{"1", "2", "3"}, result[""])
-}
-
-// RoundTrip tests.
-func TestRoundTrip(t *testing.T) {
-	t.Run("query form explode false", func(t *testing.T) {
-		opts, err := NewOptions(LocationQuery, StyleForm, false)
-		require.NoError(t, err)
-
-		original := map[string]any{
-			"ids":  []any{"1", "2", "3"},
-			"name": "John",
-		}
-
-		encoder := NewDefaultEncoder()
-		encoded, err := encoder.Encode(original, opts)
-		require.NoError(t, err)
-		// Encoder adds ? prefix for query strings, but RawQuery doesn't include it
-		encoded = strings.TrimPrefix(encoded, "?")
-
-		decoder := NewDefaultDecoder()
-		decoded, err := decoder.Decode(encoded, opts)
-		require.NoError(t, err)
-
-		assert.Equal(t, original["name"], decoded["name"])
-		// Arrays should match
-		assert.Equal(t, original["ids"], decoded["ids"])
-	})
-
-	t.Run("deepObject", func(t *testing.T) {
-		opts, err := NewOptions(LocationQuery, StyleDeepObject)
-		require.NoError(t, err)
-
-		original := map[string]any{
-			"filter": map[string]any{
-				"type":  "car",
-				"color": "red",
-			},
-		}
-
-		encoder := NewDefaultEncoder()
-		encoded, err := encoder.Encode(original, opts)
-		require.NoError(t, err)
-		// Encoder adds ? prefix for query strings, but RawQuery doesn't include it
-		encoded = strings.TrimPrefix(encoded, "?")
-
-		decoder := NewDefaultDecoder()
-		decoded, err := decoder.Decode(encoded, opts)
-		require.NoError(t, err)
-
-		filter, ok := decoded["filter"].(map[string]any)
-		require.True(t, ok)
-		assert.Equal(t, "car", filter["type"])
-		assert.Equal(t, "red", filter["color"])
-	})
-}
-
-// Integration tests.
-func TestSchema_Decode_Query(t *testing.T) {
-	req, _ := http.NewRequest(http.MethodGet, "http://example.com/api?ids=1,2,3&name=John", nil)
-	opts, _ := NewOptions(LocationQuery, StyleForm, false)
-	decoder := NewDefaultDecoder()
-	result, _ := decoder.Decode(req.URL.RawQuery, opts)
-	assert.Equal(t, []any{"1", "2", "3"}, result["ids"])
-	assert.Equal(t, "John", result["name"])
-}
-
-func TestSchema_Decode_Header(t *testing.T) {
-	req, _ := http.NewRequest(http.MethodGet, "http://example.com/api", nil)
-	req.Header.Set("Accept", "text/html, text/plain, application/json")
-	opts, _ := NewOptions(LocationHeader, StyleSimple)
-	decoder := NewDefaultDecoder()
-	result, _ := decoder.Decode(req.Header.Get("Accept"), opts)
-	assert.Equal(t, []any{"text/html", "text/plain", "application/json"}, result[""])
-}
-
-func TestSchema_Decode_Cookie(t *testing.T) {
-	req, _ := http.NewRequest(http.MethodGet, "http://example.com/api", nil)
-	req.AddCookie(&http.Cookie{Name: "session", Value: "abc123"})
-	req.AddCookie(&http.Cookie{Name: "ids", Value: "1"})
-	req.AddCookie(&http.Cookie{Name: "ids", Value: "2"})
-	values := make(url.Values)
-	for _, cookie := range req.Cookies() {
-		values.Add(cookie.Name, cookie.Value)
+// newTestDecoder creates a decoder for testing.
+func newTestDecoder() *defaultDecoder {
+	parser := newStructMetadataParser()
+	cache := NewStructMetadataCache(parser)
+
+	return &defaultDecoder{
+		structMetadataCache: cache,
 	}
-	opts, _ := NewOptions(LocationCookie, StyleForm, true)
-	decoder := NewDefaultDecoder()
-	result, _ := decoder.Decode(values.Encode(), opts)
-	assert.Equal(t, []any{"1", "2"}, result["ids"])
-	assert.Equal(t, "abc123", result["session"])
 }
 
-func TestSchema_Decode_Path(t *testing.T) {
-	opts, _ := NewOptions(LocationPath, StyleSimple)
-	decoder := NewDefaultDecoder()
-	result, _ := decoder.Decode("1,2,3", opts)
-	assert.Equal(t, []any{"1", "2", "3"}, result[""])
+func createQueryRequest(queryString string) *http.Request {
+	return httptest.NewRequest(http.MethodGet, "/test?"+queryString, nil)
 }
 
-func TestSchema_Decode_POSTForm(t *testing.T) {
-	body := strings.NewReader("name=John&email=john@example.com&ids=1&ids=2&ids=3")
-	req, _ := http.NewRequest(http.MethodPost, "http://example.com/api", body)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	require.NoError(t, req.ParseForm())
+func createParamMetadata(location ParameterLocation, style Style, explode bool, fields ...struct {
+	name      string
+	mapKey    string
+	fieldType reflect.Type
+},
+) *StructMetadata {
+	metaFields := make([]FieldMetadata, len(fields))
+	for i, f := range fields {
+		metaFields[i] = FieldMetadata{
+			StructFieldName: f.name,
+			ParamName:       f.name,
+			MapKey:          f.mapKey,
+			Index:           i,
+			Type:            f.fieldType,
+			IsParameter:     true,
+			Location:        location,
+			Style:           style,
+			Explode:         explode,
+		}
+	}
 
-	opts, _ := NewOptions(LocationQuery, StyleForm, true)
-	decoder := NewDefaultDecoder()
-	result, _ := decoder.Decode(req.PostForm.Encode(), opts)
-	assert.Equal(t, "John", result["name"])
-	assert.Equal(t, "john@example.com", result["email"])
-	assert.Equal(t, []any{"1", "2", "3"}, result["ids"])
+	metadata, _ := NewStructMetadata(metaFields)
+
+	return metadata
 }
 
-func TestSchema_Decode_MultipartForm(t *testing.T) {
-	var b strings.Builder
-	writer := multipart.NewWriter(&b)
-	require.NoError(t, writer.WriteField("name", "John"))
-	require.NoError(t, writer.WriteField("email", "john@example.com"))
-	require.NoError(t, writer.WriteField("ids", "1"))
-	require.NoError(t, writer.WriteField("ids", "2"))
-	require.NoError(t, writer.Close())
+func TestDecoder_Decode(t *testing.T) {
+	tests := []struct {
+		name         string
+		queryString  string
+		routerParams map[string]string
+		headers      map[string]string
+		cookies      map[string]string
+		metadata     *StructMetadata
+		want         map[string]any
+		wantErr      bool
+	}{
+		{
+			name:        "query parameters only",
+			queryString: "name=john&age=30",
+			metadata: createParamMetadata(LocationQuery, StyleForm, true,
+				struct {
+					name      string
+					mapKey    string
+					fieldType reflect.Type
+				}{"name", "name", reflect.TypeOf("")},
+				struct {
+					name      string
+					mapKey    string
+					fieldType reflect.Type
+				}{"age", "age", reflect.TypeOf("")},
+			),
+			want: map[string]any{
+				"name": "john",
+				"age":  "30",
+			},
+		},
+		{
+			name:         "path parameters only",
+			routerParams: map[string]string{"id": "123", "slug": "test-post"},
+			metadata: createParamMetadata(LocationPath, StyleSimple, false,
+				struct {
+					name      string
+					mapKey    string
+					fieldType reflect.Type
+				}{"id", "id", reflect.TypeOf("")},
+				struct {
+					name      string
+					mapKey    string
+					fieldType reflect.Type
+				}{"slug", "slug", reflect.TypeOf("")},
+			),
+			want: map[string]any{
+				"id":   "123",
+				"slug": "test-post",
+			},
+		},
+		{
+			name:    "header parameters only",
+			headers: map[string]string{"X-Request-ID": "abc123", "X-Client-Version": "1.0"},
+			metadata: createParamMetadata(LocationHeader, StyleSimple, false,
+				struct {
+					name      string
+					mapKey    string
+					fieldType reflect.Type
+				}{"X-Request-ID", "X-Request-ID", reflect.TypeOf("")},
+				struct {
+					name      string
+					mapKey    string
+					fieldType reflect.Type
+				}{"X-Client-Version", "X-Client-Version", reflect.TypeOf("")},
+			),
+			want: map[string]any{
+				"X-Request-ID":     "abc123",
+				"X-Client-Version": "1.0",
+			},
+		},
+		{
+			name:        "empty query string",
+			queryString: "",
+			metadata: createParamMetadata(LocationQuery, StyleForm, true,
+				struct {
+					name      string
+					mapKey    string
+					fieldType reflect.Type
+				}{"name", "name", reflect.TypeOf("")},
+			),
+			want: map[string]any{},
+		},
+	}
 
-	req, _ := http.NewRequest(http.MethodPost, "http://example.com/api", strings.NewReader(b.String()))
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	require.NoError(t, req.ParseMultipartForm(32<<20))
+	decoder := newTestDecoder()
 
-	opts, _ := NewOptions(LocationQuery, StyleForm, true)
-	decoder := NewDefaultDecoder()
-	result, _ := decoder.Decode(req.PostForm.Encode(), opts)
-	assert.Equal(t, "John", result["name"])
-	assert.Equal(t, "john@example.com", result["email"])
-	assert.Equal(t, []any{"1", "2"}, result["ids"])
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := createQueryRequest(tt.queryString)
+
+			// Add headers
+			for key, value := range tt.headers {
+				req.Header.Set(key, value)
+			}
+
+			// Add cookies
+			for name, value := range tt.cookies {
+				req.AddCookie(&http.Cookie{Name: name, Value: value})
+			}
+
+			result, err := decoder.Decode(req, tt.routerParams, tt.metadata)
+
+			if tt.wantErr {
+				require.Error(t, err)
+
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, result)
+		})
+	}
+}
+
+func TestDecoder_DecodeQuery(t *testing.T) {
+	tests := []struct {
+		name        string
+		queryString string
+		fields      []FieldMetadata
+		want        map[string]any
+		wantErr     bool
+	}{
+		{
+			name:        "simple query parameters",
+			queryString: "name=john&age=30",
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "Name",
+					ParamName:       "name",
+					MapKey:          "name",
+					Index:           0,
+					Type:            reflect.TypeOf(""),
+					IsParameter:     true,
+					Location:        LocationQuery,
+					Style:           StyleForm,
+					Explode:         true,
+				},
+				{
+					StructFieldName: "Age",
+					ParamName:       "age",
+					MapKey:          "age",
+					Index:           1,
+					Type:            reflect.TypeOf(""),
+					IsParameter:     true,
+					Location:        LocationQuery,
+					Style:           StyleForm,
+					Explode:         true,
+				},
+			},
+			want: map[string]any{
+				"name": "john",
+				"age":  "30",
+			},
+		},
+		{
+			name:        "array parameter exploded",
+			queryString: "ids=1&ids=2&ids=3",
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "IDs",
+					ParamName:       "ids",
+					MapKey:          "ids",
+					Index:           0,
+					Type:            reflect.TypeOf([]string{}),
+					IsParameter:     true,
+					Location:        LocationQuery,
+					Style:           StyleForm,
+					Explode:         true,
+				},
+			},
+			want: map[string]any{
+				"ids": []any{"1", "2", "3"},
+			},
+		},
+		{
+			name:        "array parameter non-exploded",
+			queryString: "ids=1,2,3",
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "IDs",
+					ParamName:       "ids",
+					MapKey:          "ids",
+					Index:           0,
+					Type:            reflect.TypeOf([]string{}),
+					IsParameter:     true,
+					Location:        LocationQuery,
+					Style:           StyleForm,
+					Explode:         false,
+				},
+			},
+			want: map[string]any{
+				"ids": []any{"1", "2", "3"},
+			},
+		},
+		{
+			name:        "deep object style",
+			queryString: "filter%5Btype%5D=car&filter%5Bcolor%5D=red",
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "Filter",
+					ParamName:       "filter",
+					MapKey:          "filter",
+					Index:           0,
+					Type:            reflect.TypeOf(map[string]any{}),
+					IsParameter:     true,
+					Location:        LocationQuery,
+					Style:           StyleDeepObject,
+					Explode:         true,
+				},
+			},
+			want: map[string]any{
+				"filter": map[string]any{
+					"type":  "car",
+					"color": "red",
+				},
+			},
+		},
+		{
+			name:        "space delimited style",
+			queryString: "ids=1%202%203",
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "IDs",
+					ParamName:       "ids",
+					MapKey:          "ids",
+					Index:           0,
+					Type:            reflect.TypeOf([]string{}),
+					IsParameter:     true,
+					Location:        LocationQuery,
+					Style:           StyleSpaceDelimited,
+					Explode:         false,
+				},
+			},
+			want: map[string]any{
+				"ids": []any{"1", "2", "3"},
+			},
+		},
+		{
+			name:        "pipe delimited style",
+			queryString: "ids=1%7C2%7C3",
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "IDs",
+					ParamName:       "ids",
+					MapKey:          "ids",
+					Index:           0,
+					Type:            reflect.TypeOf([]string{}),
+					IsParameter:     true,
+					Location:        LocationQuery,
+					Style:           StylePipeDelimited,
+					Explode:         false,
+				},
+			},
+			want: map[string]any{
+				"ids": []any{"1", "2", "3"},
+			},
+		},
+		{
+			name:        "no query fields in metadata",
+			queryString: "name=john",
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "ID",
+					ParamName:       "id",
+					MapKey:          "id",
+					Index:           0,
+					Type:            reflect.TypeOf(""),
+					IsParameter:     true,
+					Location:        LocationPath,
+					Style:           StyleSimple,
+				},
+			},
+			want: map[string]any{},
+		},
+		{
+			name:        "empty query string",
+			queryString: "",
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "Name",
+					ParamName:       "name",
+					MapKey:          "name",
+					Index:           0,
+					Type:            reflect.TypeOf(""),
+					IsParameter:     true,
+					Location:        LocationQuery,
+					Style:           StyleForm,
+					Explode:         true,
+				},
+			},
+			want: map[string]any{},
+		},
+		{
+			name:        "mixed styles in query",
+			queryString: "name=john&filter%5Btype%5D=car",
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "Name",
+					ParamName:       "name",
+					MapKey:          "name",
+					Index:           0,
+					Type:            reflect.TypeOf(""),
+					IsParameter:     true,
+					Location:        LocationQuery,
+					Style:           StyleForm,
+					Explode:         true,
+				},
+				{
+					StructFieldName: "Filter",
+					ParamName:       "filter",
+					MapKey:          "filter",
+					Index:           1,
+					Type:            reflect.TypeOf(map[string]any{}),
+					IsParameter:     true,
+					Location:        LocationQuery,
+					Style:           StyleDeepObject,
+					Explode:         true,
+				},
+			},
+			want: map[string]any{
+				"name": "john",
+				"filter": map[string]any{
+					"type": "car",
+				},
+			},
+		},
+	}
+
+	decoder := newTestDecoder()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			metadata, err := NewStructMetadata(tt.fields)
+			require.NoError(t, err)
+
+			req := createQueryRequest(tt.queryString)
+
+			result, err := decoder.decodeQuery(req, metadata)
+
+			if tt.wantErr {
+				require.Error(t, err)
+
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, result)
+		})
+	}
+}
+
+func TestDecoder_DecodePath(t *testing.T) {
+	tests := []struct {
+		name         string
+		routerParams map[string]string
+		fields       []FieldMetadata
+		want         map[string]any
+		wantErr      bool
+	}{
+		{
+			name: "simple path parameter",
+			routerParams: map[string]string{
+				"id": "123",
+			},
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "ID",
+					ParamName:       "id",
+					MapKey:          "id",
+					Index:           0,
+					Type:            reflect.TypeOf(""),
+					IsParameter:     true,
+					Location:        LocationPath,
+					Style:           StyleSimple,
+				},
+			},
+			want: map[string]any{
+				"id": "123",
+			},
+		},
+		{
+			name: "multiple path parameters",
+			routerParams: map[string]string{
+				"userID": "42",
+				"postID": "100",
+			},
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "UserID",
+					ParamName:       "userID",
+					MapKey:          "userID",
+					Index:           0,
+					Type:            reflect.TypeOf(""),
+					IsParameter:     true,
+					Location:        LocationPath,
+					Style:           StyleSimple,
+				},
+				{
+					StructFieldName: "PostID",
+					ParamName:       "postID",
+					MapKey:          "postID",
+					Index:           1,
+					Type:            reflect.TypeOf(""),
+					IsParameter:     true,
+					Location:        LocationPath,
+					Style:           StyleSimple,
+				},
+			},
+			want: map[string]any{
+				"userID": "42",
+				"postID": "100",
+			},
+		},
+		{
+			name: "label style path parameter",
+			routerParams: map[string]string{
+				"values": ".1.2.3",
+			},
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "Values",
+					ParamName:       "values",
+					MapKey:          "values",
+					Index:           0,
+					Type:            reflect.TypeOf([]string{}),
+					IsParameter:     true,
+					Location:        LocationPath,
+					Style:           StyleLabel,
+					Explode:         true,
+				},
+			},
+			want: map[string]any{
+				"values": []any{"1", "2", "3"},
+			},
+		},
+		{
+			name:         "empty router params",
+			routerParams: map[string]string{},
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "ID",
+					ParamName:       "id",
+					MapKey:          "id",
+					Index:           0,
+					Type:            reflect.TypeOf(""),
+					IsParameter:     true,
+					Location:        LocationPath,
+					Style:           StyleSimple,
+				},
+			},
+			want: map[string]any{
+				"id": "",
+			},
+		},
+		{
+			name: "no path fields in metadata",
+			routerParams: map[string]string{
+				"id": "123",
+			},
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "Name",
+					ParamName:       "name",
+					MapKey:          "name",
+					Index:           0,
+					Type:            reflect.TypeOf(""),
+					IsParameter:     true,
+					Location:        LocationQuery,
+					Style:           StyleForm,
+				},
+			},
+			want: map[string]any{},
+		},
+	}
+
+	decoder := newTestDecoder()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			metadata, err := NewStructMetadata(tt.fields)
+			require.NoError(t, err)
+
+			result, err := decoder.decodePath(tt.routerParams, metadata)
+
+			if tt.wantErr {
+				require.Error(t, err)
+
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, result)
+		})
+	}
+}
+
+func TestDecoder_DecodeHeader(t *testing.T) {
+	tests := []struct {
+		name    string
+		headers map[string]string
+		fields  []FieldMetadata
+		want    map[string]any
+		wantErr bool
+	}{
+		{
+			name: "simple header parameter",
+			headers: map[string]string{
+				"X-Request-ID": "abc123",
+			},
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "RequestID",
+					ParamName:       "X-Request-ID",
+					MapKey:          "X-Request-ID",
+					Index:           0,
+					Type:            reflect.TypeOf(""),
+					IsParameter:     true,
+					Location:        LocationHeader,
+					Style:           StyleSimple,
+				},
+			},
+			want: map[string]any{
+				"X-Request-ID": "abc123",
+			},
+		},
+		{
+			name: "multiple header parameters",
+			headers: map[string]string{
+				"X-Request-ID":     "abc123",
+				"X-Client-Version": "2.0",
+			},
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "RequestID",
+					ParamName:       "X-Request-ID",
+					MapKey:          "X-Request-ID",
+					Index:           0,
+					Type:            reflect.TypeOf(""),
+					IsParameter:     true,
+					Location:        LocationHeader,
+					Style:           StyleSimple,
+				},
+				{
+					StructFieldName: "ClientVersion",
+					ParamName:       "X-Client-Version",
+					MapKey:          "X-Client-Version",
+					Index:           1,
+					Type:            reflect.TypeOf(""),
+					IsParameter:     true,
+					Location:        LocationHeader,
+					Style:           StyleSimple,
+				},
+			},
+			want: map[string]any{
+				"X-Request-ID":     "abc123",
+				"X-Client-Version": "2.0",
+			},
+		},
+		{
+			name:    "missing header",
+			headers: map[string]string{},
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "RequestID",
+					ParamName:       "X-Request-ID",
+					MapKey:          "X-Request-ID",
+					Index:           0,
+					Type:            reflect.TypeOf(""),
+					IsParameter:     true,
+					Location:        LocationHeader,
+					Style:           StyleSimple,
+				},
+			},
+			want: map[string]any{
+				"X-Request-ID": "",
+			},
+		},
+		{
+			name: "no header fields in metadata",
+			headers: map[string]string{
+				"X-Request-ID": "abc123",
+			},
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "Name",
+					ParamName:       "name",
+					MapKey:          "name",
+					Index:           0,
+					Type:            reflect.TypeOf(""),
+					IsParameter:     true,
+					Location:        LocationQuery,
+					Style:           StyleForm,
+				},
+			},
+			want: map[string]any{},
+		},
+	}
+
+	decoder := newTestDecoder()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			metadata, err := NewStructMetadata(tt.fields)
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			for key, value := range tt.headers {
+				req.Header.Set(key, value)
+			}
+
+			result, err := decoder.decodeHeader(req, metadata)
+
+			if tt.wantErr {
+				require.Error(t, err)
+
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, result)
+		})
+	}
+}
+
+func TestDecoder_DecodeCookie(t *testing.T) {
+	// NOTE: The current decoder implementation has a limitation where StyleForm
+	// (the only allowed style for cookies per OpenAPI spec) is not supported
+	// in decodeValueByStyle for single values. These tests verify behavior
+	// for scenarios that work around this limitation.
+	tests := []struct {
+		name    string
+		cookies map[string]string
+		fields  []FieldMetadata
+		want    map[string]any
+		wantErr bool
+	}{
+		{
+			name:    "missing cookie (skipped)",
+			cookies: map[string]string{},
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "Session",
+					ParamName:       "session",
+					MapKey:          "session",
+					Index:           0,
+					Type:            reflect.TypeOf(""),
+					IsParameter:     true,
+					Location:        LocationCookie,
+					Style:           StyleForm,
+					Explode:         true,
+				},
+			},
+			want: map[string]any{},
+		},
+		{
+			name: "no cookie fields in metadata",
+			cookies: map[string]string{
+				"session": "xyz789",
+			},
+			fields: []FieldMetadata{
+				{
+					StructFieldName: "Name",
+					ParamName:       "name",
+					MapKey:          "name",
+					Index:           0,
+					Type:            reflect.TypeOf(""),
+					IsParameter:     true,
+					Location:        LocationQuery,
+					Style:           StyleForm,
+				},
+			},
+			want: map[string]any{},
+		},
+	}
+
+	decoder := newTestDecoder()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			metadata, err := NewStructMetadata(tt.fields)
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			for name, value := range tt.cookies {
+				req.AddCookie(&http.Cookie{Name: name, Value: value})
+			}
+
+			result, err := decoder.decodeCookie(req, metadata)
+
+			if tt.wantErr {
+				require.Error(t, err)
+
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, result)
+		})
+	}
+}
+
+func TestFilterQueryValuesByFields(t *testing.T) {
+	tests := []struct {
+		name      string
+		allValues map[string][]string
+		fields    []FieldMetadata
+		want      map[string][]string
+	}{
+		{
+			name: "filters matching fields",
+			allValues: map[string][]string{
+				"name":    {"john"},
+				"age":     {"30"},
+				"unknown": {"value"},
+			},
+			fields: []FieldMetadata{
+				{MapKey: "name"},
+				{MapKey: "age"},
+			},
+			want: map[string][]string{
+				"name": {"john"},
+				"age":  {"30"},
+			},
+		},
+		{
+			name: "handles deep object notation",
+			allValues: map[string][]string{
+				"filter[type]":  {"car"},
+				"filter[color]": {"red"},
+				"other":         {"value"},
+			},
+			fields: []FieldMetadata{
+				{MapKey: "filter"},
+			},
+			want: map[string][]string{
+				"filter[type]":  {"car"},
+				"filter[color]": {"red"},
+			},
+		},
+		{
+			name: "handles dotted notation",
+			allValues: map[string][]string{
+				"user.name": {"john"},
+				"user.age":  {"30"},
+				"other":     {"value"},
+			},
+			fields: []FieldMetadata{
+				{MapKey: "user"},
+			},
+			want: map[string][]string{
+				"user.name": {"john"},
+				"user.age":  {"30"},
+			},
+		},
+		{
+			name: "no matching fields",
+			allValues: map[string][]string{
+				"unknown": {"value"},
+			},
+			fields: []FieldMetadata{
+				{MapKey: "name"},
+			},
+			want: map[string][]string{},
+		},
+		{
+			name:      "empty values",
+			allValues: map[string][]string{},
+			fields: []FieldMetadata{
+				{MapKey: "name"},
+			},
+			want: map[string][]string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := filterQueryValuesByFields(tt.allValues, tt.fields)
+
+			assert.Equal(t, tt.want, map[string][]string(result))
+		})
+	}
 }

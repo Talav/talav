@@ -8,64 +8,69 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFieldCache_GetCachedFields(t *testing.T) {
+func TestSchemaCache_GetCachedFields(t *testing.T) {
 	type User struct {
 		Name string `schema:"name"`
 		Age  int    `schema:"age"`
-		ID   int    // No tag
+		ID   int    // No tag - included by default (JSON-like behavior)
 	}
 
-	cache := NewFieldCache()
+	parser := newStructMetadataParser()
+	cache := NewStructMetadataCache(parser)
 	typ := reflect.TypeOf(User{})
-	fields := cache.GetCachedFields(typ, "schema")
+	metadata, err := cache.getStructMetadata(typ)
 
-	require.Len(t, fields, 3)
+	require.NoError(t, err)
+	require.NotNil(t, metadata)
+	require.Len(t, metadata.Fields, 3) // All exported fields included
 
 	// Check field with tag
-	nameField := fields[0]
-	assert.Equal(t, "Name", nameField.name)
-	assert.Equal(t, "name", nameField.tagName)
-	assert.Equal(t, "name", nameField.mapKey)
+	nameField := metadata.Fields[0]
+	assert.Equal(t, "Name", nameField.StructFieldName)
+	assert.Equal(t, "name", nameField.ParamName)
+	assert.Equal(t, "name", nameField.MapKey)
 
-	// Check field without tag
-	idField := fields[2]
-	assert.Equal(t, "ID", idField.name)
-	assert.Equal(t, "", idField.tagName)
-	assert.Equal(t, "ID", idField.mapKey)
+	// Check untagged field (should have default metadata)
+	idField := metadata.Fields[2]
+	assert.Equal(t, "ID", idField.StructFieldName)
+	assert.Equal(t, "ID", idField.ParamName)
+	assert.Equal(t, "ID", idField.MapKey)
+	assert.Equal(t, LocationQuery, idField.Location)
+	assert.Equal(t, StyleForm, idField.Style)
 }
 
-func TestFieldCache_CacheReuse(t *testing.T) {
+func TestSchemaCache_SkipFieldWithDash(t *testing.T) {
 	type User struct {
-		Name string
+		Name string `schema:"name"`
+		Age  int    `schema:"age"`
+		ID   int    `schema:"-"` // Explicitly skipped
 	}
 
-	cache := NewFieldCache()
+	parser := newStructMetadataParser()
+	cache := NewStructMetadataCache(parser)
+	typ := reflect.TypeOf(User{})
+	metadata, err := cache.getStructMetadata(typ)
+
+	require.NoError(t, err)
+	require.NotNil(t, metadata)
+	require.Len(t, metadata.Fields, 2) // ID field skipped
+}
+
+func TestSchemaCache_CacheReuse(t *testing.T) {
+	type User struct {
+		Name string `schema:"name"`
+	}
+
+	parser := newStructMetadataParser()
+	cache := NewStructMetadataCache(parser)
 	typ := reflect.TypeOf(User{})
 
-	fields1 := cache.GetCachedFields(typ, "schema")
-	fields2 := cache.GetCachedFields(typ, "schema")
+	metadata1, err1 := cache.getStructMetadata(typ)
+	require.NoError(t, err1)
 
-	// Should return same slice (cached)
-	assert.Equal(t, fields1, fields2)
-}
+	metadata2, err2 := cache.getStructMetadata(typ)
+	require.NoError(t, err2)
 
-func TestGetFieldName(t *testing.T) {
-	tests := []struct {
-		name     string
-		tag      string
-		expected string
-	}{
-		{"simple", "name", "name"},
-		{"with options", "name,omitempty", "name"},
-		{"empty", "", ""},
-		{"only options", ",omitempty", ""},
-	}
-
-	cache := NewFieldCache()
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := cache.getFieldName(tt.tag)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
+	// Should return same pointer (cached)
+	assert.Equal(t, metadata1, metadata2)
 }
