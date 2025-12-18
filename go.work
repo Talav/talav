@@ -10,6 +10,7 @@ use (
 	./pkg/component/schema
 	./pkg/component/tagparser
 	./pkg/component/validator
+	./pkg/component/zorya
 	./pkg/fx/fxblob
 	./pkg/fx/fxconfig
 	./pkg/fx/fxcore
