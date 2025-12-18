@@ -1,0 +1,1214 @@
+# Zorya
+
+A Go HTTP API framework for building type-safe, RFC-compliant REST APIs with automatic request/response handling, content negotiation, validation, and comprehensive error handling.
+
+## Features
+
+- **Type-Safe Request/Response Handling** - Decode requests and encode responses using Go structs
+- **Router Adapters** - Works with Chi, Fiber, and Go 1.22+ standard library
+- **Content Negotiation** - Automatic content type negotiation (JSON, CBOR, and custom formats)
+- **Request Validation** - Pluggable validation with go-playground/validator support
+- **RFC 9457 Error Handling** - Structured error responses with machine-readable codes
+- **Conditional Requests** - Support for If-Match, If-None-Match, If-Modified-Since, If-Unmodified-Since
+- **Streaming Responses** - Server-Sent Events (SSE) and chunked transfer support
+- **Response Transformers** - Modify response bodies before serialization
+- **Middleware Support** - API-level and route-level middleware chains
+- **Route Groups** - Group routes with shared prefixes, middleware, and transformers
+- **Request Limits** - Configurable body size limits and read timeouts
+- **Default Parameter Values** - Automatic default value application using struct tags
+
+## Installation
+
+```bash
+go get github.com/talav/talav/pkg/component/zorya
+```
+
+## Quick Start
+
+```go
+package main
+
+import (
+    "context"
+    "net/http"
+    
+    "github.com/go-chi/chi/v5"
+    "github.com/talav/talav/pkg/component/zorya"
+    "github.com/talav/talav/pkg/component/zorya/adapters"
+)
+
+type CreateUserInput struct {
+    Body struct {
+        Name  string `json:"name" validate:"required"`
+        Email string `json:"email" validate:"required,email"`
+    }
+}
+
+type CreateUserOutput struct {
+    Status int `json:"-"`
+    Body struct {
+        ID    int    `json:"id"`
+        Name  string `json:"name"`
+        Email string `json:"email"`
+}
+}
+
+func main() {
+    router := chi.NewMux()
+    adapter := adapters.NewChi(router)
+    api := zorya.NewAPI(adapter)
+    
+    zorya.Post(api, "/users", func(ctx context.Context, input *CreateUserInput) (*CreateUserOutput, error) {
+        // Your business logic here
+        return &CreateUserOutput{
+            Status: http.StatusCreated,
+            Body: struct {
+                ID    int    `json:"id"`
+                Name  string `json:"name"`
+                Email string `json:"email"`
+            }{
+                ID:    1,
+                Name:  input.Body.Name,
+                Email: input.Body.Email,
+            },
+        }, nil
+    })
+    
+    http.ListenAndServe(":8080", router)
+}
+```
+
+## Router Adapters
+
+Zorya supports multiple router backends through adapters:
+
+### Chi Router
+
+```go
+import (
+    "github.com/go-chi/chi/v5"
+    "github.com/talav/talav/pkg/component/zorya/adapters"
+)
+
+router := chi.NewMux()
+adapter := adapters.NewChi(router)
+api := zorya.NewAPI(adapter)
+```
+
+### Fiber
+
+```go
+import (
+    "github.com/gofiber/fiber/v2"
+    "github.com/talav/talav/pkg/component/zorya/adapters"
+)
+
+app := fiber.New()
+adapter := adapters.NewFiber(app)
+api := zorya.NewAPI(adapter)
+```
+
+### Standard Library (Go 1.22+)
+
+```go
+import (
+    "net/http"
+    "github.com/talav/talav/pkg/component/zorya/adapters"
+)
+
+mux := http.NewServeMux()
+adapter := adapters.NewStdlib(mux)
+api := zorya.NewAPI(adapter)
+
+// With prefix
+adapter := adapters.NewStdlibWithPrefix(mux, "/api")
+```
+
+## Request Handling
+
+### Input Structs
+
+Input structs define request parameters and body using struct tags from the `schema` package:
+
+```go
+type GetUserInput struct {
+    // Path parameter (from router)
+    ID string `schema:"id,location=path"`
+    
+    // Query parameters
+    Format string `schema:"format,location=query"`
+    Page   int    `schema:"page,location=query"`
+    
+    // Header parameters
+    APIKey string `schema:"X-API-Key,location=header"`
+    
+    // Cookie parameters
+    SessionID string `schema:"session_id,location=cookie"`
+    
+    // Request body
+    Body struct {
+        Name  string `json:"name"`
+        Email string `json:"email"`
+    } `body:"structured"`
+}
+```
+
+See the [schema package documentation](../schema/README.md) for detailed information on struct tags and parameter locations.
+
+### HTTP Methods
+
+Zorya provides convenience functions for all HTTP methods:
+
+```go
+zorya.Get(api, "/users/{id}", handler)
+zorya.Post(api, "/users", handler)
+zorya.Put(api, "/users/{id}", handler)
+zorya.Patch(api, "/users/{id}", handler)
+zorya.Delete(api, "/users/{id}", handler)
+zorya.Head(api, "/users/{id}", handler)
+```
+
+### Advanced Route Configuration
+
+```go
+zorya.Post(api, "/users", handler,
+    func(route *zorya.BaseRoute) {
+        // Set body size limit (default: 1MB)
+        route.MaxBodyBytes = 10 * 1024 * 1024 // 10MB
+        
+        // Set body read timeout (default: 5 seconds)
+        route.BodyReadTimeout = 10 * time.Second
+        
+        // Add route-specific middleware
+        route.Middlewares = zorya.Middlewares{
+            func(ctx zorya.Context, next func(zorya.Context)) {
+                // Your middleware logic
+                next(ctx)
+            },
+        }
+    },
+)
+```
+
+## Response Handling
+
+### Output Structs
+
+Output structs define response status, headers, and body:
+
+```go
+type GetUserOutput struct {
+    // HTTP status code (default: 200)
+    Status int `json:"-"`
+    
+    // Response headers
+    ContentType string `header:"Content-Type"`
+    ETag        string `header:"ETag"`
+    
+    // Response body
+    Body struct {
+        ID    int    `json:"id"`
+        Name  string `json:"name"`
+        Email string `json:"email"`
+    }
+}
+```
+
+### Status Codes
+
+Set the status code using the `Status` field:
+
+```go
+return &CreateUserOutput{
+    Status: http.StatusCreated, // 201
+    Body:   userData,
+}, nil
+```
+
+### Response Headers
+
+Use the `header` tag to set response headers:
+
+```go
+type Output struct {
+    Location     string   `header:"Location"`           // Single value
+    CacheControl []string `header:"Cache-Control"`      // Multiple values (slice)
+    CustomHeader string   `header:"X-Custom-Header"`   // Custom header
+}
+```
+
+## Content Negotiation
+
+Zorya automatically negotiates content types based on the `Accept` header:
+
+```go
+// Client requests: Accept: application/cbor
+// Response: Content-Type: application/cbor
+
+// Client requests: Accept: application/json
+// Response: Content-Type: application/json
+
+// Client requests: Accept: */*
+// Response: Content-Type: application/json (default)
+```
+
+Supported formats:
+- `application/json` (default)
+- `application/cbor`
+
+Plus-segment matching is supported (e.g., `application/vnd.api+json` matches `json`).
+
+### Custom Formats
+
+You can add custom formats (e.g., XML, YAML, etc.) by implementing a `Format`. Default formats (JSON, CBOR) are automatically included unless you use `WithFormatsReplace`.
+
+#### Adding a Single Format
+
+```go
+import (
+    "encoding/xml"
+    "github.com/talav/talav/pkg/component/zorya"
+)
+
+// Create XML format
+xmlFormat := zorya.Format{
+    Marshal: func(w io.Writer, v any) error {
+        enc := xml.NewEncoder(w)
+        enc.Indent("", "  ")
+        return enc.Encode(v)
+    },
+}
+
+// Add XML format - defaults (JSON, CBOR) are automatically included
+api := zorya.NewAPI(
+    adapter,
+    zorya.WithFormat("application/xml", xmlFormat),
+    zorya.WithFormat("xml", xmlFormat), // For +xml suffix matching
+)
+```
+
+#### Adding Multiple Formats
+
+```go
+// Add multiple formats - defaults are automatically included
+formats := map[string]zorya.Format{
+    "application/xml": xmlFormat,
+    "xml":             xmlFormat,
+    "text/plain":      textFormat,
+}
+
+api := zorya.NewAPI(
+    adapter,
+    zorya.WithFormats(formats),
+)
+```
+
+#### Replacing All Formats
+
+To have complete control and exclude defaults, use `WithFormatsReplace`:
+
+```go
+// Only JSON, no CBOR - you must explicitly include JSON
+api := zorya.NewAPI(
+    adapter,
+    zorya.WithFormatsReplace(map[string]zorya.Format{
+        "application/json": zorya.JSONFormat(),
+        "json":             zorya.JSONFormat(),
+    }),
+)
+
+// Or only XML - no defaults included
+api := zorya.NewAPI(
+    adapter,
+    zorya.WithFormatsReplace(map[string]zorya.Format{
+        "application/xml": xmlFormat,
+        "xml":             xmlFormat,
+    }),
+)
+```
+
+Now clients can request XML responses:
+
+```go
+// Client request: Accept: application/xml
+// Response: Content-Type: application/xml
+
+// Client request: Accept: application/json, application/xml
+// Response: Content-Type: application/xml (if XML is preferred)
+```
+
+## Request Validation
+
+### Using go-playground/validator
+
+```go
+import (
+    "github.com/talav/talav/pkg/component/validator"
+    "github.com/talav/talav/pkg/component/zorya"
+)
+
+// Create validator
+factory := validator.NewDefaultValidatorFactory()
+v, _ := factory.Create(nil, nil, nil, nil, nil)
+
+// Wrap with Zorya adapter
+zoryaValidator := zorya.NewPlaygroundValidator(v)
+
+// Configure API
+api := zorya.NewAPI(adapter, zorya.WithValidator(zoryaValidator))
+```
+
+### Validation Tags
+
+```go
+type CreateUserInput struct {
+    Body struct {
+        Email    string `json:"email" validate:"required,email"`
+        Name     string `json:"name" validate:"required,min=3"`
+        Age      int    `json:"age" validate:"min=0,max=150"`
+        Username string `json:"username" validate:"required,alphanum"`
+}
+}
+```
+
+### Validation Error Response
+
+When validation fails, Zorya returns a 422 Unprocessable Entity response:
+
+```json
+{
+  "status": 422,
+  "title": "Unprocessable Entity",
+  "detail": "validation failed",
+  "errors": [
+    {
+      "code": "email",
+      "message": "Key: 'CreateUserInput.Body.email' Error:Field validation for 'email' failed on the 'email' tag",
+      "location": "body.email"
+    },
+    {
+      "code": "min",
+      "message": "Key: 'CreateUserInput.Body.name' Error:Field validation for 'name' failed on the 'min' tag",
+      "location": "body.name"
+    }
+  ]
+}
+```
+
+The `code` field contains the validation tag for frontend translation.
+
+### Custom Validators
+
+Implement the `Validator` interface to use any validation library:
+
+```go
+type MyValidator struct {
+    // your validator implementation
+}
+
+func (v *MyValidator) Validate(ctx context.Context, input any) []error {
+    // Validate and return errors that implement ErrorDetailer
+    return []error{
+        &zorya.ErrorDetail{
+            Code:     "custom_error",
+            Message:  "Custom validation failed",
+            Location: "body.field",
+        },
+    }
+}
+```
+
+## Error Handling
+
+Zorya provides comprehensive error handling based on [RFC 9457 Problem Details for HTTP APIs](https://datatracker.ietf.org/doc/html/rfc9457).
+
+### Error Types
+
+```go
+type ErrorModel struct {
+    Type     string         `json:"type,omitempty"`
+    Title    string         `json:"title,omitempty"`
+    Status   int            `json:"status,omitempty"`
+    Detail   string         `json:"detail,omitempty"`
+    Instance string         `json:"instance,omitempty"`
+    Errors   []*ErrorDetail `json:"errors,omitempty"`
+}
+
+type ErrorDetail struct {
+    Code     string `json:"code,omitempty"`     // Machine-readable error code
+    Message  string `json:"message,omitempty"`  // Human-readable message
+    Location string `json:"location,omitempty"` // Error location (e.g., "body.email")
+}
+```
+
+### Convenience Functions
+
+```go
+// 4xx Client Errors
+zorya.Error400BadRequest(msg string, errs ...error)
+zorya.Error401Unauthorized(msg string, errs ...error)
+zorya.Error403Forbidden(msg string, errs ...error)
+zorya.Error404NotFound(msg string, errs ...error)
+zorya.Error422UnprocessableEntity(msg string, errs ...error)
+zorya.Error429TooManyRequests(msg string, errs ...error)
+
+// 5xx Server Errors
+zorya.Error500InternalServerError(msg string, errs ...error)
+zorya.Error503ServiceUnavailable(msg string, errs ...error)
+```
+
+### Error Interfaces
+
+```go
+// StatusError - Set HTTP status code
+type StatusError interface {
+    GetStatus() int
+    Error() string
+}
+
+// HeadersError - Set response headers
+type HeadersError interface {
+    GetHeaders() http.Header
+    Error() string
+}
+
+// ErrorDetailer - Provide structured error details
+type ErrorDetailer interface {
+    ErrorDetail() *ErrorDetail
+}
+```
+
+### Example
+
+```go
+func getUser(ctx context.Context, input *GetUserInput) (*GetUserOutput, error) {
+    user, err := db.FindUser(input.ID)
+    if err != nil {
+        return nil, zorya.Error404NotFound("User not found")
+    }
+    return &GetUserOutput{Body: user}, nil
+}
+```
+
+For detailed error handling documentation, see [Error Processing in Zorya](#error-processing).
+
+## Conditional Requests
+
+Zorya supports HTTP conditional requests (If-Match, If-None-Match, If-Modified-Since, If-Unmodified-Since) for caching and concurrency control.
+
+### Usage
+
+Embed `conditional.Params` in your input struct:
+
+```go
+import "github.com/talav/talav/pkg/component/zorya/conditional"
+
+type GetUserInput struct {
+    ID string `schema:"id,location=path"`
+    conditional.Params
+}
+```
+
+Check preconditions in your handler:
+
+```go
+func getUser(ctx context.Context, input *GetUserInput) (*GetUserOutput, error) {
+    user := getUserFromDB(input.ID)
+    
+    if err := input.Params.CheckPreconditions(
+        user.ETag,
+        user.Modified,
+        ctx.Request().Method != http.MethodGet,
+    ); err != nil {
+        return nil, err
+    }
+    
+    return &GetUserOutput{Body: user}, nil
+}
+```
+
+### Behavior
+
+- **Read requests (GET, HEAD)**: Returns `304 Not Modified` if conditions fail
+- **Write requests (POST, PUT, PATCH, DELETE)**: Returns `412 Precondition Failed` if conditions fail
+
+## Streaming Responses
+
+Zorya supports streaming responses via `Body func(Context)` fields for Server-Sent Events (SSE) and chunked transfers.
+
+### Basic Streaming
+
+```go
+type StreamOutput struct {
+    Status      int    `default:"200"`
+    ContentType string `header:"Content-Type"`
+    Body        func(ctx zorya.Context)
+}
+
+func streamHandler(ctx context.Context, input *Input) (*StreamOutput, error) {
+    return &StreamOutput{
+        ContentType: "text/plain",
+        Body: func(ctx zorya.Context) {
+            w := ctx.BodyWriter()
+            for i := 0; i < 5; i++ {
+                fmt.Fprintf(w, "chunk %d\n", i)
+                time.Sleep(time.Second)
+            }
+        },
+    }, nil
+}
+```
+
+### Server-Sent Events (SSE)
+
+```go
+type SSEOutput struct {
+    ContentType  string `header:"Content-Type"`
+    CacheControl string `header:"Cache-Control"`
+    Body         func(ctx zorya.Context)
+}
+
+func sseHandler(ctx context.Context, input *Input) (*SSEOutput, error) {
+    return &SSEOutput{
+        ContentType:  "text/event-stream",
+        CacheControl: "no-cache",
+        Body: func(ctx zorya.Context) {
+            w := ctx.BodyWriter()
+            flusher, _ := w.(http.Flusher)
+            
+            for i := 0; i < 10; i++ {
+                select {
+                case <-ctx.Context().Done():
+                    return
+                default:
+                    fmt.Fprintf(w, "event: message\n")
+                    fmt.Fprintf(w, "data: {\"count\": %d}\n\n", i)
+                    if flusher != nil {
+                        flusher.Flush()
+                    }
+                    time.Sleep(time.Second)
+                }
+            }
+        },
+    }, nil
+}
+```
+
+### ResponseWriter Interface
+
+For full response control, type-assert to `ResponseWriter`:
+
+```go
+func streamWithHeaders(ctx zorya.Context) {
+    if w, ok := ctx.(zorya.ResponseWriter); ok {
+        w.SetHeader("X-Custom", "value")
+        w.SetStatus(200)
+    }
+    
+    w := ctx.BodyWriter()
+    w.Write([]byte("streaming data"))
+}
+```
+
+## Response Transformers
+
+Transformers modify response bodies before serialization. They run in the order they were added.
+
+### API-Level Transformers
+
+```go
+api.UseTransformer(func(ctx zorya.Context, status string, v any) (any, error) {
+    // Transform response body
+    if data, ok := v.(map[string]any); ok {
+        data["transformed"] = true
+        return data, nil
+    }
+    return v, nil
+})
+```
+
+### Group-Level Transformers
+
+```go
+group := zorya.NewGroup(api, "/v1")
+group.UseTransformer(func(ctx zorya.Context, status string, v any) (any, error) {
+    // Transform only for this group
+    return v, nil
+})
+```
+
+Transformers are chained: group transformers run first, then API transformers.
+
+## Middleware
+
+### API-Level Middleware
+
+```go
+api.UseMiddleware(func(ctx zorya.Context, next func(zorya.Context)) {
+    // Before handler
+    start := time.Now()
+    
+    next(ctx)
+    
+    // After handler
+    duration := time.Since(start)
+    log.Printf("Request took %v", duration)
+})
+```
+
+### Route-Level Middleware
+
+```go
+zorya.Get(api, "/users", handler,
+    func(route *zorya.BaseRoute) {
+        route.Middlewares = zorya.Middlewares{
+            func(ctx zorya.Context, next func(zorya.Context)) {
+                // Route-specific middleware
+                next(ctx)
+            },
+        }
+    },
+)
+```
+
+### Middleware Chain
+
+Middleware runs in the order added:
+1. API-level middleware
+2. Route-level middleware
+3. Handler
+
+## Route Groups
+
+Groups allow you to organize routes with shared prefixes, middleware, and transformers.
+
+### Basic Group
+
+```go
+group := zorya.NewGroup(api, "/v1")
+
+zorya.Get(group, "/users", getUserHandler)
+zorya.Post(group, "/users", createUserHandler)
+
+// Routes registered as:
+// GET /v1/users
+// POST /v1/users
+```
+
+### Group with Middleware
+
+```go
+group := zorya.NewGroup(api, "/v1")
+group.UseMiddleware(authMiddleware)
+
+zorya.Get(group, "/users", getUserHandler)
+// All routes in group require authentication
+```
+
+### Multiple Prefixes
+
+```go
+group := zorya.NewGroup(api, "/v1", "/api/v1")
+
+zorya.Get(group, "/users", getUserHandler)
+
+// Routes registered as:
+// GET /v1/users
+// GET /api/v1/users
+```
+
+### Group with Transformers
+
+```go
+group := zorya.NewGroup(api, "/v1")
+group.UseTransformer(func(ctx zorya.Context, status string, v any) (any, error) {
+    // Transform responses for this group
+    return v, nil
+})
+```
+
+## Request Limits
+
+### Body Size Limits
+
+Set per-route body size limits:
+
+```go
+zorya.Post(api, "/upload", handler,
+    func(route *zorya.BaseRoute) {
+        route.MaxBodyBytes = 10 * 1024 * 1024 // 10MB
+        // Default: 1MB (DefaultMaxBodyBytes)
+        // Negative: No limit
+    },
+)
+```
+
+When the limit is exceeded, Zorya returns `413 Request Entity Too Large`.
+
+### Body Read Timeout
+
+Set per-route body read timeouts to prevent slow-loris attacks:
+
+```go
+zorya.Post(api, "/upload", handler,
+    func(route *zorya.BaseRoute) {
+        route.BodyReadTimeout = 10 * time.Second
+        // Default: 5 seconds (DefaultBodyReadTimeout)
+        // Negative: No timeout
+    },
+)
+```
+
+## Default Parameter Values
+
+Zorya automatically applies default values to missing fields using the `default` struct tag:
+
+```go
+type ListUsersInput struct {
+    Page     int    `schema:"page,location=query" default:"1"`
+    PageSize int    `schema:"page_size,location=query" default:"20"`
+    Sort     string `schema:"sort,location=query" default:"created_at"`
+    Order    string `schema:"order,location=query" default:"desc"`
+}
+```
+
+Default values are parsed using the `mapstructure` converter registry, supporting all built-in types and custom types with registered converters.
+
+## Context Interface
+
+The `Context` interface provides access to request information:
+
+```go
+type Context interface {
+    Context() context.Context
+    Request() *http.Request
+    RouterParams() map[string]string
+    Header(name string) string
+    SetReadDeadline(t time.Time) error
+    BodyWriter() http.ResponseWriter
+}
+```
+
+### ResponseWriter Interface
+
+Adapter contexts implement `ResponseWriter` for response control:
+
+```go
+type ResponseWriter interface {
+    Context
+    SetStatus(status int)
+    SetHeader(name, value string)
+    AppendHeader(name, value string)
+    Write(data []byte) (int, error)
+}
+```
+
+## API Reference
+
+### Types
+
+- `API` - Main API interface
+- `Context` - Request context interface
+- `ResponseWriter` - Response writer interface
+- `Adapter` - Router adapter interface
+- `Validator` - Request validation interface
+- `Transformer` - Response transformer function type
+- `Group` - Route group
+- `BaseRoute` - Route configuration
+- `ErrorModel` - RFC 9457 error model
+- `ErrorDetail` - Error detail with code, message, location
+
+### Functions
+
+- `NewAPI(adapter Adapter, opts ...Option) API` - Create new API instance with options
+  - `WithValidator(validator Validator) Option` - Set request validator
+  - `WithFormat(contentType string, format Format) Option` - Add a single format (merges with defaults)
+  - `WithFormats(formats map[string]Format) Option` - Add multiple formats (merges with defaults)
+  - `WithFormatsReplace(formats map[string]Format) Option` - Replace all formats (excludes defaults)
+  - `WithCodec(codec *schema.Codec) Option` - Set custom codec
+  - `WithDefaultFormat(format string) Option` - Set default content type
+- `Get[I, O any](api API, path string, handler, ...options)` - Register GET route
+- `Post[I, O any](api API, path string, handler, ...options)` - Register POST route
+- `Put[I, O any](api API, path string, handler, ...options)` - Register PUT route
+- `Patch[I, O any](api API, path string, handler, ...options)` - Register PATCH route
+- `Delete[I, O any](api API, path string, handler, ...options)` - Register DELETE route
+- `Head[I, O any](api API, path string, handler, ...options)` - Register HEAD route
+- `Register[I, O any](api API, route BaseRoute, handler)` - Register route with full configuration
+- `NewGroup(api API, prefixes ...string) *Group` - Create route group
+- `NewPlaygroundValidator(v Validator) Validator` - Create validator adapter
+- `WriteErr(api API, ctx Context, status int, msg string, errs ...error) error` - Write error response
+- `Error400BadRequest(msg string, errs ...error) StatusError` - Create 400 error
+- `Error404NotFound(msg string, errs ...error) StatusError` - Create 404 error
+- `Error422UnprocessableEntity(msg string, errs ...error) StatusError` - Create 422 error
+- (and other error convenience functions)
+
+### Constants
+
+- `DefaultMaxBodyBytes int64` - Default body size limit (1MB)
+- `DefaultBodyReadTimeout time.Duration` - Default body read timeout (5 seconds)
+
+## Error Processing
+
+Zorya provides comprehensive error handling based on [RFC 9457 Problem Details for HTTP APIs](https://datatracker.ietf.org/doc/html/rfc9457).
+
+### Error Types
+
+#### ErrorModel
+
+`ErrorModel` is the primary error type implementing RFC 9457 Problem Details:
+
+```go
+type ErrorModel struct {
+    Type     string         `json:"type,omitempty"`     // URI reference to error documentation
+    Title    string         `json:"title,omitempty"`    // Short summary (defaults to HTTP status text)
+    Status   int            `json:"status,omitempty"`   // HTTP status code
+    Detail   string         `json:"detail,omitempty"`    // Human-readable explanation
+    Instance string         `json:"instance,omitempty"` // URI reference identifying this occurrence
+    Errors   []*ErrorDetail `json:"errors,omitempty"`  // Validation error details
+}
+```
+
+#### ErrorDetail
+
+`ErrorDetail` provides specific information about individual validation errors:
+
+```go
+type ErrorDetail struct {
+    Code     string `json:"code,omitempty"`     // Machine-readable error code (e.g., "required", "email")
+    Message  string `json:"message,omitempty"`  // Optional human-readable message
+    Location string `json:"location,omitempty"` // Path-like string (e.g., "body.items[3].tags")
+}
+```
+
+### Error Interfaces
+
+#### StatusError
+
+Errors implementing `StatusError` can specify an HTTP status code:
+
+```go
+type StatusError interface {
+    GetStatus() int
+    Error() string
+}
+```
+
+#### HeadersError
+
+Errors implementing `HeadersError` can set HTTP response headers:
+
+```go
+type HeadersError interface {
+    GetHeaders() http.Header
+    Error() string
+}
+```
+
+Useful for:
+- `WWW-Authenticate` headers for 401 errors
+- `Retry-After` headers for 429 errors
+- Custom headers for API-specific metadata
+
+#### ErrorDetailer
+
+Custom error types can implement `ErrorDetailer` to provide structured error details:
+
+```go
+type ErrorDetailer interface {
+    ErrorDetail() *ErrorDetail
+}
+```
+
+#### ContentTypeFilter
+
+Response types (including errors) can implement `ContentTypeFilter` to override the negotiated content type:
+
+```go
+type ContentTypeFilter interface {
+    ContentType(string) string
+}
+```
+
+`ErrorModel` implements this to return `application/problem+json` for JSON responses and `application/problem+cbor` for CBOR responses, as specified by RFC 9457.
+
+### Creating Errors
+
+#### Convenience Functions
+
+```go
+// 4xx Client Errors
+zorya.Error400BadRequest(msg string, errs ...error)
+zorya.Error401Unauthorized(msg string, errs ...error)
+zorya.Error403Forbidden(msg string, errs ...error)
+zorya.Error404NotFound(msg string, errs ...error)
+zorya.Error405MethodNotAllowed(msg string, errs ...error)
+zorya.Error406NotAcceptable(msg string, errs ...error)
+zorya.Error409Conflict(msg string, errs ...error)
+zorya.Error410Gone(msg string, errs ...error)
+zorya.Error412PreconditionFailed(msg string, errs ...error)
+zorya.Error415UnsupportedMediaType(msg string, errs ...error)
+zorya.Error422UnprocessableEntity(msg string, errs ...error)
+zorya.Error429TooManyRequests(msg string, errs ...error)
+
+// 5xx Server Errors
+zorya.Error500InternalServerError(msg string, errs ...error)
+zorya.Error501NotImplemented(msg string, errs ...error)
+zorya.Error502BadGateway(msg string, errs ...error)
+zorya.Error503ServiceUnavailable(msg string, errs ...error)
+zorya.Error504GatewayTimeout(msg string, errs ...error)
+```
+
+#### Custom Error Creation
+
+Replace `NewError` or `NewErrorWithContext` to customize error creation:
+
+```go
+zorya.NewErrorWithContext = func(ctx zorya.Context, status int, msg string, errs ...error) zorya.StatusError {
+    err := zorya.NewError(status, msg, errs...)
+    if em, ok := err.(*zorya.ErrorModel); ok {
+        em.Instance = ctx.Request().URL.Path
+    }
+    return err
+}
+```
+
+### Error Headers
+
+Wrap errors with response headers using `ErrorWithHeaders()`:
+
+```go
+err := zorya.Error401Unauthorized("Authentication required")
+err = zorya.ErrorWithHeaders(err, http.Header{
+    "WWW-Authenticate": []string{`Bearer realm="example"`},
+})
+```
+
+Headers are merged if an error already has headers.
+
+### Custom Error Types
+
+#### Implementing StatusError
+
+```go
+type BusinessError struct {
+    Code    string
+    Message string
+    Status  int
+}
+
+func (e *BusinessError) Error() string {
+    return e.Message
+}
+
+func (e *BusinessError) GetStatus() int {
+    return e.Status
+}
+
+// Usage
+        return nil, &BusinessError{
+            Code:    "INVALID_AMOUNT",
+            Message: "Amount must be positive",
+            Status:  http.StatusBadRequest,
+}
+```
+
+#### Implementing HeadersError
+
+```go
+type RateLimitError struct {
+    RetryAfter int
+    Limit      int
+    Remaining  int
+}
+
+func (e *RateLimitError) Error() string {
+    return "Rate limit exceeded"
+}
+
+func (e *RateLimitError) GetStatus() int {
+    return http.StatusTooManyRequests
+}
+
+func (e *RateLimitError) GetHeaders() http.Header {
+    h := make(http.Header)
+    h.Set("Retry-After", strconv.Itoa(e.RetryAfter))
+    h.Set("X-RateLimit-Limit", strconv.Itoa(e.Limit))
+    h.Set("X-RateLimit-Remaining", strconv.Itoa(e.Remaining))
+    return h
+}
+```
+
+### Error Response Format
+
+Errors are automatically serialized using content negotiation:
+
+**JSON Response:**
+```json
+{
+  "type": "about:blank",
+  "title": "Not Found",
+  "status": 404,
+  "detail": "User not found",
+  "errors": [
+    {
+      "code": "required",
+      "message": "email is required",
+      "location": "body.email"
+    }
+  ]
+}
+```
+
+**Content-Type:** `application/problem+json` (for JSON) or `application/problem+cbor` (for CBOR)
+
+## Examples
+
+### Complete Example
+
+```go
+package main
+
+import (
+    "context"
+    "net/http"
+    
+    "github.com/go-chi/chi/v5"
+    "github.com/talav/talav/pkg/component/zorya"
+    "github.com/talav/talav/pkg/component/zorya/adapters"
+)
+
+type CreateUserInput struct {
+    Body struct {
+        Name  string `json:"name" validate:"required"`
+        Email string `json:"email" validate:"required,email"`
+    }
+}
+
+type CreateUserOutput struct {
+    Status int `json:"-"`
+    Body struct {
+        ID    int    `json:"id"`
+        Name  string `json:"name"`
+        Email string `json:"email"`
+    }
+}
+
+type GetUserInput struct {
+    ID string `schema:"id,location=path"`
+}
+
+type GetUserOutput struct {
+    Body struct {
+        ID    int    `json:"id"`
+        Name  string `json:"name"`
+        Email string `json:"email"`
+    }
+}
+
+func main() {
+    router := chi.NewMux()
+    adapter := adapters.NewChi(router)
+    
+    // Configure validator
+    factory := validator.NewDefaultValidatorFactory()
+    v, _ := factory.Create(nil, nil, nil, nil, nil)
+    zoryaValidator := zorya.NewPlaygroundValidator(v)
+    
+    api := zorya.NewAPI(adapter, zorya.WithValidator(zoryaValidator))
+    
+    // Add API-level middleware
+    api.UseMiddleware(func(ctx zorya.Context, next func(zorya.Context)) {
+        log.Printf("Request: %s %s", ctx.Request().Method, ctx.Request().URL.Path)
+        next(ctx)
+    })
+    
+    // Register routes
+    zorya.Post(api, "/users", createUser)
+    zorya.Get(api, "/users/{id}", getUser)
+    
+    http.ListenAndServe(":8080", router)
+}
+
+func createUser(ctx context.Context, input *CreateUserInput) (*CreateUserOutput, error) {
+    // Business logic
+    user := &CreateUserOutput{
+        Status: http.StatusCreated,
+        Body: struct {
+            ID    int    `json:"id"`
+            Name  string `json:"name"`
+            Email string `json:"email"`
+        }{
+            ID:    1,
+            Name:  input.Body.Name,
+            Email: input.Body.Email,
+        },
+}
+    return user, nil
+}
+
+func getUser(ctx context.Context, input *GetUserInput) (*GetUserOutput, error) {
+    // Business logic
+    if input.ID == "0" {
+        return nil, zorya.Error404NotFound("User not found")
+    }
+    
+    return &GetUserOutput{
+        Body: struct {
+            ID    int    `json:"id"`
+            Name  string `json:"name"`
+            Email string `json:"email"`
+        }{
+            ID:    1,
+            Name:  "John Doe",
+            Email: "john@example.com",
+        },
+    }, nil
+}
+```
+
+## Integration
+
+### With Dependency Injection
+
+```go
+// Using fx
+func NewAPI(fx.Lifecycle, adapter zorya.Adapter) zorya.API {
+    api := zorya.NewAPI(adapter)
+    // Register routes
+    return api
+}
+```
+
+### With Graceful Shutdown
+
+```go
+server := &http.Server{
+    Addr:    ":8080",
+    Handler: router,
+}
+
+go func() {
+    if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+        log.Fatal(err)
+    }
+}()
+
+// Graceful shutdown
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+server.Shutdown(ctx)
+```
+
+## Performance
+
+- **Metadata Caching**: Struct metadata is cached per type for efficient request decoding
+- **Zero Allocations**: Minimal allocations in hot paths
+- **Efficient Adapters**: Lightweight adapter implementations
+
+## See Also
+
+- [Schema Package](../schema/README.md) - Request parameter decoding
+- [Mapstructure Package](../mapstructure/README.md) - Map to struct conversion
+- [Negotiation Package](../negotiation/README.md) - Content negotiation
+- [Validator Package](../validator/README.md) - Request validation
+- [RFC 9457: Problem Details for HTTP APIs](https://datatracker.ietf.org/doc/html/rfc9457)
