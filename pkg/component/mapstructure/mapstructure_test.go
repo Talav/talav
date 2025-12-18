@@ -503,3 +503,124 @@ func TestUnmarshaler_Unmarshal_DirectAssignment_FallbackToConverter(t *testing.T
 		})
 	}
 }
+
+func TestUnmarshaler_Unmarshal_DefaultValues(t *testing.T) {
+	type WithDefaults struct {
+		Name   string  `schema:"name" default:"anonymous"`
+		Count  int     `schema:"count" default:"10"`
+		Score  float64 `schema:"score" default:"99.5"`
+		Active bool    `schema:"active" default:"true"`
+	}
+
+	type WithPointerDefault struct {
+		Value *int `schema:"value" default:"42"`
+	}
+
+	intPtr := func(v int) *int { return &v }
+
+	type Mixed struct {
+		Required string `schema:"required"`
+		Optional string `schema:"optional" default:"default_value"`
+	}
+
+	tests := []struct {
+		name     string
+		data     map[string]any
+		target   any
+		expected any
+	}{
+		{
+			name:   "all defaults applied",
+			data:   map[string]any{},
+			target: &WithDefaults{},
+			expected: &WithDefaults{
+				Name:   "anonymous",
+				Count:  10,
+				Score:  99.5,
+				Active: true,
+			},
+		},
+		{
+			name:   "explicit values override defaults",
+			data:   map[string]any{"name": "custom", "count": 99},
+			target: &WithDefaults{},
+			expected: &WithDefaults{
+				Name:   "custom",
+				Count:  99,
+				Score:  99.5,
+				Active: true,
+			},
+		},
+		{
+			name:     "pointer default",
+			data:     map[string]any{},
+			target:   &WithPointerDefault{},
+			expected: &WithPointerDefault{Value: intPtr(42)},
+		},
+		{
+			name:   "mixed required and optional",
+			data:   map[string]any{"required": "provided"},
+			target: &Mixed{},
+			expected: &Mixed{
+				Required: "provided",
+				Optional: "default_value",
+			},
+		},
+	}
+
+	u := NewDefaultUnmarshaler(nil)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := u.Unmarshal(tt.data, tt.target)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, tt.target)
+		})
+	}
+}
+
+func TestUnmarshaler_Unmarshal_DefaultValues_CustomConverter(t *testing.T) {
+	type Status int
+
+	const (
+		StatusPending Status = iota
+		StatusActive
+		StatusClosed
+	)
+
+	type WithCustomDefault struct {
+		Status Status `schema:"status" default:"active"`
+	}
+
+	// Custom converter for Status type
+	statusConverter := func(v any) (reflect.Value, error) {
+		s, ok := v.(string)
+		if !ok {
+			return reflect.Value{}, nil
+		}
+
+		switch s {
+		case "pending":
+			return reflect.ValueOf(StatusPending), nil
+		case "active":
+			return reflect.ValueOf(StatusActive), nil
+		case "closed":
+			return reflect.ValueOf(StatusClosed), nil
+		default:
+			return reflect.Value{}, nil
+		}
+	}
+
+	converters := map[reflect.Type]Converter{
+		reflect.TypeOf(Status(0)): statusConverter,
+	}
+
+	u := NewDefaultUnmarshaler(converters)
+
+	var result WithCustomDefault
+	err := u.Unmarshal(map[string]any{}, &result)
+
+	require.NoError(t, err)
+	assert.Equal(t, StatusActive, result.Status)
+}

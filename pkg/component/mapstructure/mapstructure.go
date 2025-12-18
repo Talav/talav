@@ -204,10 +204,14 @@ func (u *Unmarshaler) unmarshalStruct(data any, rv reflect.Value, fieldPath stri
 			continue
 		}
 
-		// Get value from map using precomputed key
+		// Get value from map, fall back to default if not present
 		value, exists := dataMap[field.MapKey]
 		if !exists {
-			continue // Skip fields that don't exist in the map
+			if field.Default == nil {
+				continue
+			}
+
+			value = *field.Default
 		}
 
 		// Unmarshal the field value (handles converters and built-in conversion)

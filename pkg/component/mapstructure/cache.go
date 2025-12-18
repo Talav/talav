@@ -30,12 +30,20 @@ func NewTagCacheBuilder(tagName string) CacheBuilderFunc {
 				continue
 			}
 
+			// Store raw default pointer - conversion happens at unmarshal time
+			// using the unmarshaler's converter registry
+			var defaultPtr *string
+			if v, ok := f.Tag.Lookup("default"); ok {
+				defaultPtr = &v
+			}
+
 			fields = append(fields, FieldMetadata{
 				StructFieldName: f.Name,
 				MapKey:          mapKey,
 				Index:           i,
 				Type:            f.Type,
 				Embedded:        f.Anonymous,
+				Default:         defaultPtr,
 			})
 		}
 

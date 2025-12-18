@@ -9,6 +9,7 @@ type FieldMetadata struct {
 	Index           int          // Field index for reflection
 	Type            reflect.Type // Field type
 	Embedded        bool         // Anonymous/embedded struct
+	Default         *string      // Raw default value from `default` tag, nil if no tag
 }
 
 // StructMetadata holds cached metadata for a struct type.
