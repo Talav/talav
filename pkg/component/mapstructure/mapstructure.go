@@ -23,7 +23,18 @@ type Unmarshaler struct {
 	converters *ConverterRegistry
 }
 
-// NewUnmarshaler creates a new unmarshaler.
+// NewUnmarshaler creates a new unmarshaler with explicit dependencies.
+// For custom configurations, construct the cache and converters separately:
+//
+//	// With custom tag
+//	cache := NewStructMetadataCache(NewTagCacheBuilder("schema"))
+//	converters := NewDefaultConverterRegistry(nil)
+//	u := NewUnmarshaler(cache, converters)
+//
+//	// With custom converters
+//	cache := NewStructMetadataCache(DefaultCacheBuilder)
+//	converters := NewDefaultConverterRegistry(customConverters)
+//	u := NewUnmarshaler(cache, converters)
 func NewUnmarshaler(fieldCache *StructMetadataCache, converters *ConverterRegistry) *Unmarshaler {
 	return &Unmarshaler{
 		fieldCache: fieldCache,
@@ -31,8 +42,10 @@ func NewUnmarshaler(fieldCache *StructMetadataCache, converters *ConverterRegist
 	}
 }
 
-func NewDefaultUnmarshaler(additional map[reflect.Type]Converter) *Unmarshaler {
-	return NewUnmarshaler(NewStructMetadataCache(DefaultCacheBuilder), NewDefaultConverterRegistry(additional))
+// NewDefaultUnmarshaler creates a new unmarshaler with default settings.
+// Uses DefaultCacheBuilder (field names) and no custom converters.
+func NewDefaultUnmarshaler() *Unmarshaler {
+	return NewUnmarshaler(NewStructMetadataCache(DefaultCacheBuilder), NewDefaultConverterRegistry(nil))
 }
 
 // Unmarshal transforms map[string]any into a Go struct pointed to by result.

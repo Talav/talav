@@ -568,7 +568,7 @@ func TestUnmarshaler_Unmarshal_DefaultValues(t *testing.T) {
 		},
 	}
 
-	u := NewDefaultUnmarshaler(nil)
+	u := NewDefaultUnmarshaler()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -616,7 +616,10 @@ func TestUnmarshaler_Unmarshal_DefaultValues_CustomConverter(t *testing.T) {
 		reflect.TypeOf(Status(0)): statusConverter,
 	}
 
-	u := NewDefaultUnmarshaler(converters)
+	// Create unmarshaler with custom converters
+	cache := NewStructMetadataCache(DefaultCacheBuilder)
+	convertersRegistry := NewDefaultConverterRegistry(converters)
+	u := NewUnmarshaler(cache, convertersRegistry)
 
 	var result WithCustomDefault
 	err := u.Unmarshal(map[string]any{}, &result)
