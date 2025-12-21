@@ -8,14 +8,22 @@ import (
 
 // defaultDecoder handles decoding of parameter strings to maps.
 type defaultDecoder struct {
-	structMetadataCache *StructMetadataCache
+	schemaTag string
+	bodyTag   string
+	metadata  *Metadata
 }
 
 // newDefaultDecoder creates a new decoder.
-func newDefaultDecoder(structMetadataCache *StructMetadataCache) Decoder {
+func NewDecoder(metadata *Metadata, schemaTag string, bodyTag string) Decoder {
 	return &defaultDecoder{
-		structMetadataCache: structMetadataCache,
+		metadata:  metadata,
+		schemaTag: schemaTag,
+		bodyTag:   bodyTag,
 	}
+}
+
+func NewDefaultDecoder() Decoder {
+	return NewDecoder(NewDefaultMetadata(), defaultSchemaTag, defaultBodyTag)
 }
 
 // Decode decodes HTTP request parameters into a map.
@@ -52,11 +60,15 @@ func (d *defaultDecoder) Decode(request *http.Request, routerParams map[string]s
 func (d *defaultDecoder) decodePath(routerParams map[string]string, metadata *StructMetadata) (map[string]any, error) {
 	result := make(map[string]any)
 	for _, field := range filterByLocation(metadata.Fields, LocationPath) {
-		v, err := d.decodeValueByStyle(routerParams[field.ParamName], field.Style, field.Explode)
+		schemaMeta, ok := GetTagMetadata[*SchemaMetadata](&field, d.schemaTag)
+		if !ok {
+			continue
+		}
+		v, err := d.decodeValueByStyle(routerParams[schemaMeta.ParamName], schemaMeta.Style, schemaMeta.Explode)
 		if err != nil {
 			return nil, err
 		}
-		result[field.MapKey] = v
+		result[schemaMeta.ParamName] = v
 	}
 
 	return result, nil
@@ -66,18 +78,23 @@ func (d *defaultDecoder) decodePath(routerParams map[string]string, metadata *St
 func (d *defaultDecoder) decodeCookie(request *http.Request, metadata *StructMetadata) (map[string]any, error) {
 	result := make(map[string]any)
 	for _, field := range filterByLocation(metadata.Fields, LocationCookie) {
-		cookie, err := request.Cookie(field.ParamName)
+		schemaMeta, ok := GetTagMetadata[*SchemaMetadata](&field, d.schemaTag)
+		if !ok {
+			continue
+		}
+		cookie, err := request.Cookie(schemaMeta.ParamName)
 		if err != nil {
 			// Cookie not present - skip (required validation happens elsewhere)
 			continue
 		}
 
 		// Decode cookie value according to OpenAPI v3 form style
-		v, err := d.decodeValueByStyle(cookie.Value, field.Style, field.Explode)
+		v, err := d.decodeValueByStyle(cookie.Value, schemaMeta.Style, schemaMeta.Explode)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode cookie %q: %w", field.ParamName, err)
+			return nil, fmt.Errorf("failed to decode cookie %q: %w", schemaMeta.ParamName, err)
 		}
-		result[field.MapKey] = v
+		// Use ParamName (tag name) directly - mapstructure will map to struct fields
+		result[schemaMeta.ParamName] = v
 	}
 
 	return result, nil
@@ -87,11 +104,15 @@ func (d *defaultDecoder) decodeCookie(request *http.Request, metadata *StructMet
 func (d *defaultDecoder) decodeHeader(request *http.Request, metadata *StructMetadata) (map[string]any, error) {
 	result := make(map[string]any)
 	for _, field := range filterByLocation(metadata.Fields, LocationHeader) {
-		v, err := d.decodeValueByStyle(request.Header.Get(field.ParamName), field.Style, field.Explode)
+		schemaMeta, ok := GetTagMetadata[*SchemaMetadata](&field, d.schemaTag)
+		if !ok {
+			continue
+		}
+		v, err := d.decodeValueByStyle(request.Header.Get(schemaMeta.ParamName), schemaMeta.Style, schemaMeta.Explode)
 		if err != nil {
 			return nil, err
 		}
-		result[field.MapKey] = v
+		result[schemaMeta.ParamName] = v
 	}
 
 	return result, nil
@@ -177,15 +198,21 @@ func (d *defaultDecoder) decodeByStyle(value string, style Style, explode bool) 
 	}
 }
 
-// filterQueryValuesByFields filters query values to only include those that match
-// any field's ParamName in the given fields slice.
 func filterQueryValuesByFields(allValues url.Values, fields []FieldMetadata) url.Values {
 	filteredValues := url.Values{}
 	for key, vals := range allValues {
 		baseName := getBaseParamName(key)
-		// Check if this key matches any field's ParamName in this style group
+		// Check if this key matches any field's ParamName (tag name) in this style group
 		for _, field := range fields {
-			if field.MapKey == baseName {
+			// Get schema metadata (could be from explicit tag or default)
+			schemaMeta, ok := GetTagMetadata[*SchemaMetadata](&field, "schema")
+			if !ok {
+				continue
+			}
+
+			// Use ParamName (tag name) for filtering, not MapKey (field name)
+			// Query params in URL use tag names (e.g., "user_name"), not field names (e.g., "UserName")
+			if schemaMeta.ParamName == baseName {
 				filteredValues[key] = vals
 
 				break
@@ -194,4 +221,32 @@ func filterQueryValuesByFields(allValues url.Values, fields []FieldMetadata) url
 	}
 
 	return filteredValues
+}
+
+func filterByLocation(fields []FieldMetadata, location ParameterLocation) []FieldMetadata {
+	var result []FieldMetadata
+	for _, field := range fields {
+		if schemaMeta, ok := GetTagMetadata[*SchemaMetadata](&field, "schema"); ok {
+			if schemaMeta.Location == location {
+				result = append(result, field)
+			}
+		}
+	}
+
+	return result
+}
+
+func groupByStyle(fields []FieldMetadata) map[styleGroup][]FieldMetadata {
+	styleGroups := make(map[styleGroup][]FieldMetadata)
+	for _, field := range fields {
+		if schemaMeta, ok := GetTagMetadata[*SchemaMetadata](&field, "schema"); ok {
+			sg := styleGroup{
+				Style:   schemaMeta.Style,
+				Explode: schemaMeta.Explode,
+			}
+			styleGroups[sg] = append(styleGroups[sg], field)
+		}
+	}
+
+	return styleGroups
 }

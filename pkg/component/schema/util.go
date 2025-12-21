@@ -237,3 +237,18 @@ func setNestedMapValueByParts(m map[string]any, parts []string, value any, origi
 
 	return nil
 }
+
+// extractBoolean extracts a boolean value from options map.
+func extractBoolean(options map[string]string, key string, defaultValue bool) bool {
+	if value, exists := options[key]; exists {
+		if value == "" {
+			// Flag form: "required" means true
+			return true
+		}
+
+		// Value form: "required=true/false"
+		return value == optValueTrue
+	}
+
+	return defaultValue
+}

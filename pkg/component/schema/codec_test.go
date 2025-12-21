@@ -69,7 +69,7 @@ func TestCodec_DecodeRequest(t *testing.T) {
 		},
 	}
 
-	codec := NewCodec()
+	codec := NewDefaultCodec()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -108,7 +108,7 @@ func TestCodec_DecodeRequest_Integration(t *testing.T) {
 		} `body:"structured"`
 	}
 
-	codec := NewCodec()
+	codec := NewDefaultCodec()
 
 	body := `{"name": "John Doe", "email": "john@example.com"}`
 	req := httptest.NewRequest(http.MethodPost, "/users/123?filter=active", bytes.NewReader([]byte(body)))
@@ -138,7 +138,7 @@ func TestCodec_DecodeRequest_Multipart(t *testing.T) {
 		Body multipartBody `body:"multipart"`
 	}
 
-	codec := NewCodec()
+	codec := NewDefaultCodec()
 
 	// Create multipart form
 	body := &bytes.Buffer{}
@@ -163,7 +163,7 @@ func TestCodec_DecodeRequest_FileUpload(t *testing.T) {
 		Body []byte `body:"file"`
 	}
 
-	codec := NewCodec()
+	codec := NewDefaultCodec()
 
 	fileContent := []byte("file content here")
 	req := httptest.NewRequest(http.MethodPost, "/upload", bytes.NewReader(fileContent))
@@ -181,7 +181,7 @@ func TestCodec_DecodeRequest_FileUploadAsReader(t *testing.T) {
 		Body io.ReadCloser `body:"file"`
 	}
 
-	codec := NewCodec()
+	codec := NewDefaultCodec()
 
 	fileContent := []byte("file content for reader")
 	req := httptest.NewRequest(http.MethodPost, "/upload", bytes.NewReader(fileContent))
@@ -209,7 +209,7 @@ func TestCodec_DecodeRequest_MultipartWithFile(t *testing.T) {
 		Body uploadBody `body:"multipart"`
 	}
 
-	codec := NewCodec()
+	codec := NewDefaultCodec()
 
 	// Create multipart form with text field and file
 	body := &bytes.Buffer{}
@@ -242,7 +242,7 @@ func TestCodec_DecodeRequest_QueryWithFileUpload(t *testing.T) {
 		Body    []byte `body:"file"`
 	}
 
-	codec := NewCodec()
+	codec := NewDefaultCodec()
 
 	fileContent := []byte("binary data")
 	req := httptest.NewRequest(http.MethodPost, "/upload?version=1.0", bytes.NewReader(fileContent))

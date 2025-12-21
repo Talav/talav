@@ -335,7 +335,7 @@ func TestDecoder_DecodeDelimitedStyles(t *testing.T) {
 	}{
 		{
 			name:      "space_delimited",
-			decodeFn:  decoder.decodeSpaceDelimited,
+			decodeFn:  func(q string) (map[string]any, error) { return decoder.decodeSpaceDelimited(q) },
 			separator: " ",
 			tests: []struct {
 				name    string
@@ -367,7 +367,7 @@ func TestDecoder_DecodeDelimitedStyles(t *testing.T) {
 		},
 		{
 			name:      "pipe_delimited",
-			decodeFn:  decoder.decodePipeDelimited,
+			decodeFn:  func(q string) (map[string]any, error) { return decoder.decodePipeDelimited(q) },
 			separator: "|",
 			tests: []struct {
 				name    string
@@ -804,5 +804,257 @@ func TestDecoder_DecodeByStyle(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, result)
 		})
+	}
+}
+
+func TestDecoder_StyleDecoders_UsesTagNames(t *testing.T) {
+	decoder := newTestDecoder()
+
+	tests := []struct {
+		name     string
+		data     string
+		style    Style
+		explode  bool
+		decoder  func(string) (map[string]any, error)
+		expected map[string]any
+	}{
+		{
+			name:  "form style - uses tag names (not field names)",
+			data:  "user_name=John&age=30&email_address=john@example.com",
+			style: StyleForm,
+			decoder: func(d string) (map[string]any, error) {
+				return decoder.decodeFormStyle(d)
+			},
+			expected: map[string]any{
+				"user_name":     "John",             // Tag name, not "UserName"
+				"age":           "30",               // Tag name, not "UserAge"
+				"email_address": "john@example.com", // Tag name, not "Email"
+			},
+		},
+		{
+			name:    "matrix style - uses tag names (not field names)",
+			data:    ";user_name=John;age=30",
+			style:   StyleMatrix,
+			explode: true,
+			decoder: func(d string) (map[string]any, error) {
+				return decoder.decodeMatrixStyle(d, true)
+			},
+			expected: map[string]any{
+				"user_name": []any{"John"}, // Tag name, not "UserName" (explode=true creates arrays)
+				"age":       []any{"30"},   // Tag name, not "UserAge"
+			},
+		},
+		{
+			name:  "space delimited - uses tag names (not field names)",
+			data:  "user_name=1 2 3&age=30 40",
+			style: StyleSpaceDelimited,
+			decoder: func(d string) (map[string]any, error) {
+				return decoder.decodeSpaceDelimited(d)
+			},
+			expected: map[string]any{
+				"user_name": []any{"1", "2", "3"}, // Tag name, not "UserName"
+				"age":       []any{"30", "40"},    // Tag name, not "UserAge"
+			},
+		},
+		{
+			name:  "pipe delimited - uses tag names (not field names)",
+			data:  "user_name=1|2|3&age=30|40",
+			style: StylePipeDelimited,
+			decoder: func(d string) (map[string]any, error) {
+				return decoder.decodePipeDelimited(d)
+			},
+			expected: map[string]any{
+				"user_name": []any{"1", "2", "3"}, // Tag name, not "UserName"
+				"age":       []any{"30", "40"},    // Tag name, not "UserAge"
+			},
+		},
+		{
+			name:  "deep object - uses tag names in bracket notation",
+			data:  "user_name[first]=John&user_name[last]=Doe&age[value]=30",
+			style: StyleDeepObject,
+			decoder: func(d string) (map[string]any, error) {
+				return decoder.decodeDeepObject(d)
+			},
+			expected: map[string]any{
+				"user_name": map[string]any{ // Tag name, not "UserName"
+					"first": "John",
+					"last":  "Doe",
+				},
+				"age": map[string]any{ // Tag name, not "UserAge"
+					"value": "30",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := tt.decoder(tt.data)
+			require.NoError(t, err)
+
+			// Verify that keys are tag names (ParamName), not field names (MapKey)
+			for expectedKey, expectedValue := range tt.expected {
+				actualValue, exists := result[expectedKey]
+				assert.True(t, exists, "Expected key %q (tag name) should exist in result", expectedKey)
+				assert.Equal(t, expectedValue, actualValue, "Value for key %q should match", expectedKey)
+			}
+
+			// Verify that field names (MapKey) are NOT in the result
+			fieldNames := []string{"UserName", "UserAge", "Email"}
+			for _, fieldName := range fieldNames {
+				_, exists := result[fieldName]
+				assert.False(t, exists, "Field name %q should NOT be in result (should use tag name instead)", fieldName)
+			}
+		})
+	}
+}
+
+// TestDecoder_StyleDecoders_UnknownFields tests that unknown fields
+// are included (filtering happens at higher level, not in style decoders).
+func TestDecoder_StyleDecoders_UnknownFields(t *testing.T) {
+	decoder := newTestDecoder()
+
+	tests := []struct {
+		name     string
+		data     string
+		decoder  func(string) (map[string]any, error)
+		expected map[string]any
+	}{
+		{
+			name: "form style - all fields included (no filtering at style level)",
+			data: "user_name=John&unknown_field=value&another_unknown=test",
+			decoder: func(d string) (map[string]any, error) {
+				return decoder.decodeFormStyle(d)
+			},
+			expected: map[string]any{
+				"user_name":       "John",  // Tag name, not "UserName"
+				"unknown_field":   "value", // Unknown fields are not filtered at style decoder level
+				"another_unknown": "test",  // Unknown fields are not filtered at style decoder level
+			},
+		},
+		{
+			name: "form style - nested unknown objects included",
+			data: "user_name=John&nested.unknown=value",
+			decoder: func(d string) (map[string]any, error) {
+				return decoder.decodeFormStyle(d)
+			},
+			expected: map[string]any{
+				"user_name": "John", // Tag name, not "UserName"
+				"nested": map[string]any{
+					"unknown": "value", // Nested unknown fields are included
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := tt.decoder(tt.data)
+			require.NoError(t, err)
+
+			for expectedKey, expectedValue := range tt.expected {
+				actualValue, exists := result[expectedKey]
+				assert.True(t, exists, "Expected key %q should exist in result", expectedKey)
+				assert.Equal(t, expectedValue, actualValue, "Value for key %q should match", expectedKey)
+			}
+		})
+	}
+}
+
+// TestDecoder_StyleDecoders_NestedStructures tests that nested structures
+// use tag names at all levels (not field names).
+func TestDecoder_StyleDecoders_NestedStructures(t *testing.T) {
+	decoder := newTestDecoder()
+
+	tests := []struct {
+		name     string
+		data     string
+		decoder  func(string) (map[string]any, error)
+		expected map[string]any
+	}{
+		{
+			name: "form style - nested dotted notation uses tag names",
+			data: "filter.type1=car&filter.color=red&user.name=John&user.age=30",
+			decoder: func(d string) (map[string]any, error) {
+				return decoder.decodeFormStyle(d)
+			},
+			expected: map[string]any{
+				"filter": map[string]any{
+					"type1": "car", // Tag name, not "Type"
+					"color": "red", // Tag name, not "Color"
+				},
+				"user": map[string]any{
+					"name": "John", // Tag name, not "Name"
+					"age":  "30",   // Tag name, not "Age"
+				},
+			},
+		},
+		{
+			name: "deep object - nested bracket notation uses tag names",
+			data: "filter[type1]=car&filter[color]=red&user[name]=John&user[age]=30",
+			decoder: func(d string) (map[string]any, error) {
+				return decoder.decodeDeepObject(d)
+			},
+			expected: map[string]any{
+				"filter": map[string]any{
+					"type1": "car", // Tag name, not "Type"
+					"color": "red", // Tag name, not "Color"
+				},
+				"user": map[string]any{
+					"name": "John", // Tag name, not "Name"
+					"age":  "30",   // Tag name, not "Age"
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := tt.decoder(tt.data)
+			require.NoError(t, err)
+
+			// Verify nested structure with tag names (not field names)
+			assertNestedMap(t, result, tt.expected, "")
+
+			// Verify that field names are NOT present at any level
+			assertNoFieldNames(t, result, []string{"Filter", "Type", "Color", "User", "Name", "Age"})
+		})
+	}
+}
+
+// assertNestedMap recursively asserts that nested maps match expected structure.
+func assertNestedMap(t *testing.T, actual, expected map[string]any, path string) {
+	t.Helper()
+	for key, expectedValue := range expected {
+		fullPath := key
+		if path != "" {
+			fullPath = path + "." + key
+		}
+
+		actualValue, exists := actual[key]
+		assert.True(t, exists, "Expected key %q should exist at path %q", key, path)
+
+		if expectedMap, ok := expectedValue.(map[string]any); ok {
+			actualMap, ok := actualValue.(map[string]any)
+			assert.True(t, ok, "Value at %q should be a map, got %T", fullPath, actualValue)
+			assertNestedMap(t, actualMap, expectedMap, fullPath)
+		} else {
+			assert.Equal(t, expectedValue, actualValue, "Value at %q should match", fullPath)
+		}
+	}
+}
+
+// assertNoFieldNames recursively checks that field names are not present in the map.
+func assertNoFieldNames(t *testing.T, m map[string]any, fieldNames []string) {
+	t.Helper()
+	for key, value := range m {
+		for _, fieldName := range fieldNames {
+			assert.NotEqual(t, fieldName, key, "Field name %q should not be present as key", fieldName)
+		}
+
+		// Recursively check nested maps
+		if nestedMap, ok := value.(map[string]any); ok {
+			assertNoFieldNames(t, nestedMap, fieldNames)
+		}
 	}
 }

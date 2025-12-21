@@ -20,15 +20,18 @@ type testBodyStruct struct {
 }
 
 func createBodyMetadata(bodyType BodyType, fieldType reflect.Type) *StructMetadata {
-	metadata, _ := NewStructMetadata([]FieldMetadata{
+	metadata, _ := newStructMetadata([]FieldMetadata{
 		{
 			StructFieldName: "Body",
-			ParamName:       "",
-			MapKey:          "Body",
 			Index:           0,
 			Type:            fieldType,
-			IsBody:          true,
-			BodyType:        bodyType,
+			TagMetadata: map[string]any{
+				"body": &BodyMetadata{
+					MapKey:   "Body",
+					BodyType: bodyType,
+					Required: false,
+				},
+			},
 		},
 	})
 
@@ -155,7 +158,7 @@ func TestDecoder_DecodeBody_JSON(t *testing.T) {
 	}
 
 	decoder := newTestDecoder()
-	metadata := createBodyMetadata(BodyTypeStructured, reflect.TypeOf(testBodyStruct{}))
+	metadata := createBodyMetadata(BodyTypeStructured, reflect.TypeFor[testBodyStruct]())
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -209,7 +212,7 @@ func TestDecoder_DecodeBody_File(t *testing.T) {
 	}
 
 	decoder := newTestDecoder()
-	metadata := createBodyMetadata(BodyTypeFile, reflect.TypeOf([]byte{}))
+	metadata := createBodyMetadata(BodyTypeFile, reflect.TypeFor[[]byte]())
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -238,7 +241,7 @@ func TestDecoder_DecodeBody_File(t *testing.T) {
 
 func TestDecoder_DecodeBody_FileWithReader(t *testing.T) {
 	decoder := newTestDecoder()
-	metadata := createBodyMetadata(BodyTypeFile, reflect.TypeOf((*io.ReadCloser)(nil)).Elem())
+	metadata := createBodyMetadata(BodyTypeFile, reflect.TypeFor[io.ReadCloser]())
 
 	body := []byte("file content for reader test")
 	req := createBodyRequest("application/octet-stream", body)
@@ -258,16 +261,19 @@ func TestDecoder_DecodeBody_NoBodyField(t *testing.T) {
 	decoder := newTestDecoder()
 
 	// Metadata without body field
-	metadata, err := NewStructMetadata([]FieldMetadata{
+	metadata, err := newStructMetadata([]FieldMetadata{
 		{
 			StructFieldName: "Name",
-			ParamName:       "name",
-			MapKey:          "name",
 			Index:           0,
-			Type:            reflect.TypeOf(""),
-			IsParameter:     true,
-			Location:        LocationQuery,
-			Style:           StyleForm,
+			Type:            reflect.TypeFor[string](),
+			TagMetadata: map[string]any{
+				"schema": &SchemaMetadata{
+					ParamName: "name",
+					MapKey:    "name",
+					Location:  LocationQuery,
+					Style:     StyleForm,
+				},
+			},
 		},
 	})
 	require.NoError(t, err)
@@ -360,7 +366,7 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 					"Name": {"John"},
 				},
 			},
-			bodyType: reflect.TypeOf(multipartFormStruct{}),
+			bodyType: reflect.TypeFor[multipartFormStruct](),
 			want: map[string]any{
 				"Body": map[string]any{
 					"Name": "John",
@@ -376,12 +382,12 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 					"Age":   {"30"},
 				},
 			},
-			bodyType: reflect.TypeOf(multipartFormStruct{}),
+			bodyType: reflect.TypeFor[multipartFormStruct](),
 			want: map[string]any{
 				"Body": map[string]any{
-					"Name":  "John",
-					"email": "john@example.com",
-					"Age":   "30",
+					"Name":  "John",             // No tag, uses field name
+					"email": "john@example.com", // Tag name "email", not field name "Email"
+					"Age":   "30",               // No name in tag, uses field name
 				},
 			},
 		},
@@ -392,7 +398,7 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 					"Name": {"John", "Jane"},
 				},
 			},
-			bodyType: reflect.TypeOf(multipartFormStruct{}),
+			bodyType: reflect.TypeFor[multipartFormStruct](),
 			want: map[string]any{
 				"Body": map[string]any{
 					"Name": []any{"John", "Jane"},
@@ -404,7 +410,7 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 			formData: multipartFormData{
 				fields: map[string][]string{},
 			},
-			bodyType: reflect.TypeOf(multipartFormStruct{}),
+			bodyType: reflect.TypeFor[multipartFormStruct](),
 			want: map[string]any{
 				"Body": map[string]any{},
 			},
@@ -417,7 +423,7 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 					"unknown": {"should be ignored"},
 				},
 			},
-			bodyType: reflect.TypeOf(multipartFormStruct{}),
+			bodyType: reflect.TypeFor[multipartFormStruct](),
 			want: map[string]any{
 				"Body": map[string]any{
 					"Name": "John",
@@ -434,7 +440,7 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 					"file": {{filename: "test.txt", content: []byte("file content")}},
 				},
 			},
-			bodyType: reflect.TypeOf(multipartFileStruct{}),
+			bodyType: reflect.TypeFor[multipartFileStruct](),
 			//nolint:thelper // inline test validation
 			checkFunc: func(t *testing.T, result map[string]any) {
 				body, ok := result["Body"].(map[string]any)
@@ -460,7 +466,7 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 					},
 				},
 			},
-			bodyType: reflect.TypeOf(multipartMultiFileStruct{}),
+			bodyType: reflect.TypeFor[multipartMultiFileStruct](),
 			//nolint:thelper // inline test validation
 			checkFunc: func(t *testing.T, result map[string]any) {
 				body, ok := result["Body"].(map[string]any)
@@ -488,7 +494,7 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 					"attachment": {{filename: "doc.pdf", content: []byte("PDF content")}},
 				},
 			},
-			bodyType: reflect.TypeOf(multipartMixedStruct{}),
+			bodyType: reflect.TypeFor[multipartMixedStruct](),
 			//nolint:thelper // inline test validation
 			checkFunc: func(t *testing.T, result map[string]any) {
 				body, ok := result["Body"].(map[string]any)
@@ -514,7 +520,7 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 					"file": {{filename: "empty.txt", content: []byte{}}},
 				},
 			},
-			bodyType: reflect.TypeOf(multipartFileStruct{}),
+			bodyType: reflect.TypeFor[multipartFileStruct](),
 			//nolint:thelper // inline test validation
 			checkFunc: func(t *testing.T, result map[string]any) {
 				body, ok := result["Body"].(map[string]any)
@@ -537,7 +543,7 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 					// email and Age are missing
 				},
 			},
-			bodyType: reflect.TypeOf(multipartFormStruct{}),
+			bodyType: reflect.TypeFor[multipartFormStruct](),
 			want: map[string]any{
 				"Body": map[string]any{
 					"Name": "John",
@@ -551,7 +557,7 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 					"Name": {"日本語テスト"},
 				},
 			},
-			bodyType: reflect.TypeOf(multipartFormStruct{}),
+			bodyType: reflect.TypeFor[multipartFormStruct](),
 			want: map[string]any{
 				"Body": map[string]any{
 					"Name": "日本語テスト",
@@ -590,7 +596,7 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 
 func TestDecoder_DecodeBody_Multipart_Error(t *testing.T) {
 	decoder := newTestDecoder()
-	metadata := createBodyMetadata(BodyTypeMultipart, reflect.TypeOf(multipartFormStruct{}))
+	metadata := createBodyMetadata(BodyTypeMultipart, reflect.TypeFor[multipartFormStruct]())
 
 	// Request without multipart content type
 	req := httptest.NewRequest(http.MethodPost, "/test", bytes.NewReader([]byte("not multipart")))
@@ -619,7 +625,7 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 		{
 			name:     "single field",
 			body:     "Name=John",
-			bodyType: reflect.TypeOf(urlEncodedFormStruct{}),
+			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
 				"Body": map[string]any{
 					"Name": "John",
@@ -629,11 +635,11 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 		{
 			name:     "multiple fields",
 			body:     "Name=John&email=john@example.com&Age=30",
-			bodyType: reflect.TypeOf(urlEncodedFormStruct{}),
+			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
 				"Body": map[string]any{
 					"Name":  "John",
-					"email": "john@example.com",
+					"email": "john@example.com", // Tag name "email", not field name "Email"
 					"Age":   "30",
 				},
 			},
@@ -641,13 +647,13 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 		{
 			name:     "empty form body",
 			body:     "",
-			bodyType: reflect.TypeOf(urlEncodedFormStruct{}),
+			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want:     map[string]any{},
 		},
 		{
 			name:     "field with empty value",
 			body:     "Name=&email=test@example.com",
-			bodyType: reflect.TypeOf(urlEncodedFormStruct{}),
+			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
 				"Body": map[string]any{
 					"email": "test@example.com",
@@ -657,7 +663,7 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 		{
 			name:     "unknown fields ignored",
 			body:     "Name=John&unknown=ignored&other=also_ignored",
-			bodyType: reflect.TypeOf(urlEncodedFormStruct{}),
+			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
 				"Body": map[string]any{
 					"Name": "John",
@@ -667,7 +673,7 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 		{
 			name:     "multiple values same key",
 			body:     "Name=John&Name=Jane",
-			bodyType: reflect.TypeOf(urlEncodedFormStruct{}),
+			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
 				"Body": map[string]any{
 					"Name": []any{"John", "Jane"},
@@ -677,7 +683,7 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 		{
 			name:     "comma separated values",
 			body:     "Name=John,Jane,Bob",
-			bodyType: reflect.TypeOf(urlEncodedFormStruct{}),
+			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
 				"Body": map[string]any{
 					"Name": []any{"John", "Jane", "Bob"},
@@ -687,7 +693,7 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 		{
 			name:     "URL encoded special characters",
 			body:     "Name=John%20Doe&email=john%2Bdoe%40example.com",
-			bodyType: reflect.TypeOf(urlEncodedFormStruct{}),
+			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
 				"Body": map[string]any{
 					"Name":  "John Doe",
@@ -698,7 +704,7 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 		{
 			name:     "unicode characters",
 			body:     "Name=%E6%97%A5%E6%9C%AC%E8%AA%9E",
-			bodyType: reflect.TypeOf(urlEncodedFormStruct{}),
+			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
 				"Body": map[string]any{
 					"Name": "日本語",
@@ -708,7 +714,7 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 		{
 			name:     "field in metadata but missing in form",
 			body:     "Name=John",
-			bodyType: reflect.TypeOf(urlEncodedFormStruct{}),
+			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
 				"Body": map[string]any{
 					"Name": "John",
@@ -718,11 +724,11 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 		{
 			name:     "pointer to struct body type",
 			body:     "Name=John&email=john@example.com",
-			bodyType: reflect.TypeOf(&urlEncodedFormStruct{}),
+			bodyType: reflect.TypeFor[*urlEncodedFormStruct](),
 			want: map[string]any{
 				"Body": map[string]any{
 					"Name":  "John",
-					"email": "john@example.com",
+					"email": "john@example.com", // Tag name "email", not field name "Email"
 				},
 			},
 		},
