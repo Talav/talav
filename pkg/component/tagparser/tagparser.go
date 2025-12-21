@@ -47,7 +47,8 @@ type Tag struct {
 	Options map[string]string
 }
 
-// Parse parses a tag treating the first item as a name.
+// Parse parses a tag treating all items as options (default behavior).
+// Example: "foo,bar=baz" → Name="", Options={"foo": "", "bar": "baz"}.
 func Parse(tag string) (*Tag, error) {
 	// Handle Go struct tag quoting convention - try to unquote if it looks quoted
 	if unquoted, err := strconv.Unquote(tag); err == nil {
@@ -56,6 +57,29 @@ func Parse(tag string) (*Tag, error) {
 
 	result := &Tag{Options: make(map[string]string)}
 	err := ParseFunc(tag, func(key, value string) error {
+		// In options mode, key is never empty
+		result.Options[key] = value
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// ParseWithName parses a tag treating the first item without equals as a name.
+// Example: "foo,bar=baz" → Name="foo", Options={"bar": "baz"}.
+// Example: "foo=bar,baz" → Name="", Options={"foo": "bar", "baz": ""}.
+func ParseWithName(tag string) (*Tag, error) {
+	// Handle Go struct tag quoting convention - try to unquote if it looks quoted
+	if unquoted, err := strconv.Unquote(tag); err == nil {
+		tag = unquoted
+	}
+
+	result := &Tag{Options: make(map[string]string)}
+	err := ParseFuncWithName(tag, func(key, value string) error {
 		if key == "" {
 			result.Name = value
 		} else {
@@ -72,8 +96,24 @@ func Parse(tag string) (*Tag, error) {
 	return result, nil
 }
 
-// ParseFunc enumerates fields of a tag formatted as a list of keys and/or
-// key-value pairs, treating the first item as a name.
+// ParseFunc enumerates fields of a tag treating all items as options.
+//
+// Format: key1,key2=value2,key3='quoted, value',key4
+//
+// Rules:
+//   - Items are comma-separated; key=value pairs use equals sign
+//   - Values can be bare words or single-quoted strings
+//   - Backslash escapes special characters
+//   - Leading/trailing ASCII whitespace is trimmed
+//   - All items are treated as options (no name extraction)
+//   - Empty keys are not allowed
+func ParseFunc(tag string, callback func(key, value string) error) error {
+	p := parser{tag: tag, callback: callback, treatFirstAsName: false}
+
+	return p.parse()
+}
+
+// ParseFuncWithName enumerates fields of a tag treating the first item as a name.
 //
 // Format: name,key1,key2=value2,key3='quoted, value',key4
 //
@@ -82,24 +122,26 @@ func Parse(tag string) (*Tag, error) {
 //   - Values can be bare words or single-quoted strings
 //   - Backslash escapes special characters
 //   - Leading/trailing ASCII whitespace is trimmed
-//   - First item without equals becomes the name (empty key)
+//   - First item without equals becomes the name (empty key in callback)
+//   - If first item has equals, it's treated as a normal option
 //   - Empty keys are not allowed for normal items
-func ParseFunc(tag string, callback func(key, value string) error) error {
-	p := parser{tag: tag, callback: callback}
+func ParseFuncWithName(tag string, callback func(key, value string) error) error {
+	p := parser{tag: tag, callback: callback, treatFirstAsName: true}
 
 	return p.parse()
 }
 
 type parser struct {
-	tag      string
-	callback func(key, value string) error
-	pos      int
-	start    int
-	keyStart int
-	key      string
-	inValue  bool
-	inQuote  bool
-	count    int
+	tag              string
+	callback         func(key, value string) error
+	treatFirstAsName bool
+	pos              int
+	start            int
+	keyStart         int
+	key              string
+	inValue          bool
+	inQuote          bool
+	count            int
 }
 
 func (p *parser) parse() error {
@@ -209,10 +251,11 @@ func (p *parser) emitItem() error {
 	return nil
 }
 
+//nolint:cyclop // Complex switch statement for different parsing modes - acceptable complexity
 func (p *parser) getKeyValue() (string, string, error) {
 	switch {
-	case p.count == 1 && !p.inValue:
-		// First item is the name
+	case p.count == 1 && !p.inValue && p.treatFirstAsName:
+		// First item without equals becomes the name (only when treatFirstAsName is true)
 		value, err := unquoteTrim(p.tag[p.start:p.pos])
 		if err != nil {
 			return "", "", p.wrapUnquoteError(err, p.start)
@@ -234,7 +277,7 @@ func (p *parser) getKeyValue() (string, string, error) {
 		return key, value, nil
 
 	case p.start < p.pos:
-		// Key-only item
+		// Key-only item (flag without value)
 		key, err := unquoteTrim(p.tag[p.start:p.pos])
 		if err != nil {
 			return "", "", p.wrapUnquoteError(err, p.start)
