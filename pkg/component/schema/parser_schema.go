@@ -82,7 +82,7 @@ type styleGroup struct {
 
 // ParseSchemaTag parses a schema tag and returns SchemaMetadata.
 func ParseSchemaTag(field reflect.StructField, index int, tagValue string) (any, error) {
-	tag, err := tagparser.Parse(tagValue)
+	tag, err := tagparser.ParseWithName(tagValue)
 	if err != nil {
 		return nil, fmt.Errorf("field %s: failed to parse schema tag: %w", field.Name, err)
 	}

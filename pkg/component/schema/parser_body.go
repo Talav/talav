@@ -25,7 +25,7 @@ const (
 
 // ParseBodyTag parses a body tag and returns BodyMetadata.
 func ParseBodyTag(field reflect.StructField, index int, tagValue string) (any, error) {
-	tag, err := tagparser.Parse(tagValue)
+	tag, err := tagparser.ParseWithName(tagValue)
 	if err != nil {
 		return nil, fmt.Errorf("field %s: failed to parse body tag: %w", field.Name, err)
 	}

@@ -62,7 +62,7 @@ func parseFieldTag(tagValue, fieldName string) (string, bool) {
 		return "", true
 	}
 
-	tag, err := tagparser.Parse(tagValue)
+	tag, err := tagparser.ParseWithName(tagValue)
 	if err != nil || tag.Name == "" {
 		return fieldName, false
 	}
