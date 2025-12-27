@@ -80,5 +80,5 @@ func (b *metadataBuilder) buildStructMetadata(typ reflect.Type) (*StructMetadata
 		return nil, fmt.Errorf("parsing errors: %w", fmt.Errorf("%v", errs))
 	}
 
-	return newStructMetadata(fields)
+	return NewStructMetadata(typ, fields)
 }

@@ -67,12 +67,14 @@ func (f *FieldMetadata) HasTag(tagName string) bool {
 }
 
 type StructMetadata struct {
+	Type         reflect.Type
 	Fields       []FieldMetadata
 	fieldsByName map[string]*FieldMetadata
 }
 
-// newStructMetadata creates a new struct metadata.
-func newStructMetadata(fields []FieldMetadata) (*StructMetadata, error) {
+// NewStructMetadata creates a new struct metadata from a type and fields.
+// This is useful for tests and when you already have FieldMetadata built.
+func NewStructMetadata(typ reflect.Type, fields []FieldMetadata) (*StructMetadata, error) {
 	// Validate all fields and collect errors
 	var errs []error
 	for i, field := range fields {
@@ -92,6 +94,7 @@ func newStructMetadata(fields []FieldMetadata) (*StructMetadata, error) {
 	}
 
 	return &StructMetadata{
+		Type:         typ,
 		Fields:       fields,
 		fieldsByName: fieldsByName,
 	}, nil

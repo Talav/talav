@@ -2,6 +2,7 @@ package schema
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -20,22 +21,19 @@ type testBodyStruct struct {
 }
 
 func createBodyMetadata(bodyType BodyType, fieldType reflect.Type) *StructMetadata {
-	metadata, _ := newStructMetadata([]FieldMetadata{
+	structType := reflect.StructOf([]reflect.StructField{
 		{
-			StructFieldName: "Body",
-			Index:           0,
-			Type:            fieldType,
-			TagMetadata: map[string]any{
-				"body": &BodyMetadata{
-					MapKey:   "Body",
-					BodyType: bodyType,
-					Required: false,
-				},
-			},
+			Name: "Body",
+			Type: fieldType,
+			Tag:  reflect.StructTag(`body:""`),
 		},
 	})
-
-	return metadata
+	metadata := NewDefaultMetadata()
+	structMeta, err := metadata.GetStructMetadata(structType)
+	if err != nil {
+		panic(fmt.Sprintf("failed to get struct metadata: %v", err))
+	}
+	return structMeta
 }
 
 func createBodyRequest(contentType string, body []byte) *http.Request {
@@ -261,27 +259,21 @@ func TestDecoder_DecodeBody_NoBodyField(t *testing.T) {
 	decoder := newTestDecoder()
 
 	// Metadata without body field
-	metadata, err := newStructMetadata([]FieldMetadata{
+	structType := reflect.StructOf([]reflect.StructField{
 		{
-			StructFieldName: "Name",
-			Index:           0,
-			Type:            reflect.TypeFor[string](),
-			TagMetadata: map[string]any{
-				"schema": &SchemaMetadata{
-					ParamName: "name",
-					MapKey:    "name",
-					Location:  LocationQuery,
-					Style:     StyleForm,
-				},
-			},
+			Name: "Name",
+			Type: reflect.TypeFor[string](),
+			Tag:  reflect.StructTag(`schema:"name,location=query"`),
 		},
 	})
+	metadata := NewDefaultMetadata()
+	structMeta, err := metadata.GetStructMetadata(structType)
 	require.NoError(t, err)
 
 	body := []byte(`{"ignored": "data"}`)
 	req := createBodyRequest("application/json", body)
 
-	result, err := decoder.Decode(req, nil, metadata)
+	result, err := decoder.Decode(req, nil, structMeta)
 
 	require.NoError(t, err)
 	// Body should be ignored, result should be empty (no query params)

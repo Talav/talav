@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -27,35 +28,15 @@ func createQueryRequest(queryString string) *http.Request {
 	return httptest.NewRequest(http.MethodGet, "/test?"+queryString, nil)
 }
 
-func createParamMetadata(location ParameterLocation, style Style, explode bool, fields ...struct {
-	name      string
-	paramName string
-	mapKey    string
-	fieldType reflect.Type
-},
-) *StructMetadata {
-	metaFields := make([]FieldMetadata, len(fields))
-	for i, f := range fields {
-		metaFields[i] = FieldMetadata{
-			StructFieldName: f.name,
-			Index:           i,
-			Type:            f.fieldType,
-			TagMetadata: map[string]any{
-				"schema": &SchemaMetadata{
-					ParamName: f.paramName,
-					MapKey:    f.mapKey,
-					Location:  location,
-					Style:     style,
-					Explode:   explode,
-					Required:  location == LocationPath,
-				},
-			},
-		}
+func createParamMetadata(structVal any) *StructMetadata {
+	structType := reflect.TypeOf(structVal)
+	registry := NewDefaultTagParserRegistry()
+	builder := newMetadataBuilder(registry)
+	structMeta, err := builder.buildStructMetadata(structType)
+	if err != nil {
+		panic(fmt.Sprintf("failed to build struct metadata: %v", err))
 	}
-
-	metadata, _ := newStructMetadata(metaFields)
-
-	return metadata
+	return structMeta
 }
 
 func TestDecoder_Decode(t *testing.T) {
@@ -72,20 +53,10 @@ func TestDecoder_Decode(t *testing.T) {
 		{
 			name:        "query parameters only",
 			queryString: "name=john&age=30",
-			metadata: createParamMetadata(LocationQuery, StyleForm, true,
-				struct {
-					name      string
-					paramName string
-					mapKey    string
-					fieldType reflect.Type
-				}{"name", "name", "name", reflect.TypeOf("")},
-				struct {
-					name      string
-					paramName string
-					mapKey    string
-					fieldType reflect.Type
-				}{"age", "age", "age", reflect.TypeOf("")},
-			),
+			metadata: createParamMetadata(struct {
+				Name string `schema:"name,location=query,style=form,explode=true"`
+				Age  string `schema:"age,location=query,style=form,explode=true"`
+			}{}),
 			want: map[string]any{
 				"name": "john",
 				"age":  "30",
@@ -94,20 +65,10 @@ func TestDecoder_Decode(t *testing.T) {
 		{
 			name:         "path parameters only",
 			routerParams: map[string]string{"id": "123", "slug": "test-post"},
-			metadata: createParamMetadata(LocationPath, StyleSimple, false,
-				struct {
-					name      string
-					paramName string
-					mapKey    string
-					fieldType reflect.Type
-				}{"id", "id", "id", reflect.TypeOf("")},
-				struct {
-					name      string
-					paramName string
-					mapKey    string
-					fieldType reflect.Type
-				}{"slug", "slug", "slug", reflect.TypeOf("")},
-			),
+			metadata: createParamMetadata(struct {
+				ID   string `schema:"id,location=path"`
+				Slug string `schema:"slug,location=path"`
+			}{}),
 			want: map[string]any{
 				"id":   "123",
 				"slug": "test-post",
@@ -116,20 +77,10 @@ func TestDecoder_Decode(t *testing.T) {
 		{
 			name:    "header parameters only",
 			headers: map[string]string{"X-Request-ID": "abc123", "X-Client-Version": "1.0"},
-			metadata: createParamMetadata(LocationHeader, StyleSimple, false,
-				struct {
-					name      string
-					paramName string
-					mapKey    string
-					fieldType reflect.Type
-				}{"X-Request-ID", "X-Request-ID", "X-Request-ID", reflect.TypeOf("")},
-				struct {
-					name      string
-					paramName string
-					mapKey    string
-					fieldType reflect.Type
-				}{"X-Client-Version", "X-Client-Version", "X-Client-Version", reflect.TypeOf("")},
-			),
+			metadata: createParamMetadata(struct {
+				RequestID     string `schema:"X-Request-ID,location=header"`
+				ClientVersion string `schema:"X-Client-Version,location=header"`
+			}{}),
 			want: map[string]any{
 				"X-Request-ID":     "abc123",
 				"X-Client-Version": "1.0",
@@ -138,14 +89,9 @@ func TestDecoder_Decode(t *testing.T) {
 		{
 			name:        "empty query string",
 			queryString: "",
-			metadata: createParamMetadata(LocationQuery, StyleForm, true,
-				struct {
-					name      string
-					paramName string
-					mapKey    string
-					fieldType reflect.Type
-				}{"name", "name", "name", reflect.TypeOf("")},
-			),
+			metadata: createParamMetadata(struct {
+				Name string `schema:"name,location=query,style=form,explode=true"`
+			}{}),
 			want: map[string]any{},
 		},
 	}
@@ -184,43 +130,17 @@ func TestDecoder_DecodeQuery(t *testing.T) {
 	tests := []struct {
 		name        string
 		queryString string
-		fields      []FieldMetadata
+		structVal   any
 		want        map[string]any
 		wantErr     bool
 	}{
 		{
 			name:        "simple query parameters",
 			queryString: "name=john&age=30",
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "Name",
-					Index:           0,
-					Type:            reflect.TypeOf(""),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "name",
-							MapKey:    "name",
-							Location:  LocationQuery,
-							Style:     StyleForm,
-							Explode:   true,
-						},
-					},
-				},
-				{
-					StructFieldName: "Age",
-					Index:           1,
-					Type:            reflect.TypeOf(""),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "age",
-							MapKey:    "age",
-							Location:  LocationQuery,
-							Style:     StyleForm,
-							Explode:   true,
-						},
-					},
-				},
-			},
+			structVal: struct {
+				Name string `schema:"name,location=query,style=form,explode=true"`
+				Age  string `schema:"age,location=query,style=form,explode=true"`
+			}{},
 			want: map[string]any{
 				"name": "john",
 				"age":  "30",
@@ -229,22 +149,9 @@ func TestDecoder_DecodeQuery(t *testing.T) {
 		{
 			name:        "array parameter exploded",
 			queryString: "ids=1&ids=2&ids=3",
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "IDs",
-					Index:           0,
-					Type:            reflect.TypeOf([]string{}),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "ids",
-							MapKey:    "ids",
-							Location:  LocationQuery,
-							Style:     StyleForm,
-							Explode:   true,
-						},
-					},
-				},
-			},
+			structVal: struct {
+				IDs []string `schema:"ids,location=query,style=form,explode=true"`
+			}{},
 			want: map[string]any{
 				"ids": []any{"1", "2", "3"},
 			},
@@ -252,22 +159,9 @@ func TestDecoder_DecodeQuery(t *testing.T) {
 		{
 			name:        "array parameter non-exploded",
 			queryString: "ids=1,2,3",
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "IDs",
-					Index:           0,
-					Type:            reflect.TypeOf([]string{}),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "ids",
-							MapKey:    "ids",
-							Location:  LocationQuery,
-							Style:     StyleForm,
-							Explode:   false,
-						},
-					},
-				},
-			},
+			structVal: struct {
+				IDs []string `schema:"ids,location=query,style=form,explode=false"`
+			}{},
 			want: map[string]any{
 				"ids": []any{"1", "2", "3"},
 			},
@@ -275,22 +169,9 @@ func TestDecoder_DecodeQuery(t *testing.T) {
 		{
 			name:        "deep object style",
 			queryString: "filter%5Btype%5D=car&filter%5Bcolor%5D=red",
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "Filter",
-					Index:           0,
-					Type:            reflect.TypeOf(map[string]any{}),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "filter",
-							MapKey:    "filter",
-							Location:  LocationQuery,
-							Style:     StyleDeepObject,
-							Explode:   true,
-						},
-					},
-				},
-			},
+			structVal: struct {
+				Filter map[string]any `schema:"filter,location=query,style=deepObject,explode=true"`
+			}{},
 			want: map[string]any{
 				"filter": map[string]any{
 					"type":  "car",
@@ -301,22 +182,9 @@ func TestDecoder_DecodeQuery(t *testing.T) {
 		{
 			name:        "space delimited style",
 			queryString: "ids=1%202%203",
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "IDs",
-					Index:           0,
-					Type:            reflect.TypeOf([]string{}),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "ids",
-							MapKey:    "ids",
-							Location:  LocationQuery,
-							Style:     StyleSpaceDelimited,
-							Explode:   false,
-						},
-					},
-				},
-			},
+			structVal: struct {
+				IDs []string `schema:"ids,location=query,style=spaceDelimited"`
+			}{},
 			want: map[string]any{
 				"ids": []any{"1", "2", "3"},
 			},
@@ -324,22 +192,9 @@ func TestDecoder_DecodeQuery(t *testing.T) {
 		{
 			name:        "pipe delimited style",
 			queryString: "ids=1%7C2%7C3",
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "IDs",
-					Index:           0,
-					Type:            reflect.TypeOf([]string{}),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "ids",
-							MapKey:    "ids",
-							Location:  LocationQuery,
-							Style:     StylePipeDelimited,
-							Explode:   false,
-						},
-					},
-				},
-			},
+			structVal: struct {
+				IDs []string `schema:"ids,location=query,style=pipeDelimited"`
+			}{},
 			want: map[string]any{
 				"ids": []any{"1", "2", "3"},
 			},
@@ -347,78 +202,26 @@ func TestDecoder_DecodeQuery(t *testing.T) {
 		{
 			name:        "no query fields in metadata",
 			queryString: "name=john",
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "ID",
-					Index:           0,
-					Type:            reflect.TypeOf(""),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "id",
-							MapKey:    "id",
-							Location:  LocationPath,
-							Style:     StyleSimple,
-							Required:  true,
-						},
-					},
-				},
-			},
+			structVal: struct {
+				ID string `schema:"id,location=path"`
+			}{},
 			want: map[string]any{},
 		},
 		{
 			name:        "empty query string",
 			queryString: "",
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "Name",
-					Index:           0,
-					Type:            reflect.TypeOf(""),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "name",
-							MapKey:    "name",
-							Location:  LocationQuery,
-							Style:     StyleForm,
-							Explode:   true,
-						},
-					},
-				},
-			},
+			structVal: struct {
+				Name string `schema:"name,location=query,style=form,explode=true"`
+			}{},
 			want: map[string]any{},
 		},
 		{
 			name:        "mixed styles in query",
 			queryString: "name=john&filter%5Btype%5D=car",
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "Name",
-					Index:           0,
-					Type:            reflect.TypeOf(""),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "name",
-							MapKey:    "name",
-							Location:  LocationQuery,
-							Style:     StyleForm,
-							Explode:   true,
-						},
-					},
-				},
-				{
-					StructFieldName: "Filter",
-					Index:           1,
-					Type:            reflect.TypeOf(map[string]any{}),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "filter",
-							MapKey:    "filter",
-							Location:  LocationQuery,
-							Style:     StyleDeepObject,
-							Explode:   true,
-						},
-					},
-				},
-			},
+			structVal: struct {
+				Name   string         `schema:"name,location=query,style=form,explode=true"`
+				Filter map[string]any `schema:"filter,location=query,style=deepObject,explode=true"`
+			}{},
 			want: map[string]any{
 				"name": "john",
 				"filter": map[string]any{
@@ -429,15 +232,17 @@ func TestDecoder_DecodeQuery(t *testing.T) {
 	}
 
 	decoder := newTestDecoder()
+	metadata := NewDefaultMetadata()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metadata, err := newStructMetadata(tt.fields)
+			structType := reflect.TypeOf(tt.structVal)
+			structMeta, err := metadata.GetStructMetadata(structType)
 			require.NoError(t, err)
 
 			req := createQueryRequest(tt.queryString)
 
-			result, err := decoder.decodeQuery(req, metadata)
+			result, err := decoder.decodeQuery(req, structMeta)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -455,7 +260,7 @@ func TestDecoder_DecodePath(t *testing.T) {
 	tests := []struct {
 		name         string
 		routerParams map[string]string
-		fields       []FieldMetadata
+		structType   reflect.Type
 		want         map[string]any
 		wantErr      bool
 	}{
@@ -464,22 +269,9 @@ func TestDecoder_DecodePath(t *testing.T) {
 			routerParams: map[string]string{
 				"id": "123",
 			},
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "ID",
-					Index:           0,
-					Type:            reflect.TypeOf(""),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "id",
-							MapKey:    "id",
-							Location:  LocationPath,
-							Style:     StyleSimple,
-							Required:  true,
-						},
-					},
-				},
-			},
+			structType: reflect.TypeOf(struct {
+				ID string `schema:"id,location=path"`
+			}{}),
 			want: map[string]any{
 				"id": "123",
 			},
@@ -490,36 +282,10 @@ func TestDecoder_DecodePath(t *testing.T) {
 				"userID": "42",
 				"postID": "100",
 			},
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "UserID",
-					Index:           0,
-					Type:            reflect.TypeOf(""),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "userID",
-							MapKey:    "userID",
-							Location:  LocationPath,
-							Style:     StyleSimple,
-							Required:  true,
-						},
-					},
-				},
-				{
-					StructFieldName: "PostID",
-					Index:           1,
-					Type:            reflect.TypeOf(""),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "postID",
-							MapKey:    "postID",
-							Location:  LocationPath,
-							Style:     StyleSimple,
-							Required:  true,
-						},
-					},
-				},
-			},
+			structType: reflect.TypeOf(struct {
+				UserID string `schema:"userID,location=path"`
+				PostID string `schema:"postID,location=path"`
+			}{}),
 			want: map[string]any{
 				"userID": "42",
 				"postID": "100",
@@ -530,23 +296,9 @@ func TestDecoder_DecodePath(t *testing.T) {
 			routerParams: map[string]string{
 				"values": ".1.2.3",
 			},
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "Values",
-					Index:           0,
-					Type:            reflect.TypeOf([]string{}),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "values",
-							MapKey:    "values",
-							Location:  LocationPath,
-							Style:     StyleLabel,
-							Explode:   true,
-							Required:  true,
-						},
-					},
-				},
-			},
+			structType: reflect.TypeOf(struct {
+				Values []string `schema:"values,location=path,style=label,explode=true"`
+			}{}),
 			want: map[string]any{
 				"values": []any{"1", "2", "3"},
 			},
@@ -554,22 +306,9 @@ func TestDecoder_DecodePath(t *testing.T) {
 		{
 			name:         "empty router params",
 			routerParams: map[string]string{},
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "ID",
-					Index:           0,
-					Type:            reflect.TypeOf(""),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "id",
-							MapKey:    "id",
-							Location:  LocationPath,
-							Style:     StyleSimple,
-							Required:  true,
-						},
-					},
-				},
-			},
+			structType: reflect.TypeOf(struct {
+				ID string `schema:"id,location=path"`
+			}{}),
 			want: map[string]any{
 				"id": "",
 			},
@@ -579,33 +318,22 @@ func TestDecoder_DecodePath(t *testing.T) {
 			routerParams: map[string]string{
 				"id": "123",
 			},
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "Name",
-					Index:           0,
-					Type:            reflect.TypeOf(""),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "name",
-							MapKey:    "name",
-							Location:  LocationQuery,
-							Style:     StyleForm,
-						},
-					},
-				},
-			},
+			structType: reflect.TypeOf(struct {
+				Name string `schema:"name,location=query"`
+			}{}),
 			want: map[string]any{},
 		},
 	}
 
 	decoder := newTestDecoder()
+	metadata := NewDefaultMetadata()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metadata, err := newStructMetadata(tt.fields)
+			structMeta, err := metadata.GetStructMetadata(tt.structType)
 			require.NoError(t, err)
 
-			result, err := decoder.decodePath(tt.routerParams, metadata)
+			result, err := decoder.decodePath(tt.routerParams, structMeta)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -621,32 +349,20 @@ func TestDecoder_DecodePath(t *testing.T) {
 
 func TestDecoder_DecodeHeader(t *testing.T) {
 	tests := []struct {
-		name    string
-		headers map[string]string
-		fields  []FieldMetadata
-		want    map[string]any
-		wantErr bool
+		name       string
+		headers    map[string]string
+		structType reflect.Type
+		want       map[string]any
+		wantErr    bool
 	}{
 		{
 			name: "simple header parameter",
 			headers: map[string]string{
 				"X-Request-ID": "abc123",
 			},
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "RequestID",
-					Index:           0,
-					Type:            reflect.TypeOf(""),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "X-Request-ID",
-							MapKey:    "X-Request-ID",
-							Location:  LocationHeader,
-							Style:     StyleSimple,
-						},
-					},
-				},
-			},
+			structType: reflect.TypeOf(struct {
+				RequestID string `schema:"X-Request-ID,location=header"`
+			}{}),
 			want: map[string]any{
 				"X-Request-ID": "abc123",
 			},
@@ -657,34 +373,10 @@ func TestDecoder_DecodeHeader(t *testing.T) {
 				"X-Request-ID":     "abc123",
 				"X-Client-Version": "2.0",
 			},
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "RequestID",
-					Index:           0,
-					Type:            reflect.TypeOf(""),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "X-Request-ID",
-							MapKey:    "X-Request-ID",
-							Location:  LocationHeader,
-							Style:     StyleSimple,
-						},
-					},
-				},
-				{
-					StructFieldName: "ClientVersion",
-					Index:           1,
-					Type:            reflect.TypeOf(""),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "X-Client-Version",
-							MapKey:    "X-Client-Version",
-							Location:  LocationHeader,
-							Style:     StyleSimple,
-						},
-					},
-				},
-			},
+			structType: reflect.TypeOf(struct {
+				RequestID     string `schema:"X-Request-ID,location=header"`
+				ClientVersion string `schema:"X-Client-Version,location=header"`
+			}{}),
 			want: map[string]any{
 				"X-Request-ID":     "abc123",
 				"X-Client-Version": "2.0",
@@ -693,21 +385,9 @@ func TestDecoder_DecodeHeader(t *testing.T) {
 		{
 			name:    "missing header",
 			headers: map[string]string{},
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "RequestID",
-					Index:           0,
-					Type:            reflect.TypeOf(""),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "X-Request-ID",
-							MapKey:    "X-Request-ID",
-							Location:  LocationHeader,
-							Style:     StyleSimple,
-						},
-					},
-				},
-			},
+			structType: reflect.TypeOf(struct {
+				RequestID string `schema:"X-Request-ID,location=header"`
+			}{}),
 			want: map[string]any{
 				"X-Request-ID": "",
 			},
@@ -717,30 +397,19 @@ func TestDecoder_DecodeHeader(t *testing.T) {
 			headers: map[string]string{
 				"X-Request-ID": "abc123",
 			},
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "Name",
-					Index:           0,
-					Type:            reflect.TypeOf(""),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "name",
-							MapKey:    "name",
-							Location:  LocationQuery,
-							Style:     StyleForm,
-						},
-					},
-				},
-			},
+			structType: reflect.TypeOf(struct {
+				Name string `schema:"name,location=query"`
+			}{}),
 			want: map[string]any{},
 		},
 	}
 
 	decoder := newTestDecoder()
+	metadata := NewDefaultMetadata()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metadata, err := newStructMetadata(tt.fields)
+			structMeta, err := metadata.GetStructMetadata(tt.structType)
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodGet, "/test", nil)
@@ -748,7 +417,7 @@ func TestDecoder_DecodeHeader(t *testing.T) {
 				req.Header.Set(key, value)
 			}
 
-			result, err := decoder.decodeHeader(req, metadata)
+			result, err := decoder.decodeHeader(req, structMeta)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -768,31 +437,18 @@ func TestDecoder_DecodeCookie(t *testing.T) {
 	// in decodeValueByStyle for single values. These tests verify behavior
 	// for scenarios that work around this limitation.
 	tests := []struct {
-		name    string
-		cookies map[string]string
-		fields  []FieldMetadata
-		want    map[string]any
-		wantErr bool
+		name       string
+		cookies    map[string]string
+		structType reflect.Type
+		want       map[string]any
+		wantErr    bool
 	}{
 		{
 			name:    "missing cookie (skipped)",
 			cookies: map[string]string{},
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "Session",
-					Index:           0,
-					Type:            reflect.TypeOf(""),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "session",
-							MapKey:    "session",
-							Location:  LocationCookie,
-							Style:     StyleForm,
-							Explode:   true,
-						},
-					},
-				},
-			},
+			structType: reflect.TypeOf(struct {
+				Session string `schema:"session,location=cookie"`
+			}{}),
 			want: map[string]any{},
 		},
 		{
@@ -800,30 +456,19 @@ func TestDecoder_DecodeCookie(t *testing.T) {
 			cookies: map[string]string{
 				"session": "xyz789",
 			},
-			fields: []FieldMetadata{
-				{
-					StructFieldName: "Name",
-					Index:           0,
-					Type:            reflect.TypeOf(""),
-					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{
-							ParamName: "name",
-							MapKey:    "name",
-							Location:  LocationQuery,
-							Style:     StyleForm,
-						},
-					},
-				},
-			},
+			structType: reflect.TypeOf(struct {
+				Name string `schema:"name,location=query"`
+			}{}),
 			want: map[string]any{},
 		},
 	}
 
 	decoder := newTestDecoder()
+	metadata := NewDefaultMetadata()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metadata, err := newStructMetadata(tt.fields)
+			structMeta, err := metadata.GetStructMetadata(tt.structType)
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodGet, "/test", nil)
@@ -831,7 +476,7 @@ func TestDecoder_DecodeCookie(t *testing.T) {
 				req.AddCookie(&http.Cookie{Name: name, Value: value})
 			}
 
-			result, err := decoder.decodeCookie(req, metadata)
+			result, err := decoder.decodeCookie(req, structMeta)
 
 			if tt.wantErr {
 				require.Error(t, err)
