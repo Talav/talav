@@ -196,32 +196,10 @@ func TestParseFunc_OptionsMode(t *testing.T) {
 	assert.Equal(t, M{"foo": "", "bar": "baz"}, opts)
 }
 
-func BenchmarkParseFunc(t *testing.B) {
-	slice := make([]string, 0, 20)
-	for t.Loop() {
-		slice = slice[:0]
-		err := ParseFunc(`foo,bar=boz,fubar,bar=zob,oof`, func(key, value string) error {
-			slice = append(slice, key, value)
-
-			return nil
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-}
-
-func BenchmarkParseFuncWithName(t *testing.B) {
-	slice := make([]string, 0, 20)
-	for t.Loop() {
-		slice = slice[:0]
-		err := ParseFuncWithName(`foo,bar=boz,fubar,bar=zob,oof`, func(key, value string) error {
-			slice = append(slice, key, value)
-
-			return nil
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
+func TestParse_EmptyString(t *testing.T) {
+	// Test that Parse("") returns empty Options map, not map["":""]
+	tag, err := Parse("")
+	require.NoError(t, err)
+	assert.Equal(t, "", tag.Name)
+	assert.Empty(t, tag.Options, "empty string should result in empty Options map")
 }

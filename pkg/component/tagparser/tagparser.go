@@ -234,14 +234,20 @@ func (p *parser) setKey() error {
 func (p *parser) emitItem() error {
 	p.count++
 
-	// Skip empty items after first
-	if p.start >= p.pos && p.count > 1 {
+	// Skip empty items after first (empty items between commas like "alfa,,charlie")
+	// But don't skip if we have a key (even if value is empty, like "alfa=")
+	if p.start >= p.pos && p.count > 1 && !p.inValue && p.key == "" {
 		return nil
 	}
 
 	key, value, err := p.getKeyValue()
 	if err != nil {
 		return err
+	}
+
+	// Skip completely empty items (empty tag or empty items with no key)
+	if key == "" && value == "" && p.count == 1 && !p.inValue {
+		return nil
 	}
 
 	if err := p.callback(key, value); err != nil {
