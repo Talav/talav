@@ -10,6 +10,48 @@ import (
 
 type M = map[string]string
 
+var errSimulated = errors.New("simulated error")
+
+func TestParse_EmptyString(t *testing.T) {
+	// Test that Parse("") returns empty Options map, not map["":""]
+	tag, err := Parse("")
+	require.NoError(t, err)
+	assert.Equal(t, "", tag.Name)
+	assert.Empty(t, tag.Options, "empty string should result in empty Options map")
+}
+
+func TestParse_OptionsMode(t *testing.T) {
+	// Test Parse (options mode) - all items are options
+	tag, err := Parse(`foo,bar=baz`)
+	require.NoError(t, err)
+	assert.Equal(t, "", tag.Name)
+	assert.Equal(t, M{"foo": "", "bar": "baz"}, tag.Options)
+
+	// First item with equals is also an option
+	tag2, err := Parse(`foo=bar,baz`)
+	require.NoError(t, err)
+	assert.Equal(t, "", tag2.Name)
+	assert.Equal(t, M{"foo": "bar", "baz": ""}, tag2.Options)
+
+	// All items treated as options
+	tag3, err := Parse(`required,email,min=5`)
+	require.NoError(t, err)
+	assert.Equal(t, "", tag3.Name)
+	assert.Equal(t, M{"required": "", "email": "", "min": "5"}, tag3.Options)
+}
+
+func TestParseFunc_OptionsMode(t *testing.T) {
+	// Test ParseFunc (options mode) - all items are options, no empty keys
+	opts := make(M)
+	err := ParseFunc(`foo,bar=baz`, func(key, value string) error {
+		opts[key] = value
+
+		return nil
+	})
+	require.NoError(t, err)
+	assert.Equal(t, M{"foo": "", "bar": "baz"}, opts)
+}
+
 func TestParseWithName(t *testing.T) {
 	tests := []struct {
 		testName string
@@ -112,26 +154,6 @@ func TestParseWithName_Unquoting(t *testing.T) {
 	assert.Equal(t, M{"name": "value", "other": "key"}, tag2.Options)
 }
 
-func TestParse_OptionsMode(t *testing.T) {
-	// Test Parse (options mode) - all items are options
-	tag, err := Parse(`foo,bar=baz`)
-	require.NoError(t, err)
-	assert.Equal(t, "", tag.Name)
-	assert.Equal(t, M{"foo": "", "bar": "baz"}, tag.Options)
-
-	// First item with equals is also an option
-	tag2, err := Parse(`foo=bar,baz`)
-	require.NoError(t, err)
-	assert.Equal(t, "", tag2.Name)
-	assert.Equal(t, M{"foo": "bar", "baz": ""}, tag2.Options)
-
-	// All items treated as options
-	tag3, err := Parse(`required,email,min=5`)
-	require.NoError(t, err)
-	assert.Equal(t, "", tag3.Name)
-	assert.Equal(t, M{"required": "", "email": "", "min": "5"}, tag3.Options)
-}
-
 func TestParseWithName_NameMode(t *testing.T) {
 	// Test ParseWithName (name mode) - first item without equals is name
 	tag, err := ParseWithName(`foo,bar=baz`)
@@ -145,8 +167,6 @@ func TestParseWithName_NameMode(t *testing.T) {
 	assert.Equal(t, "", tag2.Name)
 	assert.Equal(t, M{"foo": "bar", "baz": ""}, tag2.Options)
 }
-
-var errSimulated = errors.New("simulated error")
 
 func TestParseFuncWithName_CustomErrorInName(t *testing.T) {
 	const tag = `foo,bar=boz`
@@ -182,24 +202,4 @@ func TestParseFuncWithName_CustomErrorInKey(t *testing.T) {
 	var errType *Error
 	require.True(t, errors.As(err, &errType))
 	assert.True(t, errors.Is(errType.Cause, errSimulated))
-}
-
-func TestParseFunc_OptionsMode(t *testing.T) {
-	// Test ParseFunc (options mode) - all items are options, no empty keys
-	opts := make(M)
-	err := ParseFunc(`foo,bar=baz`, func(key, value string) error {
-		opts[key] = value
-
-		return nil
-	})
-	require.NoError(t, err)
-	assert.Equal(t, M{"foo": "", "bar": "baz"}, opts)
-}
-
-func TestParse_EmptyString(t *testing.T) {
-	// Test that Parse("") returns empty Options map, not map["":""]
-	tag, err := Parse("")
-	require.NoError(t, err)
-	assert.Equal(t, "", tag.Name)
-	assert.Empty(t, tag.Options, "empty string should result in empty Options map")
 }

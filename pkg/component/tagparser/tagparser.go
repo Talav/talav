@@ -47,6 +47,14 @@ type Tag struct {
 	Options map[string]string
 }
 
+// unquoteError represents an error during unquoting.
+type unquoteError struct {
+	msg string
+	pos int
+}
+
+func (e *unquoteError) Error() string { return e.msg }
+
 // Parse parses a tag treating all items as options (default behavior).
 // Example: "foo,bar=baz" → Name="", Options={"foo": "", "bar": "baz"}.
 func Parse(tag string) (*Tag, error) {
@@ -234,9 +242,7 @@ func (p *parser) setKey() error {
 func (p *parser) emitItem() error {
 	p.count++
 
-	// Skip empty items after first (empty items between commas like "alfa,,charlie")
-	// But don't skip if we have a key (even if value is empty, like "alfa=")
-	if p.start >= p.pos && p.count > 1 && !p.inValue && p.key == "" {
+	if p.shouldSkipEmptyItem() {
 		return nil
 	}
 
@@ -245,8 +251,7 @@ func (p *parser) emitItem() error {
 		return err
 	}
 
-	// Skip completely empty items (empty tag or empty items with no key)
-	if key == "" && value == "" && p.count == 1 && !p.inValue {
+	if p.shouldSkipCompletelyEmpty(key, value) {
 		return nil
 	}
 
@@ -255,6 +260,16 @@ func (p *parser) emitItem() error {
 	}
 
 	return nil
+}
+
+// shouldSkipEmptyItem checks if empty items between commas should be skipped.
+func (p *parser) shouldSkipEmptyItem() bool {
+	return p.start >= p.pos && p.count > 1 && !p.inValue && p.key == ""
+}
+
+// shouldSkipCompletelyEmpty checks if an item is completely empty and should be skipped.
+func (p *parser) shouldSkipCompletelyEmpty(key, value string) bool {
+	return key == "" && value == "" && p.count == 1 && !p.inValue
 }
 
 //nolint:cyclop // Complex switch statement for different parsing modes - acceptable complexity
@@ -306,14 +321,6 @@ func (p *parser) wrapUnquoteError(err error, offset int) error {
 
 	return &Error{p.tag, offset, err.Error(), nil}
 }
-
-// unquoteError represents an error during unquoting.
-type unquoteError struct {
-	msg string
-	pos int
-}
-
-func (e *unquoteError) Error() string { return e.msg }
 
 var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 
