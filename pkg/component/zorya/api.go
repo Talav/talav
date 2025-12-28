@@ -301,6 +301,7 @@ func NewAPI(adapter Adapter, opts ...Option) API {
 	a.responseSchemaExtractor = NewResponseSchemaExtractor(a.registry, newSchemaBuilder(a.registry, a.metadata), a.metadata)
 
 	registerOpenAPIEndpoint(a)
+	registerDocsEndpoint(a)
 
 	return a
 }

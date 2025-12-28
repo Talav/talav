@@ -1233,3 +1233,39 @@ func TestOpenAPIEndpoint_ComprehensiveValidations(t *testing.T) {
 	// 9. Compare with expected JSON string
 	assert.JSONEq(t, wantedJSON, string(actualJSON), "Generated JSON should match expected JSON")
 }
+
+func TestDocsEndpoint_EndToEnd(t *testing.T) {
+	// 1. Setup: Create router, adapter, and API
+	router := chi.NewMux()
+	adapter := &testChiAdapter{router: router}
+	api := NewAPI(adapter)
+
+	// 2. Register a simple route (GET /users/{id})
+	err := Get(api, "/users/{id}", func(ctx context.Context, input *GetUserInput) (*GetUserOutput, error) {
+		output := &GetUserOutput{}
+		output.Body.ID = input.ID
+		output.Body.Name = "John Doe"
+
+		return output, nil
+	})
+	require.NoError(t, err, "Should successfully register route")
+
+	// 3. Make HTTP GET request to /docs using httptest
+	req := httptest.NewRequest(http.MethodGet, "/docs", nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	// 4. Validate response status (200 OK)
+	assert.Equal(t, http.StatusOK, recorder.Code, "Response status should be 200 OK")
+
+	// 5. Validate Content-Type header
+	assert.Equal(t, "text/html; charset=utf-8", recorder.Header().Get("Content-Type"), "Content-Type should be text/html; charset=utf-8")
+
+	// 6. Validate response body is HTML
+	htmlBody := recorder.Body.String()
+	assert.Contains(t, htmlBody, "<!DOCTYPE html>", "Response should contain HTML doctype")
+	assert.Contains(t, htmlBody, "<elements-api", "Response should contain Stoplight Elements web component")
+	assert.Contains(t, htmlBody, "apiDescriptionUrl", "Response should contain apiDescriptionUrl attribute")
+	assert.Contains(t, htmlBody, "/openapi.json", "Response should reference OpenAPI spec at /openapi.json")
+	assert.Contains(t, htmlBody, "@stoplight/elements", "Response should include Stoplight Elements from CDN")
+}
