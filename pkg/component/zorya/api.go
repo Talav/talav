@@ -2,14 +2,16 @@ package zorya
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"reflect"
 	"strings"
-	"time"
 
+	"github.com/talav/talav/pkg/component/mapstructure"
 	"github.com/talav/talav/pkg/component/negotiation"
 	"github.com/talav/talav/pkg/component/schema"
 )
@@ -21,13 +23,47 @@ import (
 // functionality in one place, by using the `zorya.Context` interface which
 // abstracts away those router-specific differences.
 type Adapter interface {
-	Handle(route *BaseRoute, handler func(ctx Context))
+	// Handle registers a route with a standard http.HandlerFunc.
+	Handle(route *BaseRoute, handler http.HandlerFunc)
+
+	// ExtractRouterParams extracts router parameters from the request.
+	ExtractRouterParams(r *http.Request, route *BaseRoute) map[string]string
+
+	// ServeHTTP makes the adapter compatible with http.Handler interface.
+	// This allows the adapter to be used directly with http.ListenAndServe,
+	// mounted as a sub-handler in other routers, or used in testing scenarios
+	// (e.g., with httptest.NewRecorder).
 	ServeHTTP(http.ResponseWriter, *http.Request)
 }
 
-// Option configures an API.
-type Option func(*api)
+// Codec is an interface that allows to map request and router parameters into Go structures.
+type Codec interface {
+	// DecodeRequest decodes an HTTP request into the provided struct.
+	DecodeRequest(request *http.Request, routerParams map[string]string, result any) error
+}
 
+// Validator validates input structs after request decoding.
+// Each returned error should implement ErrorDetailer for RFC 9457 compliant responses.
+type Validator interface {
+	// Validate validates the input struct.
+	// Returns nil if validation succeeds, or a slice of errors if validation fails.
+	Validate(ctx context.Context, input any, metadata *schema.StructMetadata) []error
+}
+
+// Transformer is a function that transforms response bodies before serialization.
+// Transformers are run in the order they are added.
+// Parameters:
+//   - r: The HTTP request (for context-aware transformations)
+//   - status: The HTTP status code as an integer (e.g., 200, 404)
+//   - result: The response body value to transform (must be a struct from the output struct's Body field)
+//
+// Returns the transformed value (which may be the same or a different type) and an error.
+// Each transformer receives the output of the previous transformer in the chain.
+// Note: Transformers are only called for struct body types. []byte and function bodies
+// bypass transformers and are handled separately.
+type Transformer func(r *http.Request, status int, result any) (any, error)
+
+//nolint:interfacebloat // API is the core framework interface; 14 methods is reasonable for a complete API contract
 type API interface {
 	// Adapter returns the router adapter for this API, providing a generic
 	// interface to get request information and write responses.
@@ -39,7 +75,14 @@ type API interface {
 	// middleware at operation registration time.
 	Middlewares() Middlewares
 
-	Codec() *schema.Codec
+	// UseMiddleware adds one or more standard Go middleware functions to the API.
+	// Middleware functions take an http.Handler and return an http.Handler.
+	UseMiddleware(middlewares ...Middleware)
+
+	Codec() Codec
+
+	// Metadata returns the schema metadata instance used by this API.
+	Metadata() *schema.Metadata
 
 	// Negotiate returns the best content type for the response based on the
 	// Accept header. If no match is found, returns the default format.
@@ -47,30 +90,50 @@ type API interface {
 
 	// Marshal writes the value to the writer using the format for the given
 	// content type. Supports plus-segment matching (e.g., application/vnd.api+json).
-	Marshal(w io.Writer, contentType string, v any) error
+	// If marshaling fails, it falls back to plain text representation.
+	Marshal(w io.Writer, contentType string, v any)
 
 	// Validator returns the configured validator, or nil if validation is disabled.
 	Validator() Validator
 
 	// Transform runs all transformers on the response value.
 	// Called automatically during response serialization.
-	Transform(ctx Context, status string, v any) (any, error)
+	Transform(r *http.Request, status int, v any) (any, error)
 
 	// UseTransformer adds one or more transformer functions that will be
 	// run on all responses.
 	UseTransformer(transformers ...Transformer)
+
+	// OpenAPI returns the OpenAPI spec for this API. You may edit this spec
+	// until the server starts.
+	OpenAPI() *OpenAPI
+
+	// Registry returns the registry for this API.
+	Registry() Registry
+
+	RequestSchemaExtractor() *requestSchemaExtractor
+	ResponseSchemaExtractor() *ResponseSchemaExtractor
 }
 
+// Option configures an API.
+type Option func(*api)
+
 type api struct {
-	adapter       Adapter
-	middlewares   Middlewares
-	codec         *schema.Codec
-	formats       map[string]Format
-	formatKeys    []string // Ordered keys for negotiation priority
-	defaultFormat string
-	negotiator    *negotiation.Negotiator
-	validator     Validator
-	transformers  []Transformer
+	adapter                 Adapter
+	middlewares             Middlewares
+	codec                   *schema.Codec
+	metadata                *schema.Metadata
+	formats                 map[string]Format
+	formatKeys              []string
+	defaultFormat           string
+	negotiator              *negotiation.Negotiator
+	validator               Validator
+	transformers            []Transformer
+	config                  *Config
+	openAPI                 *OpenAPI
+	registry                Registry
+	requestSchemaExtractor  *requestSchemaExtractor
+	responseSchemaExtractor *ResponseSchemaExtractor
 }
 
 func (a *api) Adapter() Adapter {
@@ -81,19 +144,44 @@ func (a *api) Middlewares() Middlewares {
 	return a.middlewares
 }
 
-func (a *api) Codec() *schema.Codec {
+// UseMiddleware adds one or more standard Go middleware functions to the API.
+func (a *api) UseMiddleware(middlewares ...Middleware) {
+	a.middlewares = append(a.middlewares, middlewares...)
+}
+
+func (a *api) Codec() Codec {
 	return a.codec
+}
+
+func (a *api) Metadata() *schema.Metadata {
+	return a.metadata
 }
 
 func (a *api) Validator() Validator {
 	return a.validator
 }
 
+func (a *api) OpenAPI() *OpenAPI {
+	return a.openAPI
+}
+
+func (a *api) RequestSchemaExtractor() *requestSchemaExtractor {
+	return a.requestSchemaExtractor
+}
+
+func (a *api) ResponseSchemaExtractor() *ResponseSchemaExtractor {
+	return a.responseSchemaExtractor
+}
+
+func (a *api) Registry() Registry {
+	return a.registry
+}
+
 // Transform runs all transformers on the response value in the order they were added.
-func (a *api) Transform(ctx Context, status string, v any) (any, error) {
+func (a *api) Transform(r *http.Request, status int, v any) (any, error) {
 	for _, t := range a.transformers {
 		var err error
-		v, err = t(ctx, status, v)
+		v, err = t(r, status, v)
 		if err != nil {
 			return nil, err
 		}
@@ -127,7 +215,8 @@ func (a *api) Negotiate(accept string) (string, error) {
 }
 
 // Marshal writes the value using the format for the given content type.
-func (a *api) Marshal(w io.Writer, ct string, v any) error {
+// If marshaling fails, it falls back to plain text representation.
+func (a *api) Marshal(w io.Writer, ct string, v any) {
 	f, ok := a.formats[ct]
 	if !ok {
 		// Try extracting suffix from plus-segment (e.g., application/vnd.api+json -> json).
@@ -137,10 +226,16 @@ func (a *api) Marshal(w io.Writer, ct string, v any) error {
 	}
 
 	if !ok {
-		return fmt.Errorf("unknown content type: %s", ct)
+		// Unknown content type - fallback to plain text
+		_, _ = fmt.Fprintf(w, "%v", v)
+
+		return
 	}
 
-	return f.Marshal(w, v)
+	if err := f.Marshal(w, v); err != nil {
+		// Marshaling failed - fallback to plain text
+		_, _ = fmt.Fprintf(w, "%v", v)
+	}
 }
 
 // NewAPI creates a new API instance with the given adapter and options.
@@ -157,12 +252,8 @@ func NewAPI(adapter Adapter, opts ...Option) API {
 	a := &api{
 		adapter:       adapter,
 		middlewares:   Middlewares{},
-		codec:         nil, // Set default below
-		formats:       nil, // Set default below
-		formatKeys:    nil,
 		defaultFormat: "application/json",
 		negotiator:    negotiation.NewMediaNegotiator(),
-		validator:     nil,
 		transformers:  []Transformer{},
 	}
 
@@ -172,12 +263,27 @@ func NewAPI(adapter Adapter, opts ...Option) API {
 	}
 
 	// Set defaults for anything not configured
+	// Create metadata first, then codec uses it
+	if a.metadata == nil {
+		a.metadata = NewMetadata()
+	}
 	if a.codec == nil {
-		a.codec = schema.NewCodec()
+		a.codec = schema.NewCodec(a.metadata, mapstructure.NewDefaultUnmarshaler(), schema.NewDefaultDecoder())
 	}
 
 	if a.formats == nil {
 		a.formats = DefaultFormats()
+	}
+
+	initializeOpenAPI(a)
+
+	// Create registry for OpenAPI schema generation
+	if a.registry == nil {
+		a.registry = NewMapRegistry("#/components/schemas/", DefaultSchemaNamer, a.metadata)
+	}
+
+	if a.config == nil {
+		a.config = DefaultConfig()
 	}
 
 	// Build format keys from formats
@@ -191,7 +297,54 @@ func NewAPI(adapter Adapter, opts ...Option) API {
 		}
 	}
 
+	a.requestSchemaExtractor = NewRequestSchemaExtractor(a.registry, a.metadata)
+	a.responseSchemaExtractor = NewResponseSchemaExtractor(a.registry, newSchemaBuilder(a.registry, a.metadata), a.metadata)
+
+	registerOpenAPIEndpoint(a)
+
 	return a
+}
+
+// initializeOpenAPI initializes the OpenAPI spec and its Components if needed.
+func initializeOpenAPI(a *api) {
+	if a.openAPI == nil {
+		a.openAPI = DefaultOpenAPI("API", "1.0.0")
+	}
+
+	// Initialize OpenAPI Components if needed
+	if a.openAPI.Components == nil {
+		a.openAPI.Components = &Components{
+			Schemas: make(map[string]*Schema),
+		}
+	} else if a.openAPI.Components.Schemas == nil {
+		a.openAPI.Components.Schemas = make(map[string]*Schema)
+	}
+}
+
+// registerOpenAPIEndpoint registers the OpenAPI spec endpoint if configured.
+func registerOpenAPIEndpoint(a *api) {
+	if a.config.OpenAPIPath == "" {
+		return
+	}
+
+	var specJSON []byte
+	a.adapter.Handle(&BaseRoute{
+		Method: http.MethodGet,
+		Path:   a.config.OpenAPIPath + ".json",
+	}, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.oai.openapi+json")
+		if specJSON == nil {
+			var err error
+			specJSON, err = json.Marshal(a.openAPI)
+			if err != nil {
+				WriteErr(a, r, w, http.StatusInternalServerError, "failed to marshal OpenAPI spec", err)
+
+				return
+			}
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(specJSON)
+	})
 }
 
 // WithValidator sets a validator for request validation.
@@ -224,9 +377,7 @@ func WithFormats(formats map[string]Format) Option {
 		if a.formats == nil {
 			a.formats = DefaultFormats()
 		}
-		for k, v := range formats {
-			a.formats[k] = v
-		}
+		maps.Copy(a.formats, formats)
 	}
 }
 
@@ -237,13 +388,20 @@ func WithFormatsReplace(formats map[string]Format) Option {
 	return func(a *api) {
 		// Replace all formats - don't merge with defaults
 		a.formats = make(map[string]Format, len(formats))
-		for k, v := range formats {
-			a.formats[k] = v
-		}
+		maps.Copy(a.formats, formats)
+	}
+}
+
+// WithMetadata sets a custom metadata instance for schema operations.
+func WithMetadata(metadata *schema.Metadata) Option {
+	return func(a *api) {
+		a.metadata = metadata
 	}
 }
 
 // WithCodec sets a custom codec for request/response encoding/decoding.
+// Note: If you use WithCodec, you should also use WithMetadata to ensure
+// the metadata instance matches the codec's metadata.
 func WithCodec(codec *schema.Codec) Option {
 	return func(a *api) {
 		a.codec = codec
@@ -254,6 +412,18 @@ func WithCodec(codec *schema.Codec) Option {
 func WithDefaultFormat(format string) Option {
 	return func(a *api) {
 		a.defaultFormat = format
+	}
+}
+
+func WithConfig(config *Config) Option {
+	return func(a *api) {
+		a.config = config
+	}
+}
+
+func WithOpenAPI(openAPI *OpenAPI) Option {
+	return func(a *api) {
+		a.openAPI = openAPI
 	}
 }
 
@@ -278,80 +448,203 @@ func WithDefaultFormat(format string) Option {
 //		resp.Body.Message = fmt.Sprintf("Hello, %s!", input.Name)
 //		return resp, nil
 //	})
-func Register[I, O any](api API, route BaseRoute, handler func(context.Context, *I) (*O, error)) {
+func Register[I, O any](api API, route BaseRoute, handler func(context.Context, *I) (*O, error)) error {
 	inputType := reflect.TypeFor[I]()
 	if inputType.Kind() != reflect.Struct {
-		panic("input must be a struct")
+		return fmt.Errorf("input type %s must be a struct", inputType)
 	}
 	outputType := reflect.TypeFor[O]()
 	if outputType.Kind() != reflect.Struct {
-		panic("output must be a struct")
+		return fmt.Errorf("output type %s must be a struct", outputType)
 	}
 
-	responseMetadata := processOutputType(outputType)
+	// Initialize and register OpenAPI schemas
+	if err := registerOpenAPISchemas(api, &route, inputType, outputType); err != nil {
+		return err
+	}
 
-	// validation: findResolvers in Huma
-	// setting default parameters: findDefaults in Huma
+	// Create and register HTTP handler
+	httpHandler := createRequestHandler(api, &route, handler)
+	allMiddlewares := append(api.Middlewares(), route.Middlewares...)
+	finalHandler := allMiddlewares.Apply(http.HandlerFunc(httpHandler))
 
-	a := api.Adapter()
-	a.Handle(&route, api.Middlewares().Handler(route.Middlewares.Handler(func(ctx Context) {
-		setupRequestLimits(ctx, route)
+	api.Adapter().Handle(&route, finalHandler.ServeHTTP)
 
-		var input I
-		if !decodeAndValidateRequest(api, ctx, &input) {
+	return nil
+}
+
+// registerOpenAPISchemas registers the OpenAPI schemas for input and output types.
+func registerOpenAPISchemas(api API, route *BaseRoute, inputType, outputType reflect.Type) error {
+	// Initialize operation if needed
+	if route.Operation == nil {
+		route.Operation = &Operation{}
+	}
+	op := route.Operation
+
+	// Add operation to OpenAPI Paths
+	if err := addOperationToPath(api.OpenAPI(), route.Path, route.Method, op); err != nil {
+		return err
+	}
+
+	// Extract OpenAPI request schema (parameters + request body)
+	if err := api.RequestSchemaExtractor().RequestFromType(inputType, op); err != nil {
+		return fmt.Errorf("failed to extract request schema: %w", err)
+	}
+
+	// Extract OpenAPI response schema (success + error responses)
+	if err := api.ResponseSchemaExtractor().ResponseFromType(outputType, route); err != nil {
+		return fmt.Errorf("failed to extract response schema: %w", err)
+	}
+
+	// Sync registry schemas to OpenAPI Components
+	maps.Copy(api.OpenAPI().Components.Schemas, api.Registry().Map())
+
+	return nil
+}
+
+// addOperationToPath adds an operation to the OpenAPI paths.
+func addOperationToPath(openAPI *OpenAPI, path, method string, op *Operation) error {
+	if openAPI.Paths == nil {
+		openAPI.Paths = make(map[string]*PathItem)
+	}
+	pathItem := openAPI.Paths[path]
+	if pathItem == nil {
+		pathItem = &PathItem{}
+		openAPI.Paths[path] = pathItem
+	}
+
+	return setPathItemOperation(pathItem, method, op)
+}
+
+// createRequestHandler creates the HTTP handler for processing requests.
+func createRequestHandler[I, O any](api API, route *BaseRoute, handler func(context.Context, *I) (*O, error)) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		routerParams := api.Adapter().ExtractRouterParams(r, route)
+
+		// Setup request limits
+		setupRequestLimits(r, w, *route)
+
+		// Decode and validate request
+		input := new(I)
+		if err := decodeAndValidateRequest(api, r, routerParams, input); err != nil {
+			WriteErr(api, r, w, 0, "", err)
+
 			return
 		}
 
-		// Execute handler.
-		output, err := handler(ctx.Context(), &input)
+		// Execute handler
+		output, err := handler(r.Context(), input)
 		if err != nil {
-			handleHandlerError(api, ctx, err)
+			WriteErr(api, r, w, 0, "", err)
 
 			return
 		}
 
-		// Write response.
-		defaultStatus := http.StatusOK
-		if err := writeResponse(api, ctx, output, responseMetadata, defaultStatus); err != nil {
-			_ = WriteErr(api, ctx, http.StatusInternalServerError, "failed to write response", err)
-
-			return
+		// Transform and write response
+		if err := transformAndWriteResponse(api, r, w, output); err != nil {
+			return // Error already written
 		}
-	})))
+	}
+}
+
+// decodeAndValidateRequest decodes and validates the request input.
+func decodeAndValidateRequest[I any](api API, r *http.Request, routerParams map[string]string, input *I) error {
+	if err := api.Codec().DecodeRequest(r, routerParams, input); err != nil {
+		return err
+	}
+
+	if errs := validateRequest(api, r, input); len(errs) > 0 {
+		return NewError(http.StatusUnprocessableEntity, "validation failed", errs...)
+	}
+
+	return nil
+}
+
+// transformAndWriteResponse transforms the output and writes the response.
+func transformAndWriteResponse[O any](api API, r *http.Request, w http.ResponseWriter, output *O) error {
+	statusCode := http.StatusOK
+	transformed, err := api.Transform(r, statusCode, output)
+	if err != nil {
+		WriteErr(api, r, w, http.StatusInternalServerError, "transformer error", err)
+
+		return err
+	}
+
+	transformedOutput, ok := transformed.(*O)
+	if !ok {
+		err := fmt.Errorf("transformer returned unexpected type")
+		WriteErr(api, r, w, http.StatusInternalServerError, "transformer error", err)
+
+		return err
+	}
+
+	if err := writeResponse(api, r, w, transformedOutput, statusCode); err != nil {
+		WriteErr(api, r, w, http.StatusInternalServerError, "failed to write response", err)
+
+		return err
+	}
+
+	return nil
 }
 
 // Get registers a GET route handler.
-func Get[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) {
-	convenience(api, http.MethodGet, path, handler, options...)
+func Get[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) error {
+	return convenience(api, http.MethodGet, path, handler, options...)
 }
 
 // Post registers a POST route handler.
-func Post[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) {
-	convenience(api, http.MethodPost, path, handler, options...)
+func Post[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) error {
+	return convenience(api, http.MethodPost, path, handler, options...)
 }
 
 // Put registers a PUT route handler.
-func Put[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) {
-	convenience(api, http.MethodPut, path, handler, options...)
+func Put[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) error {
+	return convenience(api, http.MethodPut, path, handler, options...)
 }
 
 // Delete registers a DELETE route handler.
-func Delete[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) {
-	convenience(api, http.MethodDelete, path, handler, options...)
+func Delete[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) error {
+	return convenience(api, http.MethodDelete, path, handler, options...)
 }
 
 // Patch registers a PATCH route handler.
-func Patch[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) {
-	convenience(api, http.MethodPatch, path, handler, options...)
+func Patch[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) error {
+	return convenience(api, http.MethodPatch, path, handler, options...)
 }
 
 // Head registers a HEAD route handler.
-func Head[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) {
-	convenience(api, http.MethodHead, path, handler, options...)
+func Head[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) error {
+	return convenience(api, http.MethodHead, path, handler, options...)
+}
+
+// setPathItemOperation sets the operation on a PathItem based on the HTTP method.
+func setPathItemOperation(pathItem *PathItem, method string, op *Operation) error {
+	switch method {
+	case http.MethodGet:
+		pathItem.Get = op
+	case http.MethodPost:
+		pathItem.Post = op
+	case http.MethodPut:
+		pathItem.Put = op
+	case http.MethodPatch:
+		pathItem.Patch = op
+	case http.MethodDelete:
+		pathItem.Delete = op
+	case http.MethodHead:
+		pathItem.Head = op
+	case http.MethodOptions:
+		pathItem.Options = op
+	case http.MethodTrace:
+		pathItem.Trace = op
+	default:
+		return fmt.Errorf("unsupported HTTP method: %s", method)
+	}
+
+	return nil
 }
 
 // convenience is a helper function used by Get, Post, Put, Delete, Patch, and Head.
-func convenience[I, O any](api API, method, path string, handler func(context.Context, *I) (*O, error), options ...func(o *BaseRoute)) {
+func convenience[I, O any](api API, method, path string, handler func(context.Context, *I) (*O, error), options ...func(o *BaseRoute)) error {
 	// generate operation id, generate summary, generate base route, execute all options
 	route := BaseRoute{
 		Method: method,
@@ -360,172 +653,6 @@ func convenience[I, O any](api API, method, path string, handler func(context.Co
 	for _, o := range options {
 		o(&route)
 	}
-	Register(api, route, handler)
-}
 
-// setupRequestLimits configures body read timeout and size limits for the request.
-func setupRequestLimits(ctx Context, route BaseRoute) {
-	// Apply body read timeout.
-	// This sets a deadline for reading the request body, helping prevent slow-loris attacks.
-	// Default is 5 seconds if not explicitly configured.
-	bodyTimeout := route.BodyReadTimeout
-	if bodyTimeout == 0 {
-		bodyTimeout = DefaultBodyReadTimeout
-	}
-	if bodyTimeout > 0 {
-		_ = ctx.SetReadDeadline(time.Now().Add(bodyTimeout))
-	} else {
-		// Negative value disables any deadline.
-		_ = ctx.SetReadDeadline(time.Time{})
-	}
-
-	// Apply body size limit if context supports it.
-	// Default to 1MB if not explicitly configured.
-	if limiter, ok := ctx.(BodyLimiter); ok {
-		maxBytes := route.MaxBodyBytes
-		if maxBytes == 0 {
-			maxBytes = DefaultMaxBodyBytes
-		}
-		if maxBytes > 0 {
-			limiter.SetBodyLimit(maxBytes)
-		}
-		// If maxBytes < 0, no limit is applied
-	}
-}
-
-// decodeAndValidateRequest decodes and validates the request input.
-// Returns false if decoding or validation failed (error already written).
-func decodeAndValidateRequest[I any](api API, ctx Context, input *I) bool {
-	if err := api.Codec().DecodeRequest(ctx.Request(), ctx.RouterParams(), input); err != nil {
-		// Check if this is a body size limit error
-		var maxBytesErr *http.MaxBytesError
-		if errors.As(err, &maxBytesErr) {
-			_ = WriteErr(api, ctx, http.StatusRequestEntityTooLarge,
-				fmt.Sprintf("request body too large (limit: %d bytes)", maxBytesErr.Limit))
-
-			return false
-		}
-
-		_ = WriteErr(api, ctx, http.StatusBadRequest, "failed to decode request", err)
-
-		return false
-	}
-
-	// Validate input if validator configured
-	if v := api.Validator(); v != nil {
-		// Get struct metadata for validation location mapping
-		var metadata *schema.StructMetadata
-		codec := api.Codec()
-		if codec != nil {
-			typ := reflect.TypeOf(input)
-			if typ.Kind() == reflect.Ptr {
-				typ = typ.Elem()
-			}
-			if fieldCache := codec.FieldCache(); fieldCache != nil {
-				if md, err := fieldCache.GetStructMetadata(typ); err == nil {
-					metadata = md
-				}
-			}
-		}
-
-		if errs := v.Validate(ctx.Context(), input, metadata); len(errs) > 0 {
-			_ = WriteErr(api, ctx, http.StatusUnprocessableEntity, "validation failed", errs...)
-
-			return false
-		}
-	}
-
-	return true
-}
-
-// handleHandlerError handles errors returned from the handler.
-func handleHandlerError(api API, ctx Context, err error) {
-	// Check if error implements HeadersError and set headers.
-	var he HeadersError
-	if errors.As(err, &he) {
-		if w, ok := ctx.(ResponseWriter); ok {
-			for k, values := range he.GetHeaders() {
-				for _, v := range values {
-					w.AppendHeader(k, v)
-				}
-			}
-		}
-	}
-
-	status := http.StatusInternalServerError
-	msg := err.Error()
-
-	// Check if error implements StatusError.
-	var statusErr StatusError
-	if errors.As(err, &statusErr) {
-		status = statusErr.GetStatus()
-		msg = statusErr.Error()
-	}
-
-	_ = WriteErr(api, ctx, status, msg, err)
-}
-
-// writeErrorResponse writes an error response using content negotiation.
-func writeErrorResponse(api API, ctx Context, status int, err StatusError) error {
-	w, ok := ctx.(ResponseWriter)
-	if !ok {
-		return nil
-	}
-
-	// Check if error implements HeadersError and set headers.
-	var he HeadersError
-	if errors.As(err, &he) {
-		for k, values := range he.GetHeaders() {
-			for _, v := range values {
-				w.AppendHeader(k, v)
-			}
-		}
-	}
-
-	// Negotiate content type for error response.
-	ct, negErr := api.Negotiate(ctx.Header("Accept"))
-	if negErr != nil {
-		// Fallback to JSON if negotiation fails.
-		ct = "application/json"
-	}
-
-	// Check if error implements ContentTypeFilter (e.g., ErrorModel).
-	if ctf, ok := err.(ContentTypeFilter); ok {
-		ct = ctf.ContentType(ct)
-	}
-
-	w.SetHeader("Content-Type", ct)
-	w.SetStatus(status)
-
-	// Marshal error using negotiated format.
-	if err := api.Marshal(w, ct, err); err != nil {
-		// Fallback to plain text if marshaling fails.
-		w.SetHeader("Content-Type", "text/plain")
-		_, _ = fmt.Fprintf(w, "Error %d: %s", status, err.Error())
-
-		return err
-	}
-
-	return nil
-}
-
-// SetReadDeadline is a utility to set the read deadline on a response writer,
-// if possible. It unwraps response writer wrappers until it finds one that
-// supports SetReadDeadline, or returns an error if none is found.
-// This approach avoids allocations (unlike the stdlib http.ResponseController).
-// This is exported for use by adapters.
-func SetReadDeadline(w http.ResponseWriter, deadline time.Time) error {
-	for {
-		switch t := w.(type) {
-		case interface{ SetReadDeadline(time.Time) error }:
-			return t.SetReadDeadline(deadline)
-		case interface{ Unwrap() http.ResponseWriter }:
-			w = t.Unwrap()
-		default:
-			// No response writer in the chain supports SetReadDeadline.
-			// This is not necessarily an error - the server's connection-level
-			// ReadTimeout will still apply.
-			return nil
-		}
-	}
+	return Register(api, route, handler)
 }

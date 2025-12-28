@@ -6,11 +6,14 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/talav/talav/pkg/component/zorya"
 )
+
+type contextKey string
+
+const routerParamsKey contextKey = "zorya.routerParams"
 
 // FiberAdapter implements zorya.Adapter for Fiber router.
 type FiberAdapter struct {
@@ -43,7 +46,7 @@ func (a *FiberAdapter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.Copy(w, resp.Body)
 }
 
-func (a *FiberAdapter) Handle(route *zorya.BaseRoute, handler func(zorya.Context)) {
+func (a *FiberAdapter) Handle(route *zorya.BaseRoute, handler http.HandlerFunc) {
 	// Convert {param} to :param for Fiber
 	path := route.Path
 	path = strings.ReplaceAll(path, "{", ":")
@@ -58,96 +61,41 @@ func (a *FiberAdapter) Handle(route *zorya.BaseRoute, handler func(zorya.Context
 			}
 		}
 
-		handler(&fiberContext{
-			route:        route,
-			fiberCtx:     c,
-			routerParams: routerParams,
+		// Convert fiber.Ctx to http.Request/ResponseWriter
+		r := c.Request()
+		w := &fiberResponseWriter{ctx: c}
+
+		// Create http.Request from fiber request
+		req, _ := http.NewRequestWithContext(
+			c.UserContext(),
+			string(r.Header.Method()),
+			c.OriginalURL(),
+			bytes.NewReader(c.BodyRaw()),
+		)
+		// Copy headers
+		r.Header.VisitAll(func(key, value []byte) {
+			req.Header.Set(string(key), string(value))
 		})
+
+		// Store router params in request context for ExtractRouterParams
+		ctx := context.WithValue(req.Context(), routerParamsKey, routerParams)
+		req = req.WithContext(ctx)
+
+		// Call the standard http.HandlerFunc (with middleware already applied)
+		handler(w, req)
 
 		return nil
 	})
 }
 
-type fiberContext struct {
-	route        *zorya.BaseRoute
-	fiberCtx     *fiber.Ctx
-	status       int
-	routerParams map[string]string
-	bodyLimit    int64
-	bodyLimitSet bool
-}
-
-func (c *fiberContext) Context() context.Context {
-	return c.fiberCtx.UserContext()
-}
-
-func (c *fiberContext) Request() *http.Request {
-	// Convert Fiber request to http.Request for compatibility
-	req := c.fiberCtx.Request()
-	bodyBytes := c.fiberCtx.BodyRaw()
-
-	// Check body limit
-	var bodyReader io.Reader = bytes.NewReader(bodyBytes)
-	if c.bodyLimitSet && c.bodyLimit > 0 && int64(len(bodyBytes)) > c.bodyLimit {
-		// Body exceeds limit - provide a reader that will error
-		bodyReader = &limitExceededReader{limit: c.bodyLimit}
+func (a *FiberAdapter) ExtractRouterParams(r *http.Request, route *zorya.BaseRoute) map[string]string {
+	// For Fiber, params are extracted in Handle from fiber.Ctx
+	// If called from Register, try to get from context (stored by Handle)
+	if params, ok := r.Context().Value(routerParamsKey).(map[string]string); ok {
+		return params
 	}
 
-	r, _ := http.NewRequestWithContext(
-		c.fiberCtx.UserContext(),
-		string(req.Header.Method()),
-		c.fiberCtx.OriginalURL(),
-		io.NopCloser(bodyReader),
-	)
-
-	// Copy headers
-	req.Header.VisitAll(func(key, value []byte) {
-		r.Header.Set(string(key), string(value))
-	})
-
-	return r
-}
-
-func (c *fiberContext) RouterParams() map[string]string {
-	return c.routerParams
-}
-
-func (c *fiberContext) Header(name string) string {
-	return c.fiberCtx.Get(name)
-}
-
-func (c *fiberContext) SetReadDeadline(t time.Time) error {
-	return c.fiberCtx.Context().Conn().SetReadDeadline(t)
-}
-
-func (c *fiberContext) SetBodyLimit(limit int64) {
-	c.bodyLimit = limit
-	c.bodyLimitSet = true
-}
-
-// ResponseWriter implementation
-
-func (c *fiberContext) SetStatus(status int) {
-	c.status = status
-	c.fiberCtx.Status(status)
-}
-
-func (c *fiberContext) SetHeader(name, value string) {
-	c.fiberCtx.Set(name, value)
-}
-
-func (c *fiberContext) AppendHeader(name, value string) {
-	c.fiberCtx.Append(name, value)
-}
-
-func (c *fiberContext) Write(data []byte) (int, error) {
-	return c.fiberCtx.Write(data)
-}
-
-func (c *fiberContext) BodyWriter() http.ResponseWriter {
-	// Fiber doesn't expose http.ResponseWriter directly.
-	// Return a wrapper that implements http.ResponseWriter using Fiber's API.
-	return &fiberResponseWriter{ctx: c.fiberCtx}
+	return make(map[string]string)
 }
 
 type fiberResponseWriter struct {
@@ -169,13 +117,4 @@ func (w *fiberResponseWriter) Write(data []byte) (int, error) {
 
 func (w *fiberResponseWriter) WriteHeader(statusCode int) {
 	w.ctx.Status(statusCode)
-}
-
-// limitExceededReader returns an error when read, indicating body too large.
-type limitExceededReader struct {
-	limit int64
-}
-
-func (r *limitExceededReader) Read(p []byte) (int, error) {
-	return 0, &http.MaxBytesError{Limit: r.limit}
 }

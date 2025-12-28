@@ -198,30 +198,39 @@ Output structs define response status, headers, and body:
 
 ```go
 type GetUserOutput struct {
-    // HTTP status code (default: 200)
-    Status int `json:"-"`
+    // HTTP status code - use 'status' tag to identify the field
+    HTTPStatus int `status:""`
     
-    // Response headers
-    ContentType string `header:"Content-Type"`
-    ETag        string `header:"ETag"`
+    // Response headers - use 'schema' tag with location=header
+    ContentType string `schema:"Content-Type,location=header"`
+    ETag        string `schema:"ETag,location=header"`
     
-    // Response body
-    Body struct {
+    // Response body - use 'body' tag (same as input)
+    ResponseBody struct {
         ID    int    `json:"id"`
         Name  string `json:"name"`
         Email string `json:"email"`
-    }
+    } `body:"structured"`
 }
 ```
 
 ### Status Codes
 
-Set the status code using the `Status` field:
+Set the status code using a field with the `status` tag:
 
 ```go
+type CreateUserOutput struct {
+    StatusCode int `status:"201"`  // Default status code
+    Body        struct {
+        ID   int    `json:"id"`
+        Name string `json:"name"`
+    } `body:"structured"`
+}
+
+// In handler:
 return &CreateUserOutput{
-    Status: http.StatusCreated, // 201
-    Body:   userData,
+    StatusCode: http.StatusCreated, // 201 (or use default from tag)
+    Body:       userData,
 }, nil
 ```
 
@@ -1197,6 +1206,315 @@ go func() {
 ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 defer cancel()
 server.Shutdown(ctx)
+```
+
+## Metadata Generation and Supported Tags
+
+Zorya automatically generates OpenAPI schemas from Go struct types using reflection and struct tags. The metadata system parses struct tags to extract schema information, validation constraints, and OpenAPI-specific metadata.
+
+### Metadata Generation Process
+
+1. **Type Analysis**: Uses Go's `reflect` package to analyze struct types at runtime
+2. **Tag Parsing**: Extracts metadata from struct tags using registered parsers
+3. **Schema Building**: Generates OpenAPI/JSON Schema from parsed metadata
+4. **Caching**: Struct metadata is cached per type for efficient reuse
+
+The metadata system supports multiple tag types that work together to generate complete OpenAPI schemas:
+
+### Supported Tags
+
+#### `schema` Tag
+
+Defines request parameter location and serialization style. See the [schema package documentation](../schema/README.md) for detailed information.
+
+**Format:**
+```
+schema:"name,location:path|query|header|cookie,style:form|simple|...,explode:true|false,required:true|false"
+```
+
+**Example:**
+```go
+type GetUserInput struct {
+    ID      string `schema:"id,location:path,required:true"`
+    Format  string `schema:"format,location:query"`
+    APIKey  string `schema:"X-API-Key,location:header"`
+    Session string `schema:"session_id,location:cookie"`
+}
+```
+
+#### `body` Tag
+
+Defines request body type and requirements.
+
+**Format:**
+```
+body:"structured|file|multipart,required:true|false"
+```
+
+**Body Types:**
+- `structured`: JSON, XML (default)
+- `file`: File upload
+- `multipart`: Multipart form data
+
+**Example:**
+```go
+type CreateUserInput struct {
+    Body struct {
+        Name  string `json:"name"`
+        Email string `json:"email"`
+    } `body:"structured,required:true"`
+}
+```
+
+#### `status` Tag
+
+Identifies a field as the HTTP status code for response structs. The field must be of type `int`.
+
+**Format:**
+```
+status:""
+```
+
+**Notes:**
+- The field must be of type `int`
+- The status code becomes the key in the OpenAPI `responses` map (e.g., `"200"`, `"201"`, `"404"`)
+- Default values can be set directly in struct field initialization or using the `default` tag
+
+**Example:**
+```go
+type CreateUserOutput struct {
+    // Status code field - any field name works with 'status' tag
+    HTTPStatus int `status:""`
+    
+    Body struct {
+        ID   int    `json:"id"`
+        Name string `json:"name"`
+    } `body:"structured"`
+}
+
+// In handler, set status directly:
+return &CreateUserOutput{
+    HTTPStatus: http.StatusCreated, // 201
+    Body:       userData,
+}, nil
+
+// Or use default tag for default value:
+type GetUserOutput struct {
+    StatusCode int `status:"" default:"200"`
+    
+    Body struct {
+        ID   int    `json:"id"`
+        Name string `json:"name"`
+    } `body:"structured"`
+}
+```
+
+#### `openapi` Tag
+
+Provides OpenAPI-specific field-level schema metadata (API contract metadata, not validation constraints).
+
+**Format:**
+```
+openapi:"readOnly,writeOnly,deprecated,hidden,title=...,description=...,format=...,example=...,examples=[...],x-custom=..."
+```
+
+**Supported Options:**
+
+- **Boolean Flags** (empty value means `true`):
+  - `readOnly` - Field is read-only
+  - `writeOnly` - Field is write-only
+  - `deprecated` - Field is deprecated
+  - `hidden` - Field is hidden from schema (excluded from properties)
+
+- **String Values**:
+  - `title=...` - Title for the schema
+  - `description=...` - Description for the schema
+  - `format=...` - Format for the schema (e.g., "date", "date-time", "time", "email", "uri")
+
+- **Examples**:
+  - `example=...` - Single example value (converted to array)
+  - `examples=[...]` - Multiple examples (JSON array string, takes precedence over `example`)
+
+- **Extensions**:
+  - `x-*` - OpenAPI extensions (MUST start with `x-`)
+
+**Example:**
+```go
+type User struct {
+    ID          int    `json:"id" openapi:"readOnly,title=User ID,description=Unique identifier"`
+    Email       string `json:"email" openapi:"format=email,example=user@example.com"`
+    Password    string `json:"password" openapi:"writeOnly,hidden"`
+    CreatedAt   string `json:"created_at" openapi:"readOnly,format=date-time"`
+    Metadata    string `json:"metadata" openapi:"x-custom-feature=enabled"`
+}
+```
+
+#### `openapiStruct` Tag
+
+Provides OpenAPI-specific struct-level schema configuration. Must be used on the `_` field of a struct.
+
+**Format:**
+```
+openapiStruct:"additionalProperties=true|false,nullable=true|false"
+```
+
+**Supported Options:**
+- `additionalProperties=true|false` - Allow additional properties
+- `nullable=true|false` - Struct is nullable
+
+**Example:**
+```go
+type Config struct {
+    _ struct{} `openapiStruct:"additionalProperties=false,nullable=false"`
+    
+    Name  string `json:"name"`
+    Value string `json:"value"`
+}
+```
+
+#### `validate` Tag
+
+Provides validation constraints using go-playground/validator format. These constraints are mapped to OpenAPI/JSON Schema validation keywords.
+
+**Format:**
+```
+validate:"required,email,min=5,max=100,pattern=^[a-z]+$,oneof=red green blue"
+```
+
+**Supported Validators:**
+
+**Boolean Flags:**
+- `required` - Field must be present
+
+**Numeric Constraints:**
+- `min=N` - Minimum value (as float64)
+- `max=N` - Maximum value (as float64)
+- `gte=N` - Greater than or equal (maps to `minimum`)
+- `lte=N` - Less than or equal (maps to `maximum`)
+- `gt=N` - Greater than (maps to `exclusiveMinimum`)
+- `lt=N` - Less than (maps to `exclusiveMaximum`)
+- `multiple_of=N` - Value must be a multiple of N
+
+**String Length Constraints:**
+- `len=N` - Exact length (sets both `minLength` and `maxLength`)
+
+**String Format Constraints:**
+- `email` - Valid email address (maps to `format: "email"`)
+- `url` - Valid URL (maps to `format: "uri"`)
+- `alpha` - Alphabetic characters only (maps to `pattern: "^[a-zA-Z]+$"`)
+- `alphanum` - Alphanumeric characters only (maps to `pattern: "^[a-zA-Z0-9]+$"`)
+- `alphaunicode` - Unicode alphabetic characters only (maps to `pattern: "^[\\p{L}]+$"`)
+- `alphanumunicode` - Unicode alphanumeric characters only (maps to `pattern: "^[\\p{L}\\p{N}]+$"`)
+- `pattern=...` - Regular expression pattern
+
+**Enum/OneOf:**
+- `oneof=...` - Value must be one of the specified space-separated values (maps to `enum`)
+
+**Example:**
+```go
+type CreateUserInput struct {
+    Body struct {
+        Email    string `json:"email" validate:"required,email"`
+        Name     string `json:"name" validate:"required,min=3,max=100"`
+        Age      int    `json:"age" validate:"min=0,max=150"`
+        Username string `json:"username" validate:"required,alphanum,len=8"`
+        Status   string `json:"status" validate:"oneof=active inactive pending"`
+        Score    float64 `json:"score" validate:"gte=0,lte=100"`
+    }
+}
+```
+
+#### `default` Tag
+
+Provides default values for fields. Used for both runtime default application and OpenAPI schema generation.
+
+**Format:**
+```
+default:"value"
+```
+
+**Value Parsing:**
+- **Strings**: Returned as-is (no quotes needed in tag)
+- **Numbers, booleans, arrays, objects**: Parsed as JSON
+
+**Example:**
+```go
+type ListUsersInput struct {
+    Page     int    `schema:"page,location:query" default:"1"`
+    PageSize int    `schema:"page_size,location:query" default:"20"`
+    Sort     string `schema:"sort,location:query" default:"created_at"`
+    Order    string `schema:"order,location:query" default:"desc"`
+    Active   bool   `schema:"active,location:query" default:"true"`
+    Tags     []string `schema:"tags,location:query" default:"[\"default\"]"`
+}
+```
+
+#### `dependentRequired` Tag
+
+Specifies that certain fields must be present when this field is present (JSON Schema `dependentRequired` keyword).
+
+**Format:**
+```
+dependentRequired:"field1,field2,field3"
+```
+
+**Example:**
+```go
+type PaymentInput struct {
+    PaymentMethod string `json:"payment_method" dependentRequired:"billing_address,cardholder_name"`
+    
+    BillingAddress string `json:"billing_address"`
+    CardholderName string `json:"cardholder_name"`
+}
+```
+
+When `payment_method` is present, `billing_address` and `cardholder_name` become required.
+
+### Metadata Application Order
+
+When generating schemas, metadata is applied in the following order:
+
+1. **Base Schema Generation**: Type-based schema generation (primitives, arrays, structs)
+2. **OpenAPI Metadata**: Field-level OpenAPI metadata (`openapi` tag)
+3. **Validation Metadata**: Validation constraints (`validate` tag)
+4. **Default Values**: Default value application (`default` tag)
+5. **Dependent Required**: Object-level dependent required constraints
+6. **Struct-Level Metadata**: Struct-level configuration (`openapiStruct` tag on `_` field)
+
+### Complete Example
+
+```go
+type CreateUserInput struct {
+    // Path parameter
+    ID string `schema:"id,location:path,required:true"`
+    
+    // Query parameters with defaults
+    Format string `schema:"format,location:query" default:"json"`
+    
+    // Request body
+    Body struct {
+        // Required fields with validation
+        Email    string `json:"email" validate:"required,email" openapi:"format=email,example=user@example.com"`
+        Name     string `json:"name" validate:"required,min=3,max=100" openapi:"description=User's full name"`
+        
+        // Optional fields
+        Age      *int   `json:"age,omitempty" validate:"min=0,max=150" openapi:"description=User's age in years"`
+        Username string `json:"username" validate:"required,alphanum,len=8" openapi:"title=Username"`
+        
+        // Read-only field (set by server)
+        CreatedAt string `json:"created_at" openapi:"readOnly,format=date-time"`
+        
+        // Write-only field (password)
+        Password  string `json:"password" openapi:"writeOnly,hidden"`
+        
+        // Enum field
+        Status    string `json:"status" validate:"oneof=active inactive pending" openapi:"description=Account status"`
+        
+        // Field with dependent required
+        PaymentMethod string `json:"payment_method" dependentRequired:"billing_address"`
+        BillingAddress string `json:"billing_address"`
+    } `body:"structured,required:true"`
+}
 ```
 
 ## Performance

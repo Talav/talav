@@ -1,35 +1,25 @@
 package zorya
 
-// Middlewares is a list of middleware functions that can be attached to an
-// API and will be called for all incoming requests.
-type Middlewares []func(ctx Context, next func(Context))
+import "net/http"
 
-// Handler builds and returns a handler func from the chain of middlewares,
-// with `endpoint func` as the final handler.
-func (m Middlewares) Handler(endpoint func(Context)) func(Context) {
-	return m.chain(endpoint)
-}
+// Middleware is a standard Go middleware function that takes an http.Handler
+// and returns an http.Handler.
+type Middleware func(http.Handler) http.Handler
 
-// wrap user middleware func with the next func to one func.
-func wrap(fn func(Context, func(Context)), next func(Context)) func(Context) {
-	return func(ctx Context) {
-		fn(ctx, next)
-	}
-}
+// Middlewares is a list of standard middleware functions that can be attached
+// to an API and will be called for all incoming requests.
+type Middlewares []Middleware
 
-// chain builds a Middleware composed of an inline middleware stack and endpoint
-// handler in the order they are passed.
-func (m Middlewares) chain(endpoint func(Context)) func(Context) {
-	// Return ahead of time if there aren't any middlewares for the chain
+// Apply applies the middleware chain to an http.Handler and returns the result.
+func (m Middlewares) Apply(handler http.Handler) http.Handler {
 	if len(m) == 0 {
-		return endpoint
+		return handler
 	}
 
-	// Wrap the end handler with the middleware chain.
-	w := wrap(m[len(m)-1], endpoint)
-	for i := len(m) - 2; i >= 0; i-- {
-		w = wrap(m[i], w)
+	h := handler
+	for i := len(m) - 1; i >= 0; i-- {
+		h = m[i](h)
 	}
 
-	return w
+	return h
 }

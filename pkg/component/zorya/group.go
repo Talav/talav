@@ -1,5 +1,7 @@
 package zorya
 
+import "net/http"
+
 // Group is a collection of routes that share a common prefix and set of
 // operation modifiers, middlewares, and transformers.
 //
@@ -14,10 +16,6 @@ type Group struct {
 	middlewares  Middlewares
 	transformers []Transformer
 }
-
-// Transformer is a function that transforms response bodies before serialization.
-// Transformers are run in the order they are added.
-type Transformer func(ctx Context, status string, v any) (any, error)
 
 // NewGroup creates a new group of routes with the given prefixes, if any. A
 // group enables a collection of operations to have the same prefix and share
@@ -62,7 +60,7 @@ type groupAdapter struct {
 	group *Group
 }
 
-func (a *groupAdapter) Handle(route *BaseRoute, handler func(Context)) {
+func (a *groupAdapter) Handle(route *BaseRoute, handler http.HandlerFunc) {
 	a.group.ModifyOperation(route, func(route *BaseRoute) {
 		a.Adapter.Handle(route, handler)
 	})
@@ -106,10 +104,9 @@ func (g *Group) UseSimpleModifier(modifier func(o *BaseRoute)) {
 	})
 }
 
-// UseMiddleware adds one or more middleware functions to the group that will be
-// run on all operations in the group. Use this to add common functionality to
-// all operations in the group, e.g. authentication/authorization.
-func (g *Group) UseMiddleware(middlewares ...func(ctx Context, next func(Context))) {
+// UseMiddleware adds one or more standard Go middleware functions to the group.
+// Middleware functions take an http.Handler and return an http.Handler.
+func (g *Group) UseMiddleware(middlewares ...Middleware) {
 	g.middlewares = append(g.middlewares, middlewares...)
 }
 
@@ -127,16 +124,16 @@ func (g *Group) UseTransformer(transformers ...Transformer) {
 
 // Transform runs all transformers in the group on the response, in the order
 // they were added, then chains to the parent API's transformers.
-func (g *Group) Transform(ctx Context, status string, v any) (any, error) {
+func (g *Group) Transform(r *http.Request, status int, v any) (any, error) {
 	// Run group-specific transformers first.
 	for _, transformer := range g.transformers {
 		var err error
-		v, err = transformer(ctx, status, v)
+		v, err = transformer(r, status, v)
 		if err != nil {
 			return v, err
 		}
 	}
 
 	// Chain to parent API transformers.
-	return g.API.Transform(ctx, status, v)
+	return g.API.Transform(r, status, v)
 }

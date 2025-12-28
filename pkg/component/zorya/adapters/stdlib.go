@@ -3,10 +3,8 @@
 package adapters
 
 import (
-	"context"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/talav/talav/pkg/component/zorya"
 )
@@ -54,88 +52,25 @@ func (a *StdlibAdapter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.mux.ServeHTTP(w, r)
 }
 
-func (a *StdlibAdapter) Handle(route *zorya.BaseRoute, handler func(zorya.Context)) {
+func (a *StdlibAdapter) Handle(route *zorya.BaseRoute, handler http.HandlerFunc) {
 	// Go 1.22+ ServeMux uses "METHOD PATH" pattern format
 	pattern := strings.ToUpper(route.Method) + " " + a.prefix + route.Path
+	a.mux.HandleFunc(pattern, handler)
+}
 
-	a.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		// Extract path parameters using Go 1.22+ PathValue method
-		routerParams := make(map[string]string)
-
-		// Extract parameter names from route pattern
-		pathSegments := strings.Split(route.Path, "/")
-		for _, segment := range pathSegments {
-			if strings.HasPrefix(segment, "{") && strings.HasSuffix(segment, "}") {
-				paramName := strings.TrimSuffix(strings.TrimPrefix(segment, "{"), "}")
-				// Go 1.22+ PathValue extracts path parameters automatically
-				if val := r.PathValue(paramName); val != "" {
-					routerParams[paramName] = val
-				}
+func (a *StdlibAdapter) ExtractRouterParams(r *http.Request, route *zorya.BaseRoute) map[string]string {
+	routerParams := make(map[string]string)
+	// Extract parameter names from route pattern
+	pathSegments := strings.Split(route.Path, "/")
+	for _, segment := range pathSegments {
+		if strings.HasPrefix(segment, "{") && strings.HasSuffix(segment, "}") {
+			paramName := strings.TrimSuffix(strings.TrimPrefix(segment, "{"), "}")
+			// Go 1.22+ PathValue extracts path parameters automatically
+			if val := r.PathValue(paramName); val != "" {
+				routerParams[paramName] = val
 			}
 		}
-
-		handler(&httpContext{
-			route:        route,
-			r:            r,
-			w:            w,
-			routerParams: routerParams,
-		})
-	})
-}
-
-type httpContext struct {
-	route        *zorya.BaseRoute
-	r            *http.Request
-	w            http.ResponseWriter
-	status       int
-	routerParams map[string]string
-}
-
-func (c *httpContext) Context() context.Context {
-	return c.r.Context()
-}
-
-func (c *httpContext) Request() *http.Request {
-	return c.r
-}
-
-func (c *httpContext) RouterParams() map[string]string {
-	return c.routerParams
-}
-
-func (c *httpContext) Header(name string) string {
-	return c.r.Header.Get(name)
-}
-
-func (c *httpContext) SetReadDeadline(t time.Time) error {
-	return zorya.SetReadDeadline(c.w, t)
-}
-
-func (c *httpContext) SetBodyLimit(limit int64) {
-	if limit > 0 {
-		c.r.Body = http.MaxBytesReader(c.w, c.r.Body, limit)
 	}
-}
 
-// ResponseWriter implementation
-
-func (c *httpContext) SetStatus(status int) {
-	c.status = status
-	c.w.WriteHeader(status)
-}
-
-func (c *httpContext) SetHeader(name, value string) {
-	c.w.Header().Set(name, value)
-}
-
-func (c *httpContext) AppendHeader(name, value string) {
-	c.w.Header().Add(name, value)
-}
-
-func (c *httpContext) Write(data []byte) (int, error) {
-	return c.w.Write(data)
-}
-
-func (c *httpContext) BodyWriter() http.ResponseWriter {
-	return c.w
+	return routerParams
 }

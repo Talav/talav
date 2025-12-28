@@ -8,8 +8,10 @@ require (
 	github.com/go-playground/validator/v10 v10.29.0
 	github.com/gofiber/fiber/v2 v2.52.10
 	github.com/stretchr/testify v1.11.1
+	github.com/talav/talav/pkg/component/mapstructure v0.0.0-20251212040909-717bc712a8cc
 	github.com/talav/talav/pkg/component/negotiation v0.0.0-20251213015208-199315015cbe
 	github.com/talav/talav/pkg/component/schema v0.0.0-20251213015208-199315015cbe
+	github.com/talav/talav/pkg/component/tagparser v0.0.0-20251210172924-f671c53a0295
 )
 
 require (
@@ -26,8 +28,6 @@ require (
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
-	github.com/talav/talav/pkg/component/mapstructure v0.0.0-20251212040909-717bc712a8cc // indirect
-	github.com/talav/talav/pkg/component/tagparser v0.0.0-20251210172924-f671c53a0295 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.51.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
