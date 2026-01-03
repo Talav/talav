@@ -35,3 +35,24 @@ func AsConfig[T any](key string, _ T) fx.Option {
 		},
 	)
 }
+
+// AsConfigWithDefaults registers a config provider that starts with defaults, then unmarshals user config on top.
+// Only fields present in user config override defaults. Uses standard Go unmarshaling behavior.
+//
+// Example usage:
+//
+//	fxconfig.AsConfigWithDefaults("httpserver", httpserver.DefaultConfig(), httpserver.Config{})
+//
+// This will provide httpserver.Config with defaults applied for missing values.
+func AsConfigWithDefaults[T any](key string, defaults T, _ T) fx.Option {
+	return fx.Provide(
+		func(mainConfig *config.Config) (T, error) {
+			cfg := defaults
+			if err := mainConfig.UnmarshalKey(key, &cfg); err != nil {
+				return cfg, err
+			}
+
+			return cfg, nil
+		},
+	)
+}

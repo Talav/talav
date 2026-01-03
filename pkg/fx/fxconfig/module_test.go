@@ -107,6 +107,41 @@ func TestModule_AsConfig_Provider(t *testing.T) {
 	assert.Equal(t, 5432, dbCfg.Port)
 }
 
+func TestModule_AsConfigWithDefaults_Provider(t *testing.T) {
+	testdataDir := filepath.Join("testdata", "testmodule_asconfigwithdefaults_provider")
+	t.Setenv("APP_ENV", "dev")
+
+	type ServerConfig struct {
+		Host string `config:"host"`
+		Port int    `config:"port"`
+	}
+
+	// Default config with all fields set
+	defaultConfig := ServerConfig{
+		Host: "localhost",
+		Port: 8080,
+	}
+
+	var serverCfg ServerConfig
+
+	fxtest.New(
+		t,
+		fx.NopLogger,
+		FxConfigModule,
+		AsConfigSource(config.ConfigSource{
+			Path:     testdataDir,
+			Patterns: []string{"config.yaml"},
+			Parser:   yaml.Parser(),
+		}),
+		AsConfigWithDefaults("server", defaultConfig, ServerConfig{}),
+		fx.Populate(&serverCfg),
+	).RequireStart().RequireStop()
+
+	// User config only sets port, host should use default
+	assert.Equal(t, "localhost", serverCfg.Host) // default value
+	assert.Equal(t, 9000, serverCfg.Port)        // user config overrides default
+}
+
 func TestModule_NewFxConfig_ErrorHandling(t *testing.T) {
 	testdataDir := filepath.Join("testdata", "testmodule_newfxconfig_errorhandling")
 	t.Setenv("APP_ENV", "dev")
