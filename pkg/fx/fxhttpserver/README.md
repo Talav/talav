@@ -193,13 +193,14 @@ func NewAuthMiddleware(cfg *config.Config, logger *slog.Logger) func(http.Handle
 }
 
 // In your fx setup:
-fx.Provide(NewAuthMiddleware),
-fxhttpserver.AsMiddleware(
-    NewAuthMiddleware, // fx will inject dependencies
+fxhttpserver.AsMiddlewareConstructor(
+    NewAuthMiddleware,
     fxhttpserver.PriorityBeforeZorya,
     "auth",
 )
 ```
+
+The `AsMiddlewareConstructor` function will call your constructor with dependency injection and register the resulting middleware automatically.
 
 ## Configuration
 

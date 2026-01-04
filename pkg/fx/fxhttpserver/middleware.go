@@ -5,17 +5,17 @@ import (
 	"sort"
 )
 
-// MiddlewareEntry represents a registered middleware with its priority.
-type MiddlewareEntry struct {
-	// Middleware is the middleware function to apply.
-	Middleware func(http.Handler) http.Handler
+// middlewareEntry represents a registered middleware with its priority.
+type middlewareEntry struct {
+	// middleware is the middleware function to apply.
+	middleware func(http.Handler) http.Handler
 
-	// Priority determines execution order. Lower values execute first.
-	// Middlewares with the same priority execute in registration order.
-	Priority int
+	// priority determines execution order. Lower values execute first.
+	// middlewares with the same priority execute in registration order.
+	priority int
 
-	// Name is an optional name for debugging and logging.
-	Name string
+	// name is an optional name for debugging and logging.
+	name string
 
 	// order is the registration order for stable sorting when priorities are equal.
 	// Lower values were registered first.
@@ -39,14 +39,14 @@ const (
 
 // sortMiddlewares sorts middleware entries by priority (lower first).
 // Entries with the same priority are sorted by registration order (order field).
-func sortMiddlewares(entries []MiddlewareEntry) []MiddlewareEntry {
-	sorted := make([]MiddlewareEntry, len(entries))
+func sortMiddlewares(entries []middlewareEntry) []middlewareEntry {
+	sorted := make([]middlewareEntry, len(entries))
 	copy(sorted, entries)
 
 	// Sort by priority first, then by registration order for equal priorities
 	sort.Slice(sorted, func(i, j int) bool {
-		if sorted[i].Priority != sorted[j].Priority {
-			return sorted[i].Priority < sorted[j].Priority
+		if sorted[i].priority != sorted[j].priority {
+			return sorted[i].priority < sorted[j].priority
 		}
 
 		return sorted[i].order < sorted[j].order

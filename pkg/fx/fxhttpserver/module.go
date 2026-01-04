@@ -20,10 +20,12 @@ const ModuleName = "httpserver"
 // FxHTTPServerModule is the [Fx] HTTP server module.
 var FxHTTPServerModule = fx.Module(
 	ModuleName,
-	fxconfig.AsConfigWithDefaults("httpserver", httpserver.DefaultConfig(), httpserver.Config{}),
+	fxconfig.AsConfig("httpserver", httpserver.DefaultConfig()),
 	fx.Provide(
-		NewFxZoryaAPI,
-		NewFxServer,
+		newFxZoryaAPI,
+		func(cfg httpserver.Config, api zorya.API, logger *slog.Logger) (*httpserver.Server, error) {
+			return httpserver.NewServer(cfg.Server, api, logger)
+		},
 	),
 	fx.Invoke(RegisterLifecycle),
 )
@@ -31,12 +33,12 @@ var FxHTTPServerModule = fx.Module(
 // MiddlewareParams allows injection of registered middlewares.
 type MiddlewareParams struct {
 	fx.In
-	Middlewares []MiddlewareEntry `group:"httpserver-middlewares"`
+	Middlewares []middlewareEntry `group:"httpserver-middlewares"`
 }
 
-// NewFxZoryaAPI creates a new Zorya API instance with router and infrastructure middleware configured.
+// newFxZoryaAPI creates a new Zorya API instance with router and infrastructure middleware configured.
 // The router is created here, middleware is added, then Zorya adapter wraps it.
-func NewFxZoryaAPI(cfg httpserver.Config, logger *slog.Logger, params MiddlewareParams) (zorya.API, error) {
+func newFxZoryaAPI(cfg httpserver.Config, logger *slog.Logger, params MiddlewareParams) (zorya.API, error) {
 	// Create router
 	router := chi.NewRouter()
 
@@ -48,10 +50,10 @@ func NewFxZoryaAPI(cfg httpserver.Config, logger *slog.Logger, params Middleware
 
 	// Apply all middlewares in priority order
 	for _, mw := range sortedMiddlewares {
-		if mw.Name != "" {
-			logger.Debug("registering middleware", "name", mw.Name, "priority", mw.Priority)
+		if mw.name != "" {
+			logger.Debug("registering middleware", "name", mw.name, "priority", mw.priority)
 		}
-		router.Use(mw.Middleware)
+		router.Use(mw.middleware)
 	}
 
 	// Create Zorya adapter with the configured router
@@ -68,25 +70,25 @@ func NewFxZoryaAPI(cfg httpserver.Config, logger *slog.Logger, params Middleware
 }
 
 // buildAllMiddlewares combines built-in middlewares with user-registered middlewares.
-func buildAllMiddlewares(userMiddlewares []MiddlewareEntry, cfg httpserver.Config, logger *slog.Logger) []MiddlewareEntry {
-	allMiddlewares := make([]MiddlewareEntry, 0, len(userMiddlewares)+2)
+func buildAllMiddlewares(userMiddlewares []middlewareEntry, cfg httpserver.Config, logger *slog.Logger) []middlewareEntry {
+	allMiddlewares := make([]middlewareEntry, 0, len(userMiddlewares)+2)
 
 	// Add built-in RequestID middleware (always)
 	// Use order 0 to ensure it's first among same-priority middlewares
-	allMiddlewares = append(allMiddlewares, MiddlewareEntry{
-		Middleware: middleware.RequestID,
-		Priority:   PriorityRequestID,
-		Name:       "request-id",
+	allMiddlewares = append(allMiddlewares, middlewareEntry{
+		middleware: middleware.RequestID,
+		priority:   PriorityRequestID,
+		name:       "request-id",
 		order:      0,
 	})
 
 	// Add built-in CORS middleware (if enabled)
 	// Use order 0 to ensure it's first among same-priority middlewares
 	if cfg.CORS.Enabled {
-		allMiddlewares = append(allMiddlewares, MiddlewareEntry{
-			Middleware: buildCORSMiddleware(cfg.CORS),
-			Priority:   PriorityCORS,
-			Name:       "cors",
+		allMiddlewares = append(allMiddlewares, middlewareEntry{
+			middleware: httpserver.NewCORSMiddleware(cfg.CORS),
+			priority:   PriorityCORS,
+			name:       "cors",
 			order:      0,
 		})
 	}
@@ -94,11 +96,11 @@ func buildAllMiddlewares(userMiddlewares []MiddlewareEntry, cfg httpserver.Confi
 	// Add built-in HTTPLog middleware (if enabled)
 	// Use order 0 to ensure it's first among same-priority middlewares
 	if cfg.Logging.Enabled {
-		opts := httpserver.BuildHTTPLogOptions(cfg.Logging)
-		allMiddlewares = append(allMiddlewares, MiddlewareEntry{
-			Middleware: httplog.RequestLogger(logger, opts),
-			Priority:   PriorityHTTPLog,
-			Name:       "http-log",
+		opts := httpserver.NewHTTPLogOptions(cfg.Logging)
+		allMiddlewares = append(allMiddlewares, middlewareEntry{
+			middleware: httplog.RequestLogger(logger, opts),
+			priority:   PriorityHTTPLog,
+			name:       "http-log",
 			order:      0,
 		})
 	}
@@ -108,11 +110,6 @@ func buildAllMiddlewares(userMiddlewares []MiddlewareEntry, cfg httpserver.Confi
 	allMiddlewares = append(allMiddlewares, userMiddlewares...)
 
 	return allMiddlewares
-}
-
-// NewFxServer creates a new HTTP server instance that wraps the Zorya API for lifecycle management.
-func NewFxServer(cfg httpserver.Config, api zorya.API, logger *slog.Logger) (*httpserver.Server, error) {
-	return httpserver.NewServer(cfg.Server, api, logger)
 }
 
 // RegisterLifecycle registers the HTTP server lifecycle hooks.

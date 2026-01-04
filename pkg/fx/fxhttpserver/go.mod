@@ -2,19 +2,12 @@ module github.com/talav/talav/pkg/fx/fxhttpserver
 
 go 1.25.0
 
-replace github.com/talav/talav/pkg/component/httpserver => ../../component/httpserver
-
-replace github.com/talav/talav/pkg/component/zorya => ../../component/zorya
-
-replace github.com/talav/talav/pkg/fx/fxconfig => ../fxconfig
-
 require (
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/httplog/v3 v3.3.0
-	github.com/rs/cors v1.11.1
 	github.com/stretchr/testify v1.11.1
-	github.com/talav/talav/pkg/component/httpserver v0.0.0-00010101000000-000000000000
-	github.com/talav/talav/pkg/component/zorya v0.0.0-20260104012754-63c8a11c8c37
+	github.com/talav/talav/pkg/component/httpserver v0.0.0-20260104025751-ae831fd7ee9c
+	github.com/talav/talav/pkg/component/zorya v0.0.0-20260104025751-ae831fd7ee9c
 	github.com/talav/talav/pkg/fx/fxconfig v0.0.0-20251116051607-5973f6a3ba6e
 	github.com/talav/talav/pkg/fx/fxlogger v0.0.0-20251228220151-f8ade5b86429
 	go.uber.org/fx v1.24.0

@@ -24,10 +24,10 @@ var middlewareOrderCounter int64
 //
 //	fxhttpserver.AsMiddleware(corsMiddleware, 250, "cors")
 func AsMiddleware(middleware func(http.Handler) http.Handler, priority int, name string) fx.Option {
-	entry := MiddlewareEntry{
-		Middleware: middleware,
-		Priority:   priority,
-		Name:       name,
+	entry := middlewareEntry{
+		middleware: middleware,
+		priority:   priority,
+		name:       name,
 		order:      int(atomic.AddInt64(&middlewareOrderCounter, 1)),
 	}
 
@@ -35,6 +35,43 @@ func AsMiddleware(middleware func(http.Handler) http.Handler, priority int, name
 		fx.Annotate(
 			entry,
 			fx.ResultTags(`group:"httpserver-middlewares"`),
+		),
+	)
+}
+
+// AsMiddlewareConstructor registers a middleware with the specified priority using a constructor.
+// The constructor will be called by Fx with dependency injection.
+// The constructor must return func(http.Handler) http.Handler.
+// Additional annotations (like fx.ParamTags) can be passed as variadic arguments.
+//
+// Example:
+//
+//	fxhttpserver.AsMiddlewareConstructor(NewAuthMiddleware, 250, "auth")
+//
+// Where NewAuthMiddleware is:
+//
+//	func NewAuthMiddleware(jwtService security.JWTService) func(http.Handler) http.Handler {
+//		return func(next http.Handler) http.Handler { ... }
+//	}
+func AsMiddlewareConstructor(constructor any, priority int, name string, annotations ...fx.Annotation) fx.Option {
+	wrapper := func(middleware func(http.Handler) http.Handler) middlewareEntry {
+		return middlewareEntry{
+			middleware: middleware,
+			priority:   priority,
+			name:       name,
+			order:      int(atomic.AddInt64(&middlewareOrderCounter, 1)),
+		}
+	}
+
+	annotations = append(annotations, fx.ResultTags(`group:"httpserver-middlewares"`))
+
+	return fx.Options(
+		fx.Provide(constructor),
+		fx.Provide(
+			fx.Annotate(
+				wrapper,
+				annotations...,
+			),
 		),
 	)
 }
