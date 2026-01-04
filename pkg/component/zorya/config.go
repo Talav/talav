@@ -38,19 +38,14 @@ type Config struct {
 // OpenAPI spec, docs UI, and schemas respectively.
 //
 //	// Create and customize the config (if desired).
-//	config := huma.DefaultConfig("My API", "1.0.0")
+//	config := zorya.DefaultConfig()
 //
 //	// Create the API using the config.
-//	router := chi.NewMux()
-//	api := humachi.New(router, config)
-//
-// If desired, CBOR (a binary format similar to JSON) support can be
-// automatically enabled by importing the CBOR package:
-//
-//	import _ "github.com/danielgtaylor/huma/v2/formats/cbor"
+//	router := adapters.NewChiAdapter()
+//	api := zorya.NewAPI(router, zorya.WithConfig(config))
 func DefaultConfig() *Config {
 	return &Config{
-		OpenAPIPath:      "/openapi",
+		OpenAPIPath:      "/openapi.json",
 		DocsPath:         "/docs",
 		SchemasPath:      "/schemas",
 		DefaultFormat:    "application/json",
