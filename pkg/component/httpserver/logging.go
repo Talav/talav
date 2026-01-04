@@ -3,12 +3,13 @@ package httpserver
 import (
 	"log/slog"
 	"net/http"
+	"slices"
 
 	"github.com/go-chi/httplog/v3"
 )
 
-// BuildHTTPLogOptions converts LoggingConfig to httplog.Options.
-func BuildHTTPLogOptions(cfg LoggingConfig) *httplog.Options {
+// NewHTTPLogOptions converts LoggingConfig to httplog.Options.
+func NewHTTPLogOptions(cfg LoggingConfig) *httplog.Options {
 	opts := &httplog.Options{
 		Level:         ParseLogLevel(cfg.Level),
 		Schema:        ParseSchema(cfg.Schema),
@@ -31,13 +32,7 @@ func BuildHTTPLogOptions(cfg LoggingConfig) *httplog.Options {
 	// Configure skip paths if provided
 	if len(cfg.SkipPaths) > 0 {
 		opts.Skip = func(req *http.Request, respStatus int) bool {
-			for _, path := range cfg.SkipPaths {
-				if req.URL.Path == path {
-					return true
-				}
-			}
-
-			return false
+			return slices.Contains(cfg.SkipPaths, req.URL.Path)
 		}
 	}
 

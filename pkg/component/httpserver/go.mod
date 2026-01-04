@@ -4,7 +4,8 @@ go 1.25.0
 
 require (
 	github.com/go-chi/httplog/v3 v3.3.0
-	github.com/talav/talav/pkg/component/zorya v0.0.0-20260104012754-63c8a11c8c37
+	github.com/rs/cors v1.11.1
+	github.com/talav/talav/pkg/component/zorya v0.0.0-20260104025751-ae831fd7ee9c
 )
 
 require (
