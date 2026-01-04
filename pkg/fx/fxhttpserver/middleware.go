@@ -26,6 +26,9 @@ const (
 	// PriorityRequestID is the priority for RequestID middleware.
 	PriorityRequestID = 100
 
+	// PriorityCORS is the priority for CORS middleware.
+	PriorityCORS = 150
+
 	// PriorityHTTPLog is the priority for HTTPLog middleware.
 	PriorityHTTPLog = 200
 

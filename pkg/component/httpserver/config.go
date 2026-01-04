@@ -15,6 +15,9 @@ type Config struct {
 
 	// OpenAPI contains metadata for the OpenAPI specification (title, version, etc.).
 	OpenAPI OpenAPIConfig `config:"openapi"`
+
+	// CORS configuration for cross-origin requests.
+	CORS CORSConfig `config:"cors"`
 }
 
 // ServerConfig contains HTTP server settings.
@@ -146,6 +149,30 @@ type TagConfig struct {
 type ExternalDocsConfig struct {
 	Description string `config:"description"`
 	URL         string `config:"url"`
+}
+
+// CORSConfig contains CORS settings.
+type CORSConfig struct {
+	// Enabled enables CORS middleware.
+	Enabled bool `config:"enabled"`
+
+	// AllowedOrigins is a list of allowed origins. Use "*" for all origins.
+	AllowedOrigins []string `config:"allowed_origins"`
+
+	// AllowedMethods is a list of allowed HTTP methods.
+	AllowedMethods []string `config:"allowed_methods"`
+
+	// AllowedHeaders is a list of allowed headers. Use "*" for all headers.
+	AllowedHeaders []string `config:"allowed_headers"`
+
+	// ExposedHeaders is a list of headers that can be exposed to the client.
+	ExposedHeaders []string `config:"exposed_headers"`
+
+	// AllowCredentials indicates whether credentials are allowed.
+	AllowCredentials bool `config:"allow_credentials"`
+
+	// MaxAge is the maximum age for preflight requests in seconds.
+	MaxAge int `config:"max_age"`
 }
 
 // DefaultConfig returns a Config with all default values set.

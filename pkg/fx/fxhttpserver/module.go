@@ -80,6 +80,17 @@ func buildAllMiddlewares(userMiddlewares []MiddlewareEntry, cfg httpserver.Confi
 		order:      0,
 	})
 
+	// Add built-in CORS middleware (if enabled)
+	// Use order 0 to ensure it's first among same-priority middlewares
+	if cfg.CORS.Enabled {
+		allMiddlewares = append(allMiddlewares, MiddlewareEntry{
+			Middleware: buildCORSMiddleware(cfg.CORS),
+			Priority:   PriorityCORS,
+			Name:       "cors",
+			order:      0,
+		})
+	}
+
 	// Add built-in HTTPLog middleware (if enabled)
 	// Use order 0 to ensure it's first among same-priority middlewares
 	if cfg.Logging.Enabled {

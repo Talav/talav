@@ -9,14 +9,17 @@ use (
 	./pkg/component/negotiation
 	./pkg/component/orm
 	./pkg/component/schema
+	./pkg/component/security
 	./pkg/component/tagparser
 	./pkg/component/validator
 	./pkg/component/zorya
 	./pkg/fx/fxblob
+	./pkg/fx/fxcasbin
 	./pkg/fx/fxconfig
 	./pkg/fx/fxcore
 	./pkg/fx/fxhttpserver
 	./pkg/fx/fxlogger
 	./pkg/fx/fxorm
+	./pkg/fx/fxsecurity
 	./pkg/fx/fxvalidator
 )
