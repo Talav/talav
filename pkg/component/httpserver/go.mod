@@ -2,8 +2,6 @@ module github.com/talav/talav/pkg/component/httpserver
 
 go 1.25.0
 
-replace github.com/talav/talav/pkg/component/zorya => ../zorya
-
 require (
 	github.com/go-chi/httplog/v3 v3.3.0
 	github.com/talav/talav/pkg/component/zorya v0.0.0-00010101000000-000000000000

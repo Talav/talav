@@ -3,6 +3,7 @@ go 1.25.0
 use (
 	./pkg/component/blob
 	./pkg/component/config
+	./pkg/component/httpserver
 	./pkg/component/logger
 	./pkg/component/mapstructure
 	./pkg/component/negotiation
@@ -14,6 +15,7 @@ use (
 	./pkg/fx/fxblob
 	./pkg/fx/fxconfig
 	./pkg/fx/fxcore
+	./pkg/fx/fxhttpserver
 	./pkg/fx/fxlogger
 	./pkg/fx/fxorm
 	./pkg/fx/fxvalidator

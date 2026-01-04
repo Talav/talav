@@ -1,0 +1,39 @@
+name: "httpserver-ci"
+
+on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Go module path to test"
+        required: false
+        type: string
+        default: "pkg/component/httpserver"
+  push:
+    branches:
+      - "feat**"
+      - "fix**"
+      - "hotfix**"
+      - "chore**"
+      - "main"
+    paths:
+      - "pkg/component/httpserver/**.go"
+      - "pkg/component/httpserver/go.mod"
+      - "pkg/component/httpserver/go.sum"
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    branches:
+      - main
+    paths:
+      - "pkg/component/httpserver/**.go"
+      - "pkg/component/httpserver/go.mod"
+      - "pkg/component/httpserver/go.sum"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/common-ci.yml
+    secrets: inherit
+    with:
+      module: "pkg/component/httpserver"

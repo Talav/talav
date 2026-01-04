@@ -63,7 +63,7 @@ func (s *Server) Start(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		s.logger.Info("shutting down HTTP server")
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeoutDuration)
+		shutdownCtx, cancel := context.WithTimeout(ctx, shutdownTimeoutDuration)
 		defer cancel()
 
 		if err := s.httpSrv.Shutdown(shutdownCtx); err != nil {

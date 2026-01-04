@@ -71,7 +71,7 @@ func main() {
 // RegisterRoutes registers all API routes with Zorya.
 func RegisterRoutes(api zorya.API) {
 	// Health check endpoint
-	zorya.Register(api, zorya.BaseRoute{
+	if err := zorya.Register(api, zorya.BaseRoute{
 		Method: http.MethodGet,
 		Path:   "/health",
 		Operation: &zorya.Operation{
@@ -79,10 +79,12 @@ func RegisterRoutes(api zorya.API) {
 			Description: "Returns the health status of the API",
 			Tags:        []string{"system"},
 		},
-	}, healthHandler)
+	}, healthHandler); err != nil {
+		panic("failed to register health endpoint: " + err.Error())
+	}
 
 	// Create user endpoint
-	zorya.Register(api, zorya.BaseRoute{
+	if err := zorya.Register(api, zorya.BaseRoute{
 		Method: http.MethodPost,
 		Path:   "/users",
 		Operation: &zorya.Operation{
@@ -90,10 +92,12 @@ func RegisterRoutes(api zorya.API) {
 			Description: "Creates a new user with the provided information",
 			Tags:        []string{"users"},
 		},
-	}, createUserHandler)
+	}, createUserHandler); err != nil {
+		panic("failed to register create user endpoint: " + err.Error())
+	}
 
 	// Get user endpoint
-	zorya.Register(api, zorya.BaseRoute{
+	if err := zorya.Register(api, zorya.BaseRoute{
 		Method: http.MethodGet,
 		Path:   "/users/{id}",
 		Operation: &zorya.Operation{
@@ -101,7 +105,9 @@ func RegisterRoutes(api zorya.API) {
 			Description: "Retrieves a user by their unique identifier",
 			Tags:        []string{"users"},
 		},
-	}, getUserHandler)
+	}, getUserHandler); err != nil {
+		panic("failed to register get user endpoint: " + err.Error())
+	}
 }
 
 // healthHandler handles health check requests.
