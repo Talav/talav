@@ -16,6 +16,10 @@ type MiddlewareEntry struct {
 
 	// Name is an optional name for debugging and logging.
 	Name string
+
+	// order is the registration order for stable sorting when priorities are equal.
+	// Lower values were registered first.
+	order int
 }
 
 const (
@@ -31,14 +35,18 @@ const (
 )
 
 // sortMiddlewares sorts middleware entries by priority (lower first).
-// Entries with the same priority maintain their relative order (stable sort).
+// Entries with the same priority are sorted by registration order (order field).
 func sortMiddlewares(entries []MiddlewareEntry) []MiddlewareEntry {
 	sorted := make([]MiddlewareEntry, len(entries))
 	copy(sorted, entries)
 
-	// Sort by priority, maintaining stable order for equal priorities
-	sort.SliceStable(sorted, func(i, j int) bool {
-		return sorted[i].Priority < sorted[j].Priority
+	// Sort by priority first, then by registration order for equal priorities
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].Priority != sorted[j].Priority {
+			return sorted[i].Priority < sorted[j].Priority
+		}
+
+		return sorted[i].order < sorted[j].order
 	})
 
 	return sorted

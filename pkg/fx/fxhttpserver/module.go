@@ -31,7 +31,7 @@ var FxHTTPServerModule = fx.Module(
 // MiddlewareParams allows injection of registered middlewares.
 type MiddlewareParams struct {
 	fx.In
-	Middlewares []MiddlewareEntry `group:"httpserver-middlewares,optional"`
+	Middlewares []MiddlewareEntry `group:"httpserver-middlewares"`
 }
 
 // NewFxZoryaAPI creates a new Zorya API instance with router and infrastructure middleware configured.
@@ -72,23 +72,28 @@ func buildAllMiddlewares(userMiddlewares []MiddlewareEntry, cfg httpserver.Confi
 	allMiddlewares := make([]MiddlewareEntry, 0, len(userMiddlewares)+2)
 
 	// Add built-in RequestID middleware (always)
+	// Use order 0 to ensure it's first among same-priority middlewares
 	allMiddlewares = append(allMiddlewares, MiddlewareEntry{
 		Middleware: middleware.RequestID,
 		Priority:   PriorityRequestID,
 		Name:       "request-id",
+		order:      0,
 	})
 
 	// Add built-in HTTPLog middleware (if enabled)
+	// Use order 0 to ensure it's first among same-priority middlewares
 	if cfg.Logging.Enabled {
 		opts := httpserver.BuildHTTPLogOptions(cfg.Logging)
 		allMiddlewares = append(allMiddlewares, MiddlewareEntry{
 			Middleware: httplog.RequestLogger(logger, opts),
 			Priority:   PriorityHTTPLog,
 			Name:       "http-log",
+			order:      0,
 		})
 	}
 
 	// Add user middlewares
+	// Order is preserved via the order field assigned at registration time
 	allMiddlewares = append(allMiddlewares, userMiddlewares...)
 
 	return allMiddlewares

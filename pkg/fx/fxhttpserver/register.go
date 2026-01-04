@@ -2,9 +2,13 @@ package fxhttpserver
 
 import (
 	"net/http"
+	"sync/atomic"
 
 	"go.uber.org/fx"
 )
+
+// middlewareOrderCounter is an atomic counter for tracking middleware registration order.
+var middlewareOrderCounter int64
 
 // AsMiddleware registers a middleware with the specified priority.
 // Lower priority values execute first. Middlewares with the same priority
@@ -24,6 +28,7 @@ func AsMiddleware(middleware func(http.Handler) http.Handler, priority int, name
 		Middleware: middleware,
 		Priority:   priority,
 		Name:       name,
+		order:      int(atomic.AddInt64(&middlewareOrderCounter, 1)),
 	}
 
 	return fx.Supply(

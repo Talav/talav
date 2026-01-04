@@ -8,12 +8,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/talav/talav/pkg/component/httpserver"
+	"github.com/talav/talav/pkg/component/zorya"
 	"github.com/talav/talav/pkg/fx/fxconfig"
+	"github.com/talav/talav/pkg/fx/fxlogger"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxtest"
 )
 
-// executionOrder tracks the order middleware executes
+// executionOrder tracks the order middleware executes.
 var executionOrder []string
 
 func resetExecutionOrder() {
@@ -30,23 +32,18 @@ func createTestMiddleware(name string) func(http.Handler) http.Handler {
 }
 
 // setupTestAPI creates a test API with the given middleware options.
-func setupTestAPI(t *testing.T, cfg httpserver.Config, opts ...fx.Option) interface {
-	Adapter() interface {
-		ServeHTTP(http.ResponseWriter, *http.Request)
-	}
-} {
+func setupTestAPI(t *testing.T, cfg httpserver.Config, opts ...fx.Option) zorya.API {
+	t.Helper()
 	resetExecutionOrder()
 
-	var api interface {
-		Adapter() interface {
-			ServeHTTP(http.ResponseWriter, *http.Request)
-		}
-	}
+	var api zorya.API
 
 	allOpts := []fx.Option{
 		fx.NopLogger,
+		fxconfig.FxConfigModule,
+		fxlogger.FxLoggerModule,
 		FxHTTPServerModule,
-		fxconfig.AsConfigWithDefaults("httpserver", cfg, httpserver.Config{}),
+		fx.Replace(cfg),
 	}
 	allOpts = append(allOpts, opts...)
 	allOpts = append(allOpts, fx.Populate(&api))
@@ -54,6 +51,7 @@ func setupTestAPI(t *testing.T, cfg httpserver.Config, opts ...fx.Option) interf
 	fxtest.New(t, allOpts...).RequireStart().RequireStop()
 
 	require.NotNil(t, api)
+
 	return api
 }
 
@@ -64,19 +62,17 @@ func findPosition(name string) int {
 			return i
 		}
 	}
+
 	return -1
 }
 
 // makeRequest makes a test HTTP request to the API.
-func makeRequest(t *testing.T, api interface {
-	Adapter() interface {
-		ServeHTTP(http.ResponseWriter, *http.Request)
-	}
-},
-) *httptest.ResponseRecorder {
+func makeRequest(t *testing.T, api zorya.API) *httptest.ResponseRecorder {
+	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	api.Adapter().ServeHTTP(rec, req)
+
 	return rec
 }
 
