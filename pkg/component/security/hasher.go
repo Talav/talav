@@ -20,35 +20,21 @@ type PasswordHasher interface {
 
 // DefaultPasswordHasher is the default implementation of PasswordHasher.
 type DefaultPasswordHasher struct {
-	bcryptCost int
-	saltLength int
+	cfg HasherConfig
 }
 
 // NewPasswordHasher creates a new PasswordHasher with the given configuration.
-func NewPasswordHasher(cfg SecurityConfig) PasswordHasher {
-	bcryptCost := cfg.BcryptCost
-	if bcryptCost == 0 {
-		bcryptCost = 10 // default bcrypt cost
-	}
-
-	saltLength := cfg.SaltLength
-	if saltLength == 0 {
-		saltLength = 32 // default salt length in bytes
-	}
-
+func NewPasswordHasher(cfg HasherConfig) PasswordHasher {
 	return &DefaultPasswordHasher{
-		bcryptCost: bcryptCost,
-		saltLength: saltLength,
+		cfg: cfg,
 	}
 }
 
 // GenerateSalt generates a cryptographically secure random salt.
 func (h *DefaultPasswordHasher) GenerateSalt() (string, error) {
 	// Generate random bytes
-	saltBytes := make([]byte, h.saltLength)
-	if _, err := rand.Read(saltBytes); err != nil {
-		return "", fmt.Errorf("failed to generate salt: %w", err)
-	}
+	saltBytes := make([]byte, h.cfg.SaltLength)
+	_, _ = rand.Read(saltBytes)
 
 	// Encode as base64 string for storage
 	return base64.StdEncoding.EncodeToString(saltBytes), nil
@@ -60,7 +46,7 @@ func (h *DefaultPasswordHasher) HashPassword(plainPassword, salt string) (string
 	passwordWithSalt := plainPassword + salt
 
 	// Hash with bcrypt
-	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(passwordWithSalt), h.bcryptCost)
+	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(passwordWithSalt), h.cfg.BcryptCost)
 	if err != nil {
 		return "", fmt.Errorf("failed to hash password: %w", err)
 	}
@@ -76,4 +62,3 @@ func (h *DefaultPasswordHasher) ComparePassword(hashedPassword, plainPassword, s
 	// Compare with bcrypt
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(passwordWithSalt))
 }
-

@@ -4,12 +4,11 @@ import "time"
 
 // SecurityConfig represents the configuration for the security module.
 type SecurityConfig struct {
-	BcryptCost sint `config:"bcrypt_cost"`
-	SaltLength int `config:"salt_length"`
-	JWT        	JWTConfig `config:"jwt"`
-	Cookie     CookieConfig `config:"cookie"`
+	Hasher      HasherConfig      `config:"hasher"`
+	JWT         JWTConfig         `config:"jwt"`
+	Cookie      CookieConfig      `config:"cookie"`
 	TokenSource TokenSourceConfig `config:"token_source"`
-}  
+}
 
 // JWTConfig represents JWT configuration.
 type JWTConfig struct {
@@ -28,7 +27,7 @@ type CookieConfig struct {
 	Domain           string `config:"domain"`
 	Path             string `config:"path"`
 	Secure           bool   `config:"secure"`
-	HttpOnly         bool   `config:"http_only"`
+	HTTPOnly         bool   `config:"http_only"`
 	SameSite         string `config:"same_site"`
 }
 
@@ -39,11 +38,19 @@ type TokenSourceConfig struct {
 	CookieName string   `config:"cookie_name"`
 }
 
+// HasherConfig represents password hasher configuration.
+type HasherConfig struct {
+	BcryptCost int `config:"bcrypt_cost"`
+	SaltLength int `config:"salt_length"`
+}
+
 // DefaultSecurityConfig returns a SecurityConfig with all default values set.
 func DefaultSecurityConfig() SecurityConfig {
 	return SecurityConfig{
-		BcryptCost: 10,
-		SaltLength: 32,
+		Hasher: HasherConfig{
+			BcryptCost: 10,
+			SaltLength: 32,
+		},
 		JWT: JWTConfig{
 			Algorithm:          "HS256",
 			AccessTokenExpiry:  15 * time.Minute,
@@ -54,7 +61,7 @@ func DefaultSecurityConfig() SecurityConfig {
 			RefreshTokenName: "refresh_token",
 			Path:             "/",
 			Secure:           true,
-			HttpOnly:         true,
+			HTTPOnly:         true,
 			SameSite:         "Lax",
 		},
 		TokenSource: TokenSourceConfig{
@@ -64,4 +71,3 @@ func DefaultSecurityConfig() SecurityConfig {
 		},
 	}
 }
-

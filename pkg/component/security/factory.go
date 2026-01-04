@@ -2,7 +2,7 @@ package security
 
 // SecurityFactory is the interface for security component factories.
 type SecurityFactory interface {
-	CreatePasswordHasher(cfg SecurityConfig) PasswordHasher
+	CreatePasswordHasher(cfg HasherConfig) PasswordHasher
 	CreateJWTService(cfg JWTConfig) (JWTService, error)
 	CreateRefreshTokenService(jwtService JWTService, store RefreshTokenStore) RefreshTokenService
 }
@@ -16,7 +16,7 @@ func NewDefaultSecurityFactory() SecurityFactory {
 }
 
 // CreatePasswordHasher creates a new PasswordHasher with the given configuration.
-func (f *DefaultSecurityFactory) CreatePasswordHasher(cfg SecurityConfig) PasswordHasher {
+func (f *DefaultSecurityFactory) CreatePasswordHasher(cfg HasherConfig) PasswordHasher {
 	return NewPasswordHasher(cfg)
 }
 
@@ -29,4 +29,3 @@ func (f *DefaultSecurityFactory) CreateJWTService(cfg JWTConfig) (JWTService, er
 func (f *DefaultSecurityFactory) CreateRefreshTokenService(jwtService JWTService, store RefreshTokenStore) RefreshTokenService {
 	return NewRefreshTokenService(jwtService, store)
 }
-

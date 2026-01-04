@@ -3,9 +3,7 @@ package security
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/x509"
 	"encoding/base64"
-	"encoding/pem"
 	"fmt"
 	"os"
 	"time"
@@ -34,55 +32,91 @@ type JWTService interface {
 
 // DefaultJWTService is the default implementation of JWTService.
 type DefaultJWTService struct {
-	cfg            JWTConfig
-	signingKey     interface{}
-	verificationKey interface{}
+	cfg      JWTConfig
+	strategy SigningStrategy
+}
+
+// SigningStrategy defines the interface for JWT signing and verification strategies.
+type SigningStrategy interface {
+	// Sign creates a token string from JWT claims.
+	Sign(claims jwt.Claims) (string, error)
+	// Verify parses and validates a token string, returning the claims.
+	Verify(tokenString string, claims jwt.Claims) error
+	// Algorithm returns the algorithm name.
+	Algorithm() string
+}
+
+// HS256Strategy implements JWT signing with HMAC-SHA256 (symmetric key).
+type HS256Strategy struct {
+	secret []byte
+}
+
+// RS256Strategy implements JWT signing with RSA-SHA256 (asymmetric keys).
+type RS256Strategy struct {
+	privateKey *rsa.PrivateKey
+	publicKey  *rsa.PublicKey
 }
 
 // NewJWTService creates a new JWTService with the given configuration.
 func NewJWTService(cfg JWTConfig) (JWTService, error) {
-	service := &DefaultJWTService{
-		cfg: cfg,
-	}
-
-	if cfg.Algorithm == "" {
-		cfg.Algorithm = "HS256"
-	}
-
+	var strategy SigningStrategy
 	var err error
+
 	switch cfg.Algorithm {
 	case "HS256":
-		if cfg.Secret == "" {
-			return nil, fmt.Errorf("HS256 algorithm requires secret to be set")
-		}
-		service.signingKey = []byte(cfg.Secret)
-		service.verificationKey = []byte(cfg.Secret)
+		strategy, err = NewHS256Strategy(cfg.Secret)
 	case "RS256":
-		if cfg.PrivateKeyPath == "" || cfg.PublicKeyPath == "" {
-			return nil, fmt.Errorf("RS256 algorithm requires both private_key_path and public_key_path to be set")
-		}
-		service.signingKey, err = loadRSAPrivateKey(cfg.PrivateKeyPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load private key: %w", err)
-		}
-		service.verificationKey, err = loadRSAPublicKey(cfg.PublicKeyPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load public key: %w", err)
-		}
+		strategy, err = NewRS256Strategy(cfg.PrivateKeyPath, cfg.PublicKeyPath)
 	default:
-		return nil, fmt.Errorf("unsupported algorithm: %s (supported: HS256, RS256)", cfg.Algorithm)
+		err = fmt.Errorf("unsupported algorithm: %s (supported: HS256, RS256)", cfg.Algorithm)
 	}
 
-	return service, nil
+	if err != nil {
+		return nil, err
+	}
+
+	return &DefaultJWTService{
+		cfg:      cfg,
+		strategy: strategy,
+	}, nil
+}
+
+// NewHS256Strategy creates a new HS256 signing strategy.
+func NewHS256Strategy(secret string) (*HS256Strategy, error) {
+	if secret == "" {
+		return nil, fmt.Errorf("HS256 algorithm requires secret to be set")
+	}
+
+	return &HS256Strategy{
+		secret: []byte(secret),
+	}, nil
+}
+
+// NewRS256Strategy creates a new RS256 signing strategy.
+func NewRS256Strategy(privateKeyPath, publicKeyPath string) (*RS256Strategy, error) {
+	if privateKeyPath == "" || publicKeyPath == "" {
+		return nil, fmt.Errorf("RS256 algorithm requires both private_key_path and public_key_path to be set")
+	}
+
+	privateKey, err := loadRSAPrivateKey(privateKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load private key: %w", err)
+	}
+
+	publicKey, err := loadRSAPublicKey(publicKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load public key: %w", err)
+	}
+
+	return &RS256Strategy{
+		privateKey: privateKey,
+		publicKey:  publicKey,
+	}, nil
 }
 
 // CreateAccessToken creates a new access token for the given user.
 func (s *DefaultJWTService) CreateAccessToken(userID string, roles []string) (string, error) {
 	expiry := s.cfg.AccessTokenExpiry
-	if expiry == 0 {
-		expiry = 15 * time.Minute
-	}
-
 	now := time.Now()
 	claims := &Claims{
 		Roles: roles,
@@ -94,32 +128,14 @@ func (s *DefaultJWTService) CreateAccessToken(userID string, roles []string) (st
 		},
 	}
 
-	var method jwt.SigningMethod
-	switch s.cfg.Algorithm {
-	case "HS256":
-		method = jwt.SigningMethodHS256
-	case "RS256":
-		method = jwt.SigningMethodRS256
-	default:
-		return "", fmt.Errorf("unsupported algorithm: %s", s.cfg.Algorithm)
-	}
-
-	token := jwt.NewWithClaims(method, claims)
-	return token.SignedString(s.signingKey)
+	return s.strategy.Sign(claims)
 }
 
 // CreateRefreshToken creates a new refresh token for the given user.
 func (s *DefaultJWTService) CreateRefreshToken(userID string) (string, error) {
 	expiry := s.cfg.RefreshTokenExpiry
-	if expiry == 0 {
-		expiry = 168 * time.Hour // 7 days
-	}
-
 	// Generate unique token ID for rotation support
-	tokenID, err := generateTokenID()
-	if err != nil {
-		return "", fmt.Errorf("failed to generate token ID: %w", err)
-	}
+	tokenID := generateTokenID()
 
 	now := time.Now()
 	claims := &RefreshClaims{
@@ -132,144 +148,123 @@ func (s *DefaultJWTService) CreateRefreshToken(userID string) (string, error) {
 		},
 	}
 
-	var method jwt.SigningMethod
-	switch s.cfg.Algorithm {
-	case "HS256":
-		method = jwt.SigningMethodHS256
-	case "RS256":
-		method = jwt.SigningMethodRS256
-	default:
-		return "", fmt.Errorf("unsupported algorithm: %s", s.cfg.Algorithm)
-	}
-
-	token := jwt.NewWithClaims(method, claims)
-	return token.SignedString(s.signingKey)
+	return s.strategy.Sign(claims)
 }
 
-// ValidateAccessToken validates and parses an access token.
+// ValidateAccessToken validates an access token and returns its claims.
 func (s *DefaultJWTService) ValidateAccessToken(tokenString string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		if token.Method.Alg() != s.getExpectedAlgorithm() {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return s.verificationKey, nil
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse token: %w", err)
-	}
-
-	if !token.Valid {
-		return nil, fmt.Errorf("invalid token")
-	}
-
-	claims, ok := token.Claims.(*Claims)
-	if !ok {
-		return nil, fmt.Errorf("invalid claims type")
+	claims := &Claims{}
+	if err := s.strategy.Verify(tokenString, claims); err != nil {
+		return nil, err
 	}
 
 	return claims, nil
 }
 
-// ValidateRefreshToken validates and parses a refresh token.
+// ValidateRefreshToken validates a refresh token and returns its claims.
 func (s *DefaultJWTService) ValidateRefreshToken(tokenString string) (*RefreshClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &RefreshClaims{}, func(token *jwt.Token) (interface{}, error) {
-		if token.Method.Alg() != s.getExpectedAlgorithm() {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return s.verificationKey, nil
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse token: %w", err)
-	}
-
-	if !token.Valid {
-		return nil, fmt.Errorf("invalid token")
-	}
-
-	claims, ok := token.Claims.(*RefreshClaims)
-	if !ok {
-		return nil, fmt.Errorf("invalid claims type")
+	claims := &RefreshClaims{}
+	if err := s.strategy.Verify(tokenString, claims); err != nil {
+		return nil, err
 	}
 
 	return claims, nil
 }
 
-func (s *DefaultJWTService) getExpectedAlgorithm() string {
-	switch s.cfg.Algorithm {
-	case "HS256":
-		return "HS256"
-	case "RS256":
-		return "RS256"
-	default:
-		return "HS256"
-	}
+// Sign creates a token string using HMAC-SHA256.
+func (s *HS256Strategy) Sign(claims jwt.Claims) (string, error) {
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(s.secret)
 }
 
-func loadRSAPrivateKey(path string) (*rsa.PrivateKey, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	block, _ := pem.Decode(data)
-	if block == nil {
-		return nil, fmt.Errorf("failed to decode PEM block")
-	}
-
-	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		// Try PKCS8 format
-		keyPKCS8, err2 := x509.ParsePKCS8PrivateKey(block.Bytes)
-		if err2 != nil {
-			return nil, fmt.Errorf("failed to parse private key: %w (tried PKCS1 and PKCS8)", err)
+// Verify parses and validates a token using HMAC-SHA256.
+func (s *HS256Strategy) Verify(tokenString string, claims jwt.Claims) error {
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		rsaKey, ok := keyPKCS8.(*rsa.PrivateKey)
-		if !ok {
-			return nil, fmt.Errorf("private key is not RSA")
-		}
-		return rsaKey, nil
+
+		return s.secret, nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to parse token: %w", err)
 	}
 
-	return key, nil
+	if !token.Valid {
+		return fmt.Errorf("invalid token")
+	}
+
+	return nil
 }
 
-func loadRSAPublicKey(path string) (*rsa.PublicKey, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
+// Algorithm returns the algorithm name.
+func (s *HS256Strategy) Algorithm() string {
+	return "HS256"
+}
 
-	block, _ := pem.Decode(data)
-	if block == nil {
-		return nil, fmt.Errorf("failed to decode PEM block")
-	}
+// Sign creates a token string using RSA-SHA256.
+func (s *RS256Strategy) Sign(claims jwt.Claims) (string, error) {
+	return jwt.NewWithClaims(jwt.SigningMethodRS256, claims).SignedString(s.privateKey)
+}
 
-	key, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		// Try PKCS1 format
-		keyPKCS1, err2 := x509.ParsePKCS1PublicKey(block.Bytes)
-		if err2 != nil {
-			return nil, fmt.Errorf("failed to parse public key: %w (tried PKIX and PKCS1)", err)
+// Verify parses and validates a token using RSA-SHA256.
+func (s *RS256Strategy) Verify(tokenString string, claims jwt.Claims) error {
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return keyPKCS1, nil
+
+		return s.publicKey, nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to parse token: %w", err)
 	}
 
-	rsaKey, ok := key.(*rsa.PublicKey)
-	if !ok {
-		return nil, fmt.Errorf("public key is not RSA")
+	if !token.Valid {
+		return fmt.Errorf("invalid token")
 	}
 
-	return rsaKey, nil
+	return nil
+}
+
+// Algorithm returns the algorithm name.
+func (s *RS256Strategy) Algorithm() string {
+	return "RS256"
 }
 
 // generateTokenID generates a unique token ID for refresh tokens.
-func generateTokenID() (string, error) {
+func generateTokenID() string {
 	bytes := make([]byte, 16) // 128 bits
-	if _, err := rand.Read(bytes); err != nil {
-		return "", err
-	}
-	return base64.URLEncoding.EncodeToString(bytes), nil
+	_, _ = rand.Read(bytes)
+
+	return base64.URLEncoding.EncodeToString(bytes)
 }
 
+// loadRSAPrivateKey loads an RSA private key from a PEM file.
+func loadRSAPrivateKey(path string) (*rsa.PrivateKey, error) {
+	keyData, err := os.ReadFile(path) //nolint:gosec // path is from trusted config
+	if err != nil {
+		return nil, fmt.Errorf("failed to read private key file: %w", err)
+	}
+
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(keyData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	return privateKey, nil
+}
+
+// loadRSAPublicKey loads an RSA public key from a PEM file.
+func loadRSAPublicKey(path string) (*rsa.PublicKey, error) {
+	keyData, err := os.ReadFile(path) //nolint:gosec // path is from trusted config
+	if err != nil {
+		return nil, fmt.Errorf("failed to read public key file: %w", err)
+	}
+
+	publicKey, err := jwt.ParseRSAPublicKeyFromPEM(keyData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse public key: %w", err)
+	}
+
+	return publicKey, nil
+}

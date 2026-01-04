@@ -61,16 +61,30 @@ type MyUserProvider struct {
     // your dependencies
 }
 
-func (p *MyUserProvider) GetUserByIdentifier(ctx context.Context, identifier string) (*security.SecurityUser, error) {
+func (p *MyUserProvider) GetUserByIdentifier(ctx context.Context, identifier string) (security.SecurityUser, error) {
     // Lookup user by email/username
-    // Convert to SecurityUser
-    return &security.SecurityUser{
-        ID: "user123",
-        PasswordHash: "...",
-        Salt: "...",
-        Roles: []string{"user"},
-    }, nil
+    // Return a type that implements SecurityUser interface
+    user := &MyUser{
+        id:           "user123",
+        passwordHash: "...",
+        salt:         "...",
+        roles:        []string{"user"},
+    }
+    return user, nil
 }
+
+// MyUser implements SecurityUser interface
+type MyUser struct {
+    id           string
+    passwordHash string
+    salt         string
+    roles        []string
+}
+
+func (u *MyUser) ID() string           { return u.id }
+func (u *MyUser) PasswordHash() string { return u.passwordHash }
+func (u *MyUser) Salt() string         { return u.salt }
+func (u *MyUser) Roles() []string      { return u.roles }
 ```
 
 ## Configuration

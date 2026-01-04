@@ -23,11 +23,7 @@ func SetAuthUser(r *http.Request, user *AuthUser) *http.Request {
 // GetAuthUser retrieves authenticated user from request context.
 // Returns nil if not authenticated.
 func GetAuthUser(r *http.Request) *AuthUser {
-	user, ok := r.Context().Value(authUserKey).(*AuthUser)
-	if !ok {
-		return nil
-	}
-	return user
+	return GetAuthUserFromContext(r.Context())
 }
 
 // GetAuthUserFromContext retrieves authenticated user from context.
@@ -37,6 +33,6 @@ func GetAuthUserFromContext(ctx context.Context) *AuthUser {
 	if !ok {
 		return nil
 	}
+
 	return user
 }
-
