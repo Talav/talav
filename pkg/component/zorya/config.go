@@ -3,9 +3,8 @@ package zorya
 // Config represents a configuration for a new API. See `huma.DefaultConfig()`
 // as a starting point.
 type Config struct {
-	// OpenAPIPath is the path to the OpenAPI spec without extension. If set
-	// to `/openapi` it will allow clients to get `/openapi.json` or
-	// `/openapi.yaml`, for example.
+	// OpenAPIPath is the exact path to the OpenAPI spec endpoint.
+	// The path is used as-is, with no automatic suffix or extension handling.
 	OpenAPIPath string
 
 	// DocsPath is the path to the API documentation. If set to `/docs` it will
@@ -34,7 +33,7 @@ type Config struct {
 // starting point for creating your own configuration. It supports the JSON
 // format out of the box. The registry uses references for structs and a link
 // transformer is included to add `$schema` fields and links into responses. The
-// `/openapi.[json|yaml]`, `/docs`, and `/schemas` paths are set up to serve the
+// `/openapi.json`, `/docs`, and `/schemas` paths are set up to serve the
 // OpenAPI spec, docs UI, and schemas respectively.
 //
 //	// Create and customize the config (if desired).

@@ -15,6 +15,14 @@ type Group struct {
 	modifiers    []func(o *BaseRoute, next func(*BaseRoute))
 	middlewares  Middlewares
 	transformers []Transformer
+	security     *RouteSecurity
+}
+
+// groupAdapter is an Adapter wrapper that registers multiple operation handlers
+// with the underlying adapter based on the group's prefixes.
+type groupAdapter struct {
+	Adapter
+	group *Group
 }
 
 // NewGroup creates a new group of routes with the given prefixes, if any. A
@@ -41,25 +49,6 @@ func (g *Group) Adapter() Adapter {
 	return g.adapter
 }
 
-// PrefixModifier provides a fan-out to register one or more operations with
-// the given prefix for every one operation added to a group.
-func PrefixModifier(prefixes []string) func(o *BaseRoute, next func(*BaseRoute)) {
-	return func(o *BaseRoute, next func(*BaseRoute)) {
-		for _, prefix := range prefixes {
-			modified := *o
-			modified.Path = prefix + modified.Path
-			next(&modified)
-		}
-	}
-}
-
-// groupAdapter is an Adapter wrapper that registers multiple operation handlers
-// with the underlying adapter based on the group's prefixes.
-type groupAdapter struct {
-	Adapter
-	group *Group
-}
-
 func (a *groupAdapter) Handle(route *BaseRoute, handler http.HandlerFunc) {
 	a.group.ModifyOperation(route, func(route *BaseRoute) {
 		a.Adapter.Handle(route, handler)
@@ -70,6 +59,8 @@ func (a *groupAdapter) Handle(route *BaseRoute, handler http.HandlerFunc) {
 // route, in the order they were added. This is useful for modifying a route
 // before it is registered with the router.
 func (g *Group) ModifyOperation(route *BaseRoute, next func(*BaseRoute)) {
+	g.mergeSecurity(route)
+
 	chain := func(route *BaseRoute) {
 		// Call the final handler.
 		next(route)
@@ -83,6 +74,47 @@ func (g *Group) ModifyOperation(route *BaseRoute, next func(*BaseRoute)) {
 	}
 
 	chain(route)
+}
+
+// mergeSecurity merges group security with route security.
+func (g *Group) mergeSecurity(route *BaseRoute) {
+	if g.security == nil {
+		return
+	}
+
+	if route.Security == nil {
+		route.Security = g.copySecurity()
+
+		return
+	}
+
+	g.mergeSecurityFields(route.Security)
+}
+
+// copySecurity creates a deep copy of the group's security configuration.
+func (g *Group) copySecurity() *RouteSecurity {
+	return &RouteSecurity{
+		Roles:       append([]string(nil), g.security.Roles...),
+		Permissions: append([]string(nil), g.security.Permissions...),
+		Resource:    g.security.Resource,
+		Action:      g.security.Action,
+	}
+}
+
+// mergeSecurityFields merges group security fields into route security.
+func (g *Group) mergeSecurityFields(routeSec *RouteSecurity) {
+	if len(routeSec.Roles) == 0 && len(g.security.Roles) > 0 {
+		routeSec.Roles = append([]string(nil), g.security.Roles...)
+	}
+	if len(routeSec.Permissions) == 0 && len(g.security.Permissions) > 0 {
+		routeSec.Permissions = append([]string(nil), g.security.Permissions...)
+	}
+	if routeSec.Resource == "" && g.security.Resource != "" {
+		routeSec.Resource = g.security.Resource
+	}
+	if routeSec.Action == "" && g.security.Action != "" {
+		routeSec.Action = g.security.Action
+	}
 }
 
 // UseModifier adds an operation modifier function to the group that will be run
@@ -122,6 +154,35 @@ func (g *Group) UseTransformer(transformers ...Transformer) {
 	g.transformers = append(g.transformers, transformers...)
 }
 
+// WithSecurity sets security requirements for all routes in the group.
+func (g *Group) WithSecurity(security *RouteSecurity) {
+	g.security = security
+}
+
+// UseRoles requires users to have at least one of the specified roles for all routes in the group.
+func (g *Group) UseRoles(roles ...string) {
+	if g.security == nil {
+		g.security = &RouteSecurity{}
+	}
+	g.security.Roles = append(g.security.Roles, roles...)
+}
+
+// UsePermissions requires users to have all specified permissions for all routes in the group.
+func (g *Group) UsePermissions(perms ...string) {
+	if g.security == nil {
+		g.security = &RouteSecurity{}
+	}
+	g.security.Permissions = append(g.security.Permissions, perms...)
+}
+
+// UseResource sets the RBAC resource for all routes in the group.
+func (g *Group) UseResource(resource string) {
+	if g.security == nil {
+		g.security = &RouteSecurity{}
+	}
+	g.security.Resource = resource
+}
+
 // Transform runs all transformers in the group on the response, in the order
 // they were added, then chains to the parent API's transformers.
 func (g *Group) Transform(r *http.Request, status int, v any) (any, error) {
@@ -136,4 +197,16 @@ func (g *Group) Transform(r *http.Request, status int, v any) (any, error) {
 
 	// Chain to parent API transformers.
 	return g.API.Transform(r, status, v)
+}
+
+// PrefixModifier provides a fan-out to register one or more operations with
+// the given prefix for every one operation added to a group.
+func PrefixModifier(prefixes []string) func(o *BaseRoute, next func(*BaseRoute)) {
+	return func(o *BaseRoute, next func(*BaseRoute)) {
+		for _, prefix := range prefixes {
+			modified := *o
+			modified.Path = prefix + modified.Path
+			next(&modified)
+		}
+	}
 }

@@ -8,6 +8,7 @@ A Go HTTP API framework for building type-safe, RFC-compliant REST APIs with aut
 - **Router Adapters** - Works with Chi, Fiber, and Go 1.22+ standard library
 - **Content Negotiation** - Automatic content type negotiation (JSON, CBOR, and custom formats)
 - **Request Validation** - Pluggable validation with go-playground/validator support
+- **Route Security** - Declarative authentication, role-based, permission-based, and resource-based authorization
 - **RFC 9457 Error Handling** - Structured error responses with machine-readable codes
 - **Conditional Requests** - Support for If-Match, If-None-Match, If-Modified-Since, If-Unmodified-Since
 - **Streaming Responses** - Server-Sent Events (SSE) and chunked transfer support
@@ -736,6 +737,356 @@ group.UseTransformer(func(ctx zorya.Context, status string, v any) (any, error) 
 })
 ```
 
+## Route Security and Authorization
+
+Zorya provides declarative route-based authorization with clean separation of concerns. Security requirements are defined on routes, and enforcement is handled by the security component.
+
+### Overview
+
+Security requirements are declared on routes using the `Secure()` wrapper with composable options:
+
+- **Authentication**: `zorya.Auth()` - Require authenticated user
+- **Role-Based**: `zorya.Roles(...)` - Require specific roles
+- **Permission-Based**: `zorya.Permissions(...)` - Require specific permissions
+- **Resource-Based**: `zorya.Resource(...)` - Resource template for RBAC policies
+- **Action**: `zorya.Action(...)` - Custom action (defaults to HTTP method)
+
+By default, routes are **public** (no authentication required). You must explicitly add security requirements.
+
+### Setup
+
+First, register the security enforcement middleware:
+
+```go
+import (
+    "github.com/talav/talav/pkg/component/security"
+    "github.com/talav/talav/pkg/component/zorya"
+)
+
+// Create API
+api := zorya.NewAPI(adapter)
+
+// Create enforcer
+enforcer := security.NewSimpleEnforcer()
+
+// Register security middleware
+api.UseMiddleware(security.NewSecurityMiddleware(enforcer,
+    security.OnUnauthorized(func(w http.ResponseWriter, r *http.Request) {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+    }),
+    security.OnForbidden(func(w http.ResponseWriter, r *http.Request) {
+        http.Error(w, "Forbidden", http.StatusForbidden)
+    }),
+))
+```
+
+### Basic Protection
+
+```go
+// Public routes (no Secure() = public)
+zorya.Get(api, "/health", healthHandler)
+zorya.Get(api, "/login", loginHandler)
+
+// Authenticated routes (any logged-in user)
+zorya.Get(api, "/profile", profileHandler,
+    zorya.Secure(
+        zorya.Auth(),
+    ),
+)
+
+// Role-protected routes
+zorya.Get(api, "/admin/dashboard", dashboardHandler,
+    zorya.Secure(
+        zorya.Roles("admin"),
+    ),
+)
+
+zorya.Post(api, "/posts", createPostHandler,
+    zorya.Secure(
+        zorya.Roles("editor", "admin"),
+    ),
+)
+
+// Permission-protected routes
+zorya.Delete(api, "/posts/{id}", deletePostHandler,
+    zorya.Secure(
+        zorya.Permissions("posts:delete"),
+    ),
+)
+```
+
+### Group-Based Protection
+
+Apply security requirements to entire groups of routes:
+
+```go
+// Admin group - all routes require admin role
+admin := zorya.NewGroup(api, "/admin")
+admin.UseRoles("admin")
+
+zorya.Get(admin, "/users", listUsersHandler)
+zorya.Delete(admin, "/users/{id}", deleteUserHandler,
+    zorya.Secure(
+        zorya.Permissions("users:delete"),
+    ),
+)
+
+// API v1 group - requires authentication
+v1 := zorya.NewGroup(api, "/api/v1")
+v1.RequireAuthForGroup()
+
+zorya.Get(v1, "/posts", listPostsHandler) // Requires auth
+zorya.Post(v1, "/posts", createPostHandler,
+    zorya.Secure(
+        zorya.Roles("editor"),
+    ),
+)
+```
+
+### Resource-Based Authorization
+
+Zorya provides three ways to define resources for fine-grained access control:
+
+#### 1. Static Resources
+
+For resources that don't depend on request parameters:
+
+```go
+zorya.Get(api, "/reports", listReportsHandler,
+    zorya.Secure(
+        zorya.Roles("analyst"),
+        zorya.Resource("reports"), // Static resource
+    ),
+)
+```
+
+#### 2. Dynamic Resources from Path Parameters (Recommended)
+
+For most dynamic resource cases, use `ResourceFromParams`:
+
+```go
+zorya.Get(api, "/organizations/{orgId}/projects", listProjectsHandler,
+    zorya.Secure(
+        zorya.Roles("member"),
+        zorya.ResourceFromParams(func(params map[string]string) string {
+            orgId := params["orgId"]
+            // Optional: Add custom validation
+            if !isValidUUID(orgId) {
+                panic("invalid orgId")
+            }
+            return "organizations/" + orgId + "/projects"
+        }),
+    ),
+)
+
+// Multiple path parameters
+zorya.Delete(api, "/organizations/{orgId}/projects/{projectId}", deleteProjectHandler,
+    zorya.Secure(
+        zorya.Roles("admin", "owner"),
+        zorya.Permissions("projects:delete"),
+        zorya.ResourceFromParams(func(params map[string]string) string {
+            return fmt.Sprintf("organizations/%s/projects/%s", 
+                params["orgId"], params["projectId"])
+        }),
+        zorya.Action("delete"),
+    ),
+)
+```
+
+**Built-in Security:**
+- Path parameter values are automatically validated (alphanumeric, `-`, `_` only)
+- Invalid characters cause panic (caught by middleware)
+- Maximum length: 256 characters
+
+#### 3. Dynamic Resources from Full Request
+
+For complex cases requiring query parameters, headers, or other request data:
+
+```go
+zorya.Get(api, "/reports/custom", customReportHandler,
+    zorya.Secure(
+        zorya.Roles("analyst"),
+        zorya.ResourceFromRequest(func(r *http.Request) string {
+            year := r.URL.Query().Get("year")
+            dept := r.Header.Get("X-Department")
+            return fmt.Sprintf("reports/%s/%s", dept, year)
+        }),
+    ),
+)
+```
+
+**How It Works:**
+
+1. Zorya's `newRouterParamsMiddleware` extracts path parameters and stores them in context
+2. `Secure()` injects a middleware that:
+   - Calls your resolver function with params or request
+   - Validates the resolved resource
+   - Stores fully resolved security metadata in context
+3. Security middleware reads resolved metadata and enforces it via the enforcer
+
+**Example Flow:**
+
+Request: `GET /organizations/123/projects`
+1. Router extracts: `{"orgId": "123"}`
+2. Your resolver: `params["orgId"]` → `"123"`
+3. Validates: alphanumeric ✓
+4. Builds resource: `"organizations/123/projects"`
+5. Enforcer checks: Can user access `"organizations/123/projects"`?
+
+### Security Inheritance and Overrides
+
+Route-level security merges with group-level security:
+
+```go
+group := zorya.NewGroup(api, "/api")
+group.UseRoles("user")                    // Group requires 'user' role
+group.UseResource("api-resources")        // Group resource
+
+zorya.Get(group, "/posts", handler,
+    zorya.Secure(
+        zorya.Roles("editor"),            // Merged: user, editor
+        zorya.Permissions("posts:read"),  // Added permission
+    ),
+)
+
+// Route inherits group's resource unless overridden
+zorya.Get(group, "/admin", adminHandler,
+    zorya.Secure(
+        zorya.Resource("admin-panel"),    // Overrides group resource
+    ),
+)
+```
+
+### Complete Example
+
+```go
+package main
+
+import (
+    "context"
+    "net/http"
+    
+    "github.com/talav/talav/pkg/component/security"
+    "github.com/talav/talav/pkg/component/zorya"
+)
+
+func main() {
+    // Create API
+    api := zorya.NewAPI(adapter)
+    
+    // Create enforcer (simple or Casbin)
+    enforcer := security.NewSimpleEnforcer()
+    
+    // Register global security middleware
+    api.UseMiddleware(security.NewSecurityMiddleware(enforcer,
+        security.OnUnauthorized(func(w http.ResponseWriter, r *http.Request) {
+            http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        }),
+        security.OnForbidden(func(w http.ResponseWriter, r *http.Request) {
+            http.Error(w, "Forbidden", http.StatusForbidden)
+        }),
+    ))
+    
+    // Public routes
+    zorya.Get(api, "/health", healthHandler)
+    
+    // Protected routes
+    zorya.Get(api, "/profile", profileHandler,
+        zorya.Secure(zorya.Auth()),
+    )
+    
+    zorya.Get(api, "/admin/users", adminHandler,
+        zorya.Secure(zorya.Roles("admin")),
+    )
+    
+    zorya.Get(api, "/orgs/{orgId}/projects", projectsHandler,
+        zorya.Secure(
+            zorya.Roles("member"),
+            zorya.Resource("orgs/{orgId}/projects"),
+        ),
+    )
+    
+    http.ListenAndServe(":8080", adapter)
+}
+```
+
+For Fx dependency injection, see the [fxsecurity README](../../fx/fxsecurity/README.md).
+
+### Architecture
+
+Zorya implements clean separation of concerns for security:
+
+**Zorya's Responsibility** (metadata only):
+- `Secure()` attaches security requirements to routes
+- Auto-injects middleware that:
+  - Reads router params from context
+  - Resolves resource templates (`orgs/{orgId}` → `orgs/123`)
+  - Stores resolved metadata in context
+- No enforcement logic
+
+**Security Component's Responsibility** (enforcement only):
+- `NewSecurityMiddleware()` enforces requirements
+- Reads resolved metadata from context
+- Calls enforcer to check access
+- Denies/allows requests
+
+**Integration via Context**:
+1. `newRouterParamsMiddleware` (zorya) - extracts path params → context
+2. `Secure()` middleware (zorya) - resolves templates, stores metadata → context
+3. `SecurityMiddleware` (security) - reads metadata from context, enforces
+
+This architecture ensures:
+- Clean separation of routing and security concerns
+- No circular dependencies between packages
+- Flexibility to use or skip security as needed
+- Testable components with clear responsibilities
+
+### OpenAPI Security Documentation
+
+Security requirements are automatically documented in OpenAPI:
+
+```go
+zorya.Get(api, "/admin/users", handler,
+    zorya.Secure(
+        zorya.Roles("admin"),
+        zorya.Permissions("users:read"),
+    ),
+)
+```
+
+Generates OpenAPI security:
+
+```json
+{
+  "paths": {
+    "/admin/users": {
+      "get": {
+        "security": [
+          {
+            "bearerAuth": ["admin", "users:read"]
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+### Custom Security Enforcers
+
+Implement the `SecurityEnforcer` interface for custom authorization logic:
+
+```go
+type SecurityEnforcer interface {
+    // Enforce checks if the user meets all security requirements
+    Enforce(ctx context.Context, user *AuthUser, requirements *SecurityRequirements) (bool, error)
+}
+```
+
+Built-in enforcers:
+- `SimpleEnforcer` - Basic role checks from `AuthUser.Roles` (provided by security component)
+- `CasbinEnforcer` - Full RBAC with Casbin (provided by fxcasbin module)
+
 ## Request Limits
 
 ### Body Size Limits
@@ -824,6 +1175,7 @@ type ResponseWriter interface {
 - `Transformer` - Response transformer function type
 - `Group` - Route group
 - `BaseRoute` - Route configuration
+- `RouteSecurity` - Security requirements for a route
 - `ErrorModel` - RFC 9457 error model
 - `ErrorDetail` - Error detail with code, message, location
 
@@ -844,6 +1196,15 @@ type ResponseWriter interface {
 - `Head[I, O any](api API, path string, handler, ...options)` - Register HEAD route
 - `Register[I, O any](api API, route BaseRoute, handler)` - Register route with full configuration
 - `NewGroup(api API, prefixes ...string) *Group` - Create route group
+- **Security Options:**
+  - `Secure(opts ...SecurityOption) RouteOption` - Wrap security requirements
+  - `Auth() SecurityOption` - Require authenticated user
+  - `Roles(roles ...string) SecurityOption` - Require specific roles
+  - `Permissions(permissions ...string) SecurityOption` - Require specific permissions
+  - `Resource(resource string) SecurityOption` - Set static resource for RBAC
+  - `ResourceFromParams(fn func(params map[string]string) string) SecurityOption` - Resolve resource from path params
+  - `ResourceFromRequest(fn func(r *http.Request) string) SecurityOption` - Resolve resource from full request
+  - `Action(action string) SecurityOption` - Set custom action (defaults to HTTP method)
 - `NewPlaygroundValidator(v Validator) Validator` - Create validator adapter
 - `WriteErr(api API, ctx Context, status int, msg string, errs ...error) error` - Write error response
 - `Error400BadRequest(msg string, errs ...error) StatusError` - Create 400 error

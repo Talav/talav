@@ -61,15 +61,24 @@ type Settings struct {
 	CustomFields  map[string]any `json:"custom_fields" openapi:"title=Custom Fields,description=Additional custom fields"`
 }
 
-func TestRequestFromType_EndToEnd(t *testing.T) {
-	// Create metadata with all parsers
+// setupExtractor creates a RequestSchemaExtractor with default configuration for testing.
+func setupExtractor() *requestSchemaExtractor {
 	metadata := NewMetadata()
-
-	// Create registry
 	registry := NewMapRegistry("#/components/schemas/", DefaultSchemaNamer, metadata)
 
-	// Create extractor
-	extractor := NewRequestSchemaExtractor(registry, metadata)
+	return NewRequestSchemaExtractor(registry, metadata)
+}
+
+// assertOperationJSON marshals the operation to JSON and compares it with the expected JSON string.
+func assertOperationJSON(t *testing.T, op *Operation, wantedJSON string) {
+	t.Helper()
+	operationJSON, err := json.MarshalIndent(op, "", "  ")
+	require.NoError(t, err, "Should be able to marshal operation with indentation")
+	assert.JSONEq(t, wantedJSON, string(operationJSON), "Generated JSON should match expected JSON")
+}
+
+func TestRequestFromType_EndToEnd(t *testing.T) {
+	extractor := setupExtractor()
 
 	// Create operation
 	op := &Operation{
@@ -81,10 +90,6 @@ func TestRequestFromType_EndToEnd(t *testing.T) {
 	inputType := reflect.TypeOf(ComplexRequestInput{})
 	err := extractor.RequestFromType(inputType, op)
 	require.NoError(t, err, "Should successfully extract request schema")
-
-	// Marshal operation to JSON with indentation for comparison
-	operationJSON, err := json.MarshalIndent(op, "", "  ")
-	require.NoError(t, err, "Should be able to marshal operation with indentation")
 
 	// Expected JSON string - review and verify this is correct
 	// This can be copy-pasted from actual output for validation
@@ -248,8 +253,7 @@ func TestRequestFromType_EndToEnd(t *testing.T) {
   }
 }`
 
-	// Compare JSON strings
-	assert.JSONEq(t, wantedJSON, string(operationJSON), "Generated JSON should match expected JSON")
+	assertOperationJSON(t, op, wantedJSON)
 }
 
 // FileUploadInput represents a multipart file upload request.
@@ -269,14 +273,7 @@ type FileUploadInput struct {
 }
 
 func TestRequestFromType_MultipartFileUpload(t *testing.T) {
-	// Create metadata with all parsers
-	metadata := NewMetadata()
-
-	// Create registry
-	registry := NewMapRegistry("#/components/schemas/", DefaultSchemaNamer, metadata)
-
-	// Create extractor
-	extractor := NewRequestSchemaExtractor(registry, metadata)
+	extractor := setupExtractor()
 
 	// Create operation
 	op := &Operation{
@@ -288,10 +285,6 @@ func TestRequestFromType_MultipartFileUpload(t *testing.T) {
 	inputType := reflect.TypeOf(FileUploadInput{})
 	err := extractor.RequestFromType(inputType, op)
 	require.NoError(t, err, "Should successfully extract request schema")
-
-	// Marshal operation to JSON with indentation for comparison
-	operationJSON, err := json.MarshalIndent(op, "", "  ")
-	require.NoError(t, err, "Should be able to marshal operation with indentation")
 
 	// Expected JSON string - multipart/form-data with binary file
 	wantedJSON := `{
@@ -355,6 +348,187 @@ func TestRequestFromType_MultipartFileUpload(t *testing.T) {
   }
 }`
 
-	// Compare JSON strings
-	assert.JSONEq(t, wantedJSON, string(operationJSON), "Generated JSON should match expected JSON")
+	assertOperationJSON(t, op, wantedJSON)
+}
+
+func TestExtractSecurity_PublicRoute(t *testing.T) {
+	extractor := setupExtractor()
+
+	// Create operation
+	op := &Operation{
+		OperationID: "publicEndpoint",
+	}
+
+	// Extract security from public route
+	route := &BaseRoute{
+		Security: nil, // Public route
+	}
+	extractor.ExtractSecurity(route, op)
+
+	// Expected JSON string - public route has no security
+	wantedJSON := `{
+  "operationId": "publicEndpoint"
+}`
+
+	assertOperationJSON(t, op, wantedJSON)
+}
+
+func TestExtractSecurity_RequireAuthOnly(t *testing.T) {
+	extractor := setupExtractor()
+
+	// Create operation
+	op := &Operation{
+		OperationID: "authRequired",
+	}
+
+	// Extract security from route requiring auth only (using Roles("authenticated"))
+	route := &BaseRoute{
+		Security: &RouteSecurity{
+			Roles: []string{"authenticated"},
+		},
+	}
+	extractor.ExtractSecurity(route, op)
+
+	// Expected JSON string - Auth() adds Roles("authenticated")
+	wantedJSON := `{
+  "operationId": "authRequired",
+  "security": [
+    {
+      "bearerAuth": ["authenticated"]
+    }
+  ]
+}`
+
+	assertOperationJSON(t, op, wantedJSON)
+}
+
+func TestExtractSecurity_WithRoles(t *testing.T) {
+	extractor := setupExtractor()
+
+	// Create operation
+	op := &Operation{
+		OperationID: "adminOnly",
+	}
+
+	// Extract security from route with roles
+	route := &BaseRoute{
+		Security: &RouteSecurity{
+			Roles: []string{"admin", "editor"},
+		},
+	}
+	extractor.ExtractSecurity(route, op)
+
+	// Expected JSON string - roles as scopes
+	wantedJSON := `{
+  "operationId": "adminOnly",
+  "security": [
+    {
+      "bearerAuth": [
+        "admin",
+        "editor"
+      ]
+    }
+  ]
+}`
+
+	assertOperationJSON(t, op, wantedJSON)
+}
+
+func TestExtractSecurity_WithPermissions(t *testing.T) {
+	extractor := setupExtractor()
+
+	// Create operation
+	op := &Operation{
+		OperationID: "postsAccess",
+	}
+
+	// Extract security from route with permissions
+	route := &BaseRoute{
+		Security: &RouteSecurity{
+			Permissions: []string{"posts:read", "posts:write"},
+		},
+	}
+	extractor.ExtractSecurity(route, op)
+
+	// Expected JSON string - permissions as scopes
+	wantedJSON := `{
+  "operationId": "postsAccess",
+  "security": [
+    {
+      "bearerAuth": [
+        "posts:read",
+        "posts:write"
+      ]
+    }
+  ]
+}`
+
+	assertOperationJSON(t, op, wantedJSON)
+}
+
+func TestExtractSecurity_WithRolesAndPermissions(t *testing.T) {
+	extractor := setupExtractor()
+
+	// Create operation
+	op := &Operation{
+		OperationID: "adminDelete",
+	}
+
+	// Extract security from route with roles and permissions
+	route := &BaseRoute{
+		Security: &RouteSecurity{
+			Roles:       []string{"admin"},
+			Permissions: []string{"posts:delete"},
+		},
+	}
+	extractor.ExtractSecurity(route, op)
+
+	// Expected JSON string - roles and permissions combined as scopes
+	wantedJSON := `{
+  "operationId": "adminDelete",
+  "security": [
+    {
+      "bearerAuth": [
+        "admin",
+        "posts:delete"
+      ]
+    }
+  ]
+}`
+
+	assertOperationJSON(t, op, wantedJSON)
+}
+
+func TestExtractSecurity_DoesNotOverrideExisting(t *testing.T) {
+	extractor := setupExtractor()
+
+	// Create operation with existing security
+	op := &Operation{
+		OperationID: "customAuth",
+		Security: []map[string][]string{
+			{"customAuth": {"scope1"}},
+		},
+	}
+
+	// Extract security from route - should not override existing
+	route := &BaseRoute{
+		Security: &RouteSecurity{
+			Roles: []string{"admin"},
+		},
+	}
+	extractor.ExtractSecurity(route, op)
+
+	// Expected JSON string - existing security preserved
+	wantedJSON := `{
+  "operationId": "customAuth",
+  "security": [
+    {
+      "customAuth": [
+        "scope1"
+      ]
+    }
+  ]
+}`
+
+	assertOperationJSON(t, op, wantedJSON)
 }

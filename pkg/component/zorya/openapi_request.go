@@ -252,3 +252,24 @@ func extractMultipartEncoding(s *Schema) map[string]*Encoding {
 
 	return encoding
 }
+
+// ExtractSecurity populates the operation's Security field from RouteSecurity.
+// Only sets Security if route has security requirements and operation.Security is empty.
+func (e *requestSchemaExtractor) ExtractSecurity(route *BaseRoute, op *Operation) {
+	if route.Security == nil {
+		return // Public route - no security
+	}
+
+	if len(op.Security) > 0 {
+		return // Security already set manually
+	}
+
+	// Convert RouteSecurity to OpenAPI format
+	// If Security exists, it means the route is protected
+	scopes := make([]string, 0, len(route.Security.Roles)+len(route.Security.Permissions))
+	scopes = append(scopes, route.Security.Roles...)
+	scopes = append(scopes, route.Security.Permissions...)
+	op.Security = []map[string][]string{
+		{"bearerAuth": scopes},
+	}
+}

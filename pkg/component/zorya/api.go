@@ -331,7 +331,7 @@ func registerOpenAPIEndpoint(a *api) {
 	var specJSON []byte
 	a.adapter.Handle(&BaseRoute{
 		Method: http.MethodGet,
-		Path:   a.config.OpenAPIPath + ".json",
+		Path:   a.config.OpenAPIPath,
 	}, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.oai.openapi+json")
 		if specJSON == nil {
@@ -434,21 +434,7 @@ func WithOpenAPI(openAPI *OpenAPI) Option {
 // for the request path/query/header/cookie parameters and/or body. The output
 // struct must be a struct with fields for the output headers and body of the
 // operation, if any.
-//
-//	huma.Register(api, huma.Operation{
-//		OperationID: "get-greeting",
-//		Method:      http.MethodGet,
-//		Path:        "/greeting/{name}",
-//		Summary:     "Get a greeting",
-//	}, func(ctx context.Context, input *GreetingInput) (*GreetingOutput, error) {
-//		if input.Name == "bob" {
-//			return nil, huma.Error404NotFound("no greeting for bob")
-//		}
-//		resp := &GreetingOutput{}
-//		resp.MyHeader = "MyValue"
-//		resp.Body.Message = fmt.Sprintf("Hello, %s!", input.Name)
-//		return resp, nil
-//	})
+
 func Register[I, O any](api API, route BaseRoute, handler func(context.Context, *I) (*O, error)) error {
 	inputType := reflect.TypeFor[I]()
 	if inputType.Kind() != reflect.Struct {
@@ -466,7 +452,18 @@ func Register[I, O any](api API, route BaseRoute, handler func(context.Context, 
 
 	// Create and register HTTP handler
 	httpHandler := createRequestHandler(api, &route, handler)
-	allMiddlewares := append(api.Middlewares(), route.Middlewares...)
+
+	// Build middleware chain:
+	// 1. Router params extraction
+	// 2. Security metadata middleware (if Secure() was used)
+	// 3. API-level middlewares
+	// 4. Route-specific middlewares
+	allMiddlewares := Middlewares{newRouterParamsMiddleware(api.Adapter(), &route)}
+	if securityMiddleware := newSecurityMetadataMiddleware(route.Security); securityMiddleware != nil {
+		allMiddlewares = append(allMiddlewares, securityMiddleware)
+	}
+	allMiddlewares = append(allMiddlewares, api.Middlewares()...)
+	allMiddlewares = append(allMiddlewares, route.Middlewares...)
 	finalHandler := allMiddlewares.Apply(http.HandlerFunc(httpHandler))
 
 	api.Adapter().Handle(&route, finalHandler.ServeHTTP)
@@ -491,6 +488,9 @@ func registerOpenAPISchemas(api API, route *BaseRoute, inputType, outputType ref
 	if err := api.RequestSchemaExtractor().RequestFromType(inputType, op); err != nil {
 		return fmt.Errorf("failed to extract request schema: %w", err)
 	}
+
+	// Extract security requirements
+	api.RequestSchemaExtractor().ExtractSecurity(route, op)
 
 	// Extract OpenAPI response schema (success + error responses)
 	if err := api.ResponseSchemaExtractor().ResponseFromType(outputType, route); err != nil {
@@ -520,7 +520,8 @@ func addOperationToPath(openAPI *OpenAPI, path, method string, op *Operation) er
 // createRequestHandler creates the HTTP handler for processing requests.
 func createRequestHandler[I, O any](api API, route *BaseRoute, handler func(context.Context, *I) (*O, error)) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		routerParams := api.Adapter().ExtractRouterParams(r, route)
+		// Router params are extracted by RouterParamsMiddleware and stored in context
+		routerParams := GetRouterParams(r)
 
 		// Setup request limits
 		setupRequestLimits(r, w, *route)
