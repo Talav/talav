@@ -8,6 +8,7 @@ type SecurityConfig struct {
 	JWT         JWTConfig         `config:"jwt"`
 	Cookie      CookieConfig      `config:"cookie"`
 	TokenSource TokenSourceConfig `config:"token_source"`
+	Enforcer    EnforcerConfig    `config:"enforcer"`
 }
 
 // JWTConfig represents JWT configuration.
@@ -44,6 +45,11 @@ type HasherConfig struct {
 	SaltLength int `config:"salt_length"`
 }
 
+// EnforcerConfig represents enforcer configuration.
+type EnforcerConfig struct {
+	Type string `config:"type"` // "simple" or "custom" (defaults to "simple")
+}
+
 // DefaultSecurityConfig returns a SecurityConfig with all default values set.
 func DefaultSecurityConfig() SecurityConfig {
 	return SecurityConfig{
@@ -68,6 +74,9 @@ func DefaultSecurityConfig() SecurityConfig {
 			Sources:    []string{"header", "cookie"},
 			HeaderName: "Authorization",
 			CookieName: "access_token",
+		},
+		Enforcer: EnforcerConfig{
+			Type: "simple",
 		},
 	}
 }

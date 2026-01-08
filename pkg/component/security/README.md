@@ -1,14 +1,16 @@
 # Security Component
 
-Framework-agnostic security component providing JWT authentication, password hashing, and user abstraction.
+Framework-agnostic security component providing JWT authentication, password hashing, authorization, and user abstraction.
 
 ## Features
 
 - **JWT Token Management**: Create and validate access tokens and refresh tokens
 - **Password Hashing**: Bcrypt-based password hashing with salt
+- **Authorization**: Pluggable SecurityEnforcer interface for RBAC/ABAC
 - **User Abstraction**: Interface-based user provider for decoupling authentication from domain
 - **Context Helpers**: Request context integration for authenticated users
 - **Algorithm Support**: HS256 (symmetric) and RS256 (asymmetric) JWT algorithms
+- **Framework Adapters**: Clean integration with routing frameworks via adapter pattern
 
 ## Installation
 
@@ -23,9 +25,11 @@ go get github.com/talav/talav/pkg/component/security
 ```go
 import "github.com/talav/talav/pkg/component/security"
 
-factory := security.NewDefaultSecurityFactory()
-cfg := security.DefaultSecurityConfig()
-hasher := factory.CreatePasswordHasher(cfg)
+cfg := security.HasherConfig{
+    BcryptCost: 10,
+    SaltLength: 32,
+}
+hasher := security.NewPasswordHasher(cfg)
 
 salt, _ := hasher.GenerateSalt()
 hash, _ := hasher.HashPassword("password123", salt)
@@ -42,7 +46,7 @@ jwtCfg := security.JWTConfig{
     RefreshTokenExpiry: 168 * time.Hour,
 }
 
-jwtService, _ := factory.CreateJWTService(jwtCfg)
+jwtService, _ := security.NewJWTService(jwtCfg)
 
 // Create tokens
 accessToken, _ := jwtService.CreateAccessToken("user123", []string{"admin"})
@@ -114,7 +118,7 @@ security:
 The refresh token service supports token rotation for enhanced security:
 
 ```go
-refreshService := factory.CreateRefreshTokenService(jwtService, store)
+refreshService := security.NewRefreshTokenService(jwtService, store)
 
 // Rotate refresh token (invalidates old, creates new)
 newToken, userID, err := refreshService.RotateRefreshToken(ctx, oldToken)
@@ -147,3 +151,151 @@ if user == nil {
 }
 ```
 
+## Authorization
+
+### SecurityEnforcer Interface
+
+The `SecurityEnforcer` interface provides pluggable authorization logic:
+
+```go
+type SecurityEnforcer interface {
+    Enforce(ctx context.Context, user *AuthUser, requirements *SecurityRequirements) (bool, error)
+}
+
+type SecurityRequirements struct {
+    Roles       []string // User needs at least one
+    Permissions []string // User needs all
+    Resource    string   // Resource identifier (e.g., "organizations/123")
+    Action      string   // Action (e.g., "view", "edit", "POST")
+    RequireAuth bool     // Whether authentication is required
+}
+```
+
+### Built-in Enforcers
+
+**SimpleEnforcer**: Role-based authorization using user roles.
+
+```go
+enforcer := security.NewSimpleEnforcer()
+requirements := &security.SecurityRequirements{
+    Roles:       []string{"admin", "manager"},
+    Permissions: []string{"users.edit"},
+    RequireAuth: true,
+}
+
+ok, err := enforcer.Enforce(ctx, user, requirements)
+```
+
+### Custom Enforcers
+
+Implement your own authorization logic:
+
+```go
+type CasbinEnforcer struct {
+    enforcer *casbin.Enforcer
+}
+
+func (e *CasbinEnforcer) Enforce(ctx context.Context, user *AuthUser, req *SecurityRequirements) (bool, error) {
+    if user == nil {
+        return false, nil
+    }
+    
+    // Check resource-based permissions
+    if req.Resource != "" {
+        return e.enforcer.Enforce(user.ID, req.Resource, req.Action)
+    }
+    
+    // Check roles
+    for _, role := range req.Roles {
+        if e.enforcer.HasRoleForUser(user.ID, role) {
+            return true, nil
+        }
+    }
+    
+    return false, nil
+}
+```
+
+## Framework Integration
+
+The security component is framework-agnostic. Use adapters to integrate with specific frameworks:
+
+### Zorya Framework
+
+Use the [Zorya adapter](./adapter/zorya/) for type-safe HTTP routing:
+
+```go
+import (
+    "github.com/talav/talav/pkg/component/security"
+    securityzorya "github.com/talav/talav/pkg/component/security/adapter/zorya"
+    "github.com/talav/talav/pkg/component/zorya"
+)
+
+// Setup
+api := zorya.NewAPI(adapter)
+api.UseMiddleware(security.NewJWTMiddleware(jwtService))
+api.UseMiddleware(securityzorya.NewEnforcementMiddleware(enforcer))
+
+// Protected routes
+zorya.Get(api, "/admin/users", handler,
+    zorya.Secure(
+        zorya.Roles("admin"),
+    ),
+)
+
+zorya.Get(api, "/orgs/{orgId}/projects", handler,
+    zorya.Secure(
+        zorya.Roles("member"),
+        zorya.ResourceFromParams(func(params map[string]string) string {
+            return "organizations/" + params["orgId"]
+        }),
+    ),
+)
+```
+
+See [adapter/zorya/README.md](./adapter/zorya/README.md) for full documentation.
+
+### Manual Integration
+
+You can integrate with any HTTP framework manually:
+
+```go
+// 1. Authentication middleware
+func jwtAuthMiddleware(jwtService *security.JWTService) func(http.Handler) http.Handler {
+    return func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            token := extractToken(r)
+            claims, err := jwtService.ValidateAccessToken(token)
+            if err == nil {
+                user := &security.AuthUser{
+                    ID:    claims.Subject,
+                    Roles: claims.Roles,
+                }
+                r = security.SetAuthUser(r, user)
+            }
+            next.ServeHTTP(w, r)
+        })
+    }
+}
+
+// 2. Authorization middleware
+func authzMiddleware(enforcer security.SecurityEnforcer) func(http.Handler) http.Handler {
+    return func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            user := security.GetAuthUser(r)
+            requirements := &security.SecurityRequirements{
+                Roles:       []string{"admin"},
+                RequireAuth: true,
+            }
+            
+            ok, _ := enforcer.Enforce(r.Context(), user, requirements)
+            if !ok {
+                http.Error(w, "Forbidden", 403)
+                return
+            }
+            
+            next.ServeHTTP(w, r)
+        })
+    }
+}
+```

@@ -51,62 +51,90 @@ func NewRefreshTokenService(jwtService JWTService, store RefreshTokenStore) Refr
 
 // RotateRefreshToken validates an old refresh token and generates a new one.
 func (s *DefaultRefreshTokenService) RotateRefreshToken(ctx context.Context, oldToken string) (string, string, error) {
-	// Validate the old token
-	claims, err := s.jwtService.ValidateRefreshToken(oldToken)
+	userID, tokenID, err := s.validateAndExtractTokenInfo(oldToken)
 	if err != nil {
-		return "", "", ErrRefreshTokenInvalid
+		return "", "", err
 	}
 
-	userID := claims.Subject
-	if userID == "" {
-		return "", "", ErrRefreshTokenInvalid
+	if err := s.revokeOldToken(ctx, tokenID, userID); err != nil {
+		return "", "", err
 	}
 
-	// Extract token ID from claims (use jti if present, otherwise use a hash of the token)
-	tokenID := claims.ID
-	if tokenID == "" {
-		// Fallback: use a hash of the token as ID
-		tokenID = hashToken(oldToken)
-	}
-
-	// Check if token exists in store (for rotation)
-	if s.store != nil {
-		storedUserID, err := s.store.Get(ctx, tokenID)
-		if err != nil || storedUserID != userID {
-			return "", "", ErrRefreshTokenInvalid
-		}
-
-		// Delete old token
-		if err := s.store.Delete(ctx, tokenID); err != nil {
-			return "", "", fmt.Errorf("failed to revoke old token: %w", err)
-		}
-	}
-
-	// Generate new refresh token
 	newToken, err := s.jwtService.CreateRefreshToken(userID)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create new refresh token: %w", err)
 	}
 
-	// Store new token if store is available
-	if s.store != nil {
-		newClaims, err := s.jwtService.ValidateRefreshToken(newToken)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to validate new token: %w", err)
-		}
-
-		newTokenID := newClaims.ID
-		if newTokenID == "" {
-			newTokenID = hashToken(newToken)
-		}
-
-		expiresAt := newClaims.ExpiresAt.Time
-		if err := s.store.Store(ctx, userID, newTokenID, expiresAt); err != nil {
-			return "", "", fmt.Errorf("failed to store new token: %w", err)
-		}
+	if err := s.storeNewToken(ctx, newToken, userID); err != nil {
+		return "", "", err
 	}
 
 	return newToken, userID, nil
+}
+
+// validateAndExtractTokenInfo validates the token and extracts user ID and token ID.
+func (s *DefaultRefreshTokenService) validateAndExtractTokenInfo(token string) (userID, tokenID string, err error) {
+	claims, err := s.jwtService.ValidateRefreshToken(token)
+	if err != nil {
+		return "", "", ErrRefreshTokenInvalid
+	}
+
+	userID = claims.Subject
+	if userID == "" {
+		return "", "", ErrRefreshTokenInvalid
+	}
+
+	tokenID = s.extractTokenID(claims.ID, token)
+
+	return userID, tokenID, nil
+}
+
+// extractTokenID extracts token ID from claims or generates a hash.
+func (s *DefaultRefreshTokenService) extractTokenID(claimID, token string) string {
+	if claimID != "" {
+		return claimID
+	}
+
+	return hashToken(token)
+}
+
+// revokeOldToken revokes the old token if store is available.
+func (s *DefaultRefreshTokenService) revokeOldToken(ctx context.Context, tokenID, userID string) error {
+	if s.store == nil {
+		return nil
+	}
+
+	storedUserID, err := s.store.Get(ctx, tokenID)
+	if err != nil || storedUserID != userID {
+		return ErrRefreshTokenInvalid
+	}
+
+	if err := s.store.Delete(ctx, tokenID); err != nil {
+		return fmt.Errorf("failed to revoke old token: %w", err)
+	}
+
+	return nil
+}
+
+// storeNewToken stores the new token if store is available.
+func (s *DefaultRefreshTokenService) storeNewToken(ctx context.Context, newToken, userID string) error {
+	if s.store == nil {
+		return nil
+	}
+
+	newClaims, err := s.jwtService.ValidateRefreshToken(newToken)
+	if err != nil {
+		return fmt.Errorf("failed to validate new token: %w", err)
+	}
+
+	newTokenID := s.extractTokenID(newClaims.ID, newToken)
+	expiresAt := newClaims.ExpiresAt.Time
+
+	if err := s.store.Store(ctx, userID, newTokenID, expiresAt); err != nil {
+		return fmt.Errorf("failed to store new token: %w", err)
+	}
+
+	return nil
 }
 
 // RevokeRefreshToken invalidates a refresh token.
@@ -142,5 +170,6 @@ func (s *DefaultRefreshTokenService) RevokeAllRefreshTokens(ctx context.Context,
 func hashToken(token string) string {
 	// Simple hash - in production use crypto/sha256
 	h := sha256.Sum256([]byte(token))
+
 	return hex.EncodeToString(h[:])
 }
