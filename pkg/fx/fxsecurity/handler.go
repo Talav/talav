@@ -26,8 +26,7 @@ type LoginResponse struct {
 }
 
 // RefreshRequest represents the HTTP request to refresh tokens.
-type RefreshRequest struct {
-}
+type RefreshRequest struct{}
 
 // RefreshResponse represents the refresh response with new tokens.
 type RefreshResponse struct {
@@ -38,8 +37,7 @@ type RefreshResponse struct {
 }
 
 // LogoutRequest represents the HTTP request to logout.
-type LogoutRequest struct {
-}
+type LogoutRequest struct{}
 
 // LogoutResponse represents the logout response.
 type LogoutResponse struct {
@@ -84,25 +82,23 @@ func (h *LoginHandler) Handle(ctx context.Context, input *LoginRequest) (*LoginR
 		return nil, zorya.Error401Unauthorized("invalid credentials")
 	}
 
-	if err := h.hasher.ComparePassword(securityUser.PasswordHash, input.Body.Password, securityUser.Salt); err != nil {
+	if err := h.hasher.ComparePassword(securityUser.PasswordHash(), input.Body.Password, securityUser.Salt()); err != nil {
 		return nil, zorya.Error401Unauthorized("invalid credentials")
 	}
 
 	// Create access token
-	accessToken, err := h.jwtService.CreateAccessToken(securityUser.ID, securityUser.Roles)
+	accessToken, err := h.jwtService.CreateAccessToken(securityUser.ID(), securityUser.Roles())
 	if err != nil {
 		return nil, zorya.Error500InternalServerError("failed to create access token", err)
 	}
 
 	// Create refresh token
-	refreshToken, err := h.jwtService.CreateRefreshToken(securityUser.ID)
+	// Note: Refresh token is created but not yet used.
+	// Cookie setting should be done in middleware/response writer wrapper when implemented.
+	_, err = h.jwtService.CreateRefreshToken(securityUser.ID())
 	if err != nil {
 		return nil, zorya.Error500InternalServerError("failed to create refresh token", err)
 	}
-
-	// Set refresh token in cookie (access token returned in body)
-	// Note: Cookie setting should be done in middleware/response writer wrapper
-	// For now, we'll return it in the response and let the caller set cookies
 
 	expiresIn := int(h.accessTokenExpiry.Seconds())
 	if expiresIn == 0 {
@@ -122,9 +118,9 @@ func (h *LoginHandler) Handle(ctx context.Context, input *LoginRequest) (*LoginR
 
 // RefreshHandler handles HTTP POST requests to refresh access tokens.
 type RefreshHandler struct {
-	jwtService     security.JWTService
-	refreshService security.RefreshTokenService
-	cookieCfg      security.CookieConfig
+	jwtService        security.JWTService
+	refreshService    security.RefreshTokenService
+	cookieCfg         security.CookieConfig
 	accessTokenExpiry time.Duration
 }
 
@@ -150,7 +146,6 @@ func (h *RefreshHandler) Handle(ctx context.Context, input *RefreshRequest) (*Re
 	// For now, this is a placeholder that needs to be adapted to extract cookies from request
 	// The refresh token should be extracted from the httpOnly cookie set during login
 
-	// TODO: Extract refresh token from cookie in request
 	// This requires access to *http.Request which should be passed via context or handler signature
 	// For Zorya, we may need to use a custom handler wrapper or middleware
 
@@ -189,7 +184,7 @@ func SetCookie(w http.ResponseWriter, name, value string, cfg security.CookieCon
 		Path:     cfg.Path,
 		Domain:   cfg.Domain,
 		Secure:   cfg.Secure,
-		HttpOnly: cfg.HttpOnly,
+		HttpOnly: cfg.HTTPOnly,
 		MaxAge:   maxAge,
 	}
 
@@ -215,10 +210,9 @@ func ClearCookie(w http.ResponseWriter, name string, cfg security.CookieConfig) 
 		Path:     cfg.Path,
 		Domain:   cfg.Domain,
 		Secure:   cfg.Secure,
-		HttpOnly: cfg.HttpOnly,
+		HttpOnly: cfg.HTTPOnly,
 		MaxAge:   -1,
 		SameSite: http.SameSiteLaxMode,
 	}
 	http.SetCookie(w, cookie)
 }
-

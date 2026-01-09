@@ -25,14 +25,14 @@ type MyUserProvider struct {
 	// your dependencies
 }
 
-func (p *MyUserProvider) GetUserByIdentifier(ctx context.Context, identifier string) (*security.SecurityUser, error) {
-	// Lookup and return user
+func (p *MyUserProvider) GetUserByIdentifier(ctx context.Context, identifier string) (security.SecurityUser, error) {
+	// Lookup and return a type that implements security.SecurityUser interface
 }
 
 func main() {
 	fx.New(
 		fxsecurity.FxSecurityModule,
-		fxsecurity.AsJWTMiddleware(jwtService, cfg), // Register JWT middleware
+		fxsecurity.AsJWTMiddleware(), // Register JWT middleware (automatically uses jwtService and cfg from Fx)
 		fx.Provide(func() security.UserProvider {
 			return &MyUserProvider{}
 		}),
@@ -64,20 +64,119 @@ security:
   token_source:
     sources: ["header", "cookie"]
     header_name: "Authorization"
+  enforcer:
+    type: "simple"  # "simple" (default) or "custom"
+```
+
+## Security Enforcer Configuration
+
+The security enforcer is selected based on the `security.enforcer.type` configuration value. The enforcer is automatically provided by `FxSecurityModule` and used by `AsSecurityMiddleware()`.
+
+### Enforcer Types
+
+#### Simple Enforcer (Default)
+
+The simple enforcer performs basic role-based checks using roles from the authenticated user. No additional configuration or modules required.
+
+```yaml
+security:
+  enforcer:
+    type: "simple"  # or omit (defaults to "simple")
+```
+
+```go
+fx.New(
+	fxsecurity.FxSecurityModule,
+	fxsecurity.AsSecurityMiddleware(), // Uses SimpleEnforcer
+)
+```
+
+#### Custom Enforcer
+
+When using a custom enforcer, you provide your own `SecurityEnforcer` implementation. The framework only validates that one exists when `type: "custom"` is set.
+
+```yaml
+security:
+  enforcer:
+    type: "custom"
+```
+
+```go
+// Implement your custom enforcer
+type MyCustomEnforcer struct {
+	// ... your implementation
+}
+
+func (e *MyCustomEnforcer) Enforce(ctx context.Context, subject string, roles []string, resource string, action string) (bool, error) {
+	// Your custom logic
+}
+
+func (e *MyCustomEnforcer) HasRole(ctx context.Context, subject string, roles []string) (bool, error) {
+	// Your custom logic
+}
+
+func (e *MyCustomEnforcer) HasPermission(ctx context.Context, subject string, permissions []string) (bool, error) {
+	// Your custom logic
+}
+
+fx.New(
+	fxsecurity.FxSecurityModule,
+	fx.Provide(func() security.SecurityEnforcer {
+		return &MyCustomEnforcer{}
+	}), // Provide your custom enforcer
+	fxsecurity.AsSecurityMiddleware(), // Uses your custom enforcer
+)
+```
+
+**Requirements:**
+- Must provide `SecurityEnforcer` via `fx.Provide()`
+- Application will fail to start if `type: "custom"` but no `SecurityEnforcer` is provided
+
+**Example: Using Casbin enforcer**
+
+You can use Casbin by setting the enforcer type to "casbin" and providing a persist.Adapter:
+
+```go
+import (
+	"github.com/casbin/gorm-adapter/v3"
+	"github.com/talav/talav/pkg/fx/fxsecurity"
+	"go.uber.org/fx"
+)
+
+fx.New(
+	fxsecurity.FxSecurityModule,
+	fx.Provide(func(db *gorm.DB) (persist.Adapter, error) {
+		return gormadapter.NewAdapterByDB(db)
+	}),
+	fxsecurity.AsSecurityMiddleware(),
+)
+// config.yaml:
+//   security.enforcer.type: "casbin"
+//   casbin.model_path: "configs/casbin.conf"
 ```
 
 ## Middleware Registration
 
+### JWT Authentication Middleware
+
 JWT middleware must be registered explicitly at the app level:
 
 ```go
-fxsecurity.AsJWTMiddleware(jwtService, cfg)
+fxsecurity.AsJWTMiddleware() // Dependencies (jwtService, cfg) are automatically injected by Fx
 ```
 
-RBAC middleware can be registered per-route:
+### Security Enforcement Middleware
+
+Security enforcement middleware uses the enforcer configured via `security.enforcer.type`. The enforcer is automatically provided by `FxSecurityModule` based on your configuration.
 
 ```go
-authzMiddleware := fxsecurity.NewAuthZMiddleware(enforcer)
-router.Use(authzMiddleware.EnforceAccess("resource123", "read"))
+fxsecurity.AsSecurityMiddleware() // Uses SecurityEnforcer from config
 ```
 
+The middleware automatically:
+- Checks authentication requirements (`RequireAuth()`)
+- Validates user roles (`WithRoles()`)
+- Enforces permissions (`WithPermissions()`)
+- Performs resource-based policy checks (`WithResource()`)
+
+See the [Zorya README](../../component/zorya/README.md#route-security-and-authorization) for details on declarative route security.

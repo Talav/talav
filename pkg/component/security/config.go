@@ -47,7 +47,7 @@ type HasherConfig struct {
 
 // EnforcerConfig represents enforcer configuration.
 type EnforcerConfig struct {
-	Type string `config:"type"` // "simple" or "custom" (defaults to "simple")
+	Type string `config:"type"`
 }
 
 // DefaultSecurityConfig returns a SecurityConfig with all default values set.

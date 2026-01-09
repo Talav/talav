@@ -18,8 +18,6 @@ github.com/go-playground/validator/v10 v10.29.0 h1:lQlF5VNJWNlRbRZNeOIkWElR+1LL/
 github.com/go-playground/validator/v10 v10.29.0/go.mod h1:D6QxqeMlgIPuT02L66f2ccrZ7AGgHkzKmmTMZhk/Kc4=
 github.com/gofiber/fiber/v2 v2.52.10 h1:jRHROi2BuNti6NYXmZ6gbNSfT3zj/8c0xy94GOU5elY=
 github.com/gofiber/fiber/v2 v2.52.10/go.mod h1:YEcBbO/FB+5M1IZNBP9FO3J9281zgPAreiI1oqg8nDw=
-github.com/golang-jwt/jwt/v5 v5.2.3 h1:kkGXqQOBSDDWRhWNXTFpqGSCMyh/PLnqUvMGJPDJDs0=
-github.com/golang-jwt/jwt/v5 v5.2.3/go.mod h1:pqrtFR0X4osieyHYxtmOUWsAWrfe1Q5UVIyoH402zdk=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/klauspost/compress v1.17.9 h1:6KIumPrER1LHsvBVuDa0r5xaG0Es51mhhB9BQB2qeMA=
@@ -51,8 +49,6 @@ github.com/talav/talav/pkg/component/negotiation v0.0.0-20251213015208-199315015
 github.com/talav/talav/pkg/component/negotiation v0.0.0-20251213015208-199315015cbe/go.mod h1:LyN/80u17lIgtcStiJ/YK5PPRgTT6XRtUH1m5SbDE8M=
 github.com/talav/talav/pkg/component/schema v0.0.0-20251213015208-199315015cbe h1:t7fsyGXWSfPvn9kry80NNgCKL0Hu8xzMLj6X3gbNvAg=
 github.com/talav/talav/pkg/component/schema v0.0.0-20251213015208-199315015cbe/go.mod h1:zVrl4yLjFpBxWlA7UHxZClZvKZ7X3OSF5pv+TTsd18Y=
-github.com/talav/talav/pkg/component/security v0.0.0-20260104161949-7ff808fd8ff9 h1:dRfz3asPAbDsRsVLyI7SLYF6PEpgaKBSV8znoFw2daU=
-github.com/talav/talav/pkg/component/security v0.0.0-20260104161949-7ff808fd8ff9/go.mod h1:DKZyjZaeSxH/kdODs+9jKIXS5QGu4OZa2JHLdpmwlZw=
 github.com/talav/talav/pkg/component/tagparser v0.0.0-20251210172924-f671c53a0295 h1:K9ILOpSggi7AEYmurE9AWdzuwIbn7aI/8zF4+M+/ozU=
 github.com/talav/talav/pkg/component/tagparser v0.0.0-20251210172924-f671c53a0295/go.mod h1:h+5Y2qtpUCVuiIUWW8Yp8bzLTZvtD8Cji/oVayZd7z0=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=

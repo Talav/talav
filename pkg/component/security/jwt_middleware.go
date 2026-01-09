@@ -1,41 +1,42 @@
-package fxsecurity
+package security
 
 import (
 	"net/http"
 	"strings"
-
-	"github.com/talav/talav/pkg/component/security"
 )
 
-// JWTAuthMiddleware creates a middleware that extracts and validates JWT tokens.
-func JWTAuthMiddleware(jwtService security.JWTService, cfg security.SecurityConfig) func(http.Handler) http.Handler {
+// NewJWTAuthMiddleware creates a middleware that extracts and validates JWT tokens.
+func NewJWTAuthMiddleware(jwtService JWTService, cfg SecurityConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			tokenString := extractToken(r, cfg.TokenSource)
+			tokenString := ExtractToken(r, cfg.TokenSource)
 			if tokenString == "" {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+
 				return
 			}
 
 			claims, err := jwtService.ValidateAccessToken(tokenString)
 			if err != nil {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+
 				return
 			}
 
-			user := &security.AuthUser{
+			user := &AuthUser{
 				ID:    claims.Subject,
 				Roles: claims.Roles,
 			}
 
-			r = security.SetAuthUser(r, user)
+			r = SetAuthUser(r, user)
 			next.ServeHTTP(w, r)
 		})
 	}
 }
 
-// extractToken extracts the JWT token from the request based on configured sources.
-func extractToken(r *http.Request, cfg security.TokenSourceConfig) string {
+// ExtractToken extracts the JWT token from the request based on configured sources.
+// It tries each configured source in order and returns the first token found.
+func ExtractToken(r *http.Request, cfg TokenSourceConfig) string {
 	sources := cfg.Sources
 	if len(sources) == 0 {
 		sources = []string{"header", "cookie"}
@@ -44,11 +45,11 @@ func extractToken(r *http.Request, cfg security.TokenSourceConfig) string {
 	for _, source := range sources {
 		switch source {
 		case "header":
-			if token := extractTokenFromHeader(r, cfg.HeaderName); token != "" {
+			if token := ExtractTokenFromHeader(r, cfg.HeaderName); token != "" {
 				return token
 			}
 		case "cookie":
-			if token := extractTokenFromCookie(r, cfg.CookieName); token != "" {
+			if token := ExtractTokenFromCookie(r, cfg.CookieName); token != "" {
 				return token
 			}
 		}
@@ -57,8 +58,10 @@ func extractToken(r *http.Request, cfg security.TokenSourceConfig) string {
 	return ""
 }
 
-// extractTokenFromHeader extracts token from Authorization header.
-func extractTokenFromHeader(r *http.Request, headerName string) string {
+// ExtractTokenFromHeader extracts token from Authorization header.
+// Supports "Bearer <token>" format.
+// If headerName is empty, defaults to "Authorization".
+func ExtractTokenFromHeader(r *http.Request, headerName string) string {
 	if headerName == "" {
 		headerName = "Authorization"
 	}
@@ -77,8 +80,9 @@ func extractTokenFromHeader(r *http.Request, headerName string) string {
 	return parts[1]
 }
 
-// extractTokenFromCookie extracts token from cookie.
-func extractTokenFromCookie(r *http.Request, cookieName string) string {
+// ExtractTokenFromCookie extracts token from cookie.
+// If cookieName is empty, defaults to "access_token".
+func ExtractTokenFromCookie(r *http.Request, cookieName string) string {
 	if cookieName == "" {
 		cookieName = "access_token"
 	}
@@ -90,4 +94,3 @@ func extractTokenFromCookie(r *http.Request, cookieName string) string {
 
 	return cookie.Value
 }
-

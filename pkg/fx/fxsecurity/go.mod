@@ -4,10 +4,10 @@ go 1.25.0
 
 require (
 	github.com/casbin/casbin/v2 v2.89.0
-	github.com/talav/talav/pkg/component/security v0.0.0
-	github.com/talav/talav/pkg/component/zorya v0.0.0
-	github.com/talav/talav/pkg/fx/fxconfig v0.0.0
-	github.com/talav/talav/pkg/fx/fxhttpserver v0.0.0
+	github.com/talav/talav/pkg/component/security v0.0.0-20260108152727-349eb6dbc95e
+	github.com/talav/talav/pkg/component/zorya v0.0.0-20260104025751-ae831fd7ee9c
+	github.com/talav/talav/pkg/fx/fxconfig v0.0.0-20251116051607-5973f6a3ba6e
+	github.com/talav/talav/pkg/fx/fxhttpserver v0.0.0-20260104025751-ae831fd7ee9c
 	go.uber.org/fx v1.24.0
 )
 
@@ -43,6 +43,7 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/talav/talav/pkg/component/config v0.0.0-20251116032221-770a3c931351 // indirect
+	github.com/talav/talav/pkg/component/httpserver v0.0.0-20260104025751-ae831fd7ee9c // indirect
 	github.com/talav/talav/pkg/component/mapstructure v0.0.0-20251212040909-717bc712a8cc // indirect
 	github.com/talav/talav/pkg/component/negotiation v0.0.0-20251213015208-199315015cbe // indirect
 	github.com/talav/talav/pkg/component/schema v0.0.0-20251213015208-199315015cbe // indirect
@@ -59,11 +60,3 @@ require (
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 )
-
-replace github.com/talav/talav/pkg/component/security => ../../component/security
-
-replace github.com/talav/talav/pkg/component/zorya => ../../component/zorya
-
-replace github.com/talav/talav/pkg/fx/fxconfig => ../fxconfig
-
-replace github.com/talav/talav/pkg/fx/fxhttpserver => ../fxhttpserver

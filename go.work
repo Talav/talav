@@ -14,7 +14,6 @@ use (
 	./pkg/component/validator
 	./pkg/component/zorya
 	./pkg/fx/fxblob
-	./pkg/fx/fxcasbin
 	./pkg/fx/fxconfig
 	./pkg/fx/fxcore
 	./pkg/fx/fxhttpserver

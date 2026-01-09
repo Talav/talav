@@ -85,6 +85,52 @@ type RouteSecurity struct {
 // SecurityOption configures security requirements for a route.
 type SecurityOption func(*RouteSecurity)
 
+// Secure wraps security options and automatically injects metadata middleware.
+// The metadata middleware resolves resource templates and stores requirements in context.
+// Enforcement is done by the global security middleware (registered via api.UseMiddleware).
+//
+// Secure() requires at least one security option (Roles, Permissions, or Resource).
+// Routes without Secure() are public by default.
+//
+// Usage:
+//
+//	zorya.Get(api, "/admin/users", handler,
+//		zorya.Secure(
+//			zorya.Roles("admin"),
+//		),
+//	)
+//
+//	zorya.Get(api, "/orgs/{orgId}/projects", handler,
+//		zorya.Secure(
+//			zorya.Roles("member"),
+//			zorya.ResourceFromParams(func(params map[string]string) string {
+//				return "orgs/" + params["orgId"] + "/projects"
+//			}),
+//		),
+//	)
+func Secure(opts ...SecurityOption) func(*BaseRoute) {
+	if len(opts) == 0 {
+		panic("zorya.Secure() requires at least one security option. Use Roles(), Permissions(), or Resource() to define security requirements.")
+	}
+
+	return func(r *BaseRoute) {
+		// Initialize security metadata
+		if r.Security == nil {
+			r.Security = &RouteSecurity{}
+		}
+
+		// Apply all security options
+		for _, opt := range opts {
+			opt(r.Security)
+		}
+
+		// Validate that at least one requirement was set
+		if !hasSecurityRequirements(r.Security) {
+			panic("zorya.Secure() requires at least one security requirement. Use Roles(), Permissions(), or Resource() to define security requirements.")
+		}
+	}
+}
+
 // Roles requires the user to have at least one of the specified roles.
 func Roles(roles ...string) SecurityOption {
 	return func(s *RouteSecurity) {
@@ -167,36 +213,10 @@ func Action(action string) SecurityOption {
 	}
 }
 
-// Secure wraps security options and automatically injects metadata middleware.
-// The metadata middleware resolves resource templates and stores requirements in context.
-// Enforcement is done by the global security middleware (registered via api.UseMiddleware).
-//
-// Usage:
-//
-//	zorya.Get(api, "/admin/users", handler,
-//		zorya.Secure(
-//			zorya.Roles("admin"),
-//		),
-//	)
-//
-//	zorya.Get(api, "/orgs/{orgId}/projects", handler,
-//		zorya.Secure(
-//			zorya.Roles("member"),
-//			zorya.ResourceFromParams(func(params map[string]string) string {
-//				return "orgs/" + params["orgId"] + "/projects"
-//			}),
-//		),
-//	)
-func Secure(opts ...SecurityOption) func(*BaseRoute) {
-	return func(r *BaseRoute) {
-		// Initialize security metadata
-		if r.Security == nil {
-			r.Security = &RouteSecurity{}
-		}
-
-		// Apply all security options
-		for _, opt := range opts {
-			opt(r.Security)
-		}
-	}
+// hasSecurityRequirements checks if RouteSecurity has any requirements defined.
+func hasSecurityRequirements(s *RouteSecurity) bool {
+	return len(s.Roles) > 0 ||
+		len(s.Permissions) > 0 ||
+		s.Resource != "" ||
+		s.ResourceResolver != nil
 }
