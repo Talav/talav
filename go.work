@@ -10,6 +10,7 @@ use (
 	./pkg/component/orm
 	./pkg/component/schema
 	./pkg/component/security
+	./pkg/component/seeder
 	./pkg/component/tagparser
 	./pkg/component/user
 	./pkg/component/validator
@@ -21,6 +22,7 @@ use (
 	./pkg/fx/fxlogger
 	./pkg/fx/fxorm
 	./pkg/fx/fxsecurity
+	./pkg/fx/fxseeder
 	./pkg/fx/fxuser
 	./pkg/fx/fxvalidator
 	./pkg/module/security
