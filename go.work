@@ -1,12 +1,16 @@
 go 1.25.0
 
 use (
+	./cmd/app
+	./internal/command
+	./pkg/component/app
 	./pkg/component/blob
 	./pkg/component/config
 	./pkg/component/email
 	./pkg/component/httpserver
 	./pkg/component/logger
 	./pkg/component/mapstructure
+	./pkg/component/media
 	./pkg/component/negotiation
 	./pkg/component/orm
 	./pkg/component/schema
@@ -22,11 +26,13 @@ use (
 	./pkg/fx/fxemail
 	./pkg/fx/fxhttpserver
 	./pkg/fx/fxlogger
+	./pkg/fx/fxmedia
 	./pkg/fx/fxorm
 	./pkg/fx/fxsecurity
 	./pkg/fx/fxseeder
 	./pkg/fx/fxuser
 	./pkg/fx/fxvalidator
+	./pkg/module/media
 	./pkg/module/security
 	./pkg/module/user
 )

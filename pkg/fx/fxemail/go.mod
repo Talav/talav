@@ -9,6 +9,7 @@ require (
 )
 
 require (
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
@@ -20,6 +21,7 @@ require (
 	github.com/knadh/koanf/v2 v2.3.0 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/talav/talav/pkg/component/config v0.0.0-20251116032221-770a3c931351 // indirect
 	github.com/wneessen/go-mail v0.5.2 // indirect
 	go.uber.org/dig v1.19.0 // indirect
