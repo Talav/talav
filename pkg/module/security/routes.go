@@ -1,4 +1,4 @@
-package securityhttp
+package security
 
 import (
 	"github.com/talav/talav/pkg/component/zorya"

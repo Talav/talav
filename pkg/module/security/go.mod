@@ -1,4 +1,4 @@
-module github.com/talav/talav/pkg/module/securityhttp
+module github.com/talav/talav/pkg/module/security
 
 go 1.25.0
 

@@ -1,4 +1,4 @@
-package securityhttp
+package security
 
 import (
 	"github.com/talav/talav/pkg/module/security/handler"
@@ -6,7 +6,7 @@ import (
 )
 
 // ModuleName is the module name.
-const ModuleName = "securityhttp"
+const ModuleName = "security"
 
 // Module provides HTTP endpoints for authentication.
 //
