@@ -3,7 +3,7 @@ module github.com/talav/talav/pkg/fx/fxseeder
 go 1.25.0
 
 require (
-	github.com/talav/talav/pkg/component/seeder v0.0.0
+	github.com/talav/talav/pkg/component/seeder v0.0.0-20260110161500-7dd5db0d160d
 	github.com/talav/talav/pkg/fx/fxcore v0.0.0-20260110154709-b68bb30449a6
 	go.uber.org/fx v1.24.0
 )
