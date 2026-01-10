@@ -7,12 +7,12 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-// UniqueValidator validates uniqueness of values in database
+// UniqueValidator validates uniqueness of values in database.
 type UniqueValidator struct {
 	registry *RepositoryRegistry
 }
 
-// NewUniqueValidator creates a new unique validator with injected dependencies
+// NewUniqueValidator creates a new unique validator with injected dependencies.
 func NewUniqueValidator(registry *RepositoryRegistry) *UniqueValidator {
 	return &UniqueValidator{
 		registry: registry,
@@ -21,7 +21,7 @@ func NewUniqueValidator(registry *RepositoryRegistry) *UniqueValidator {
 
 // Validate checks if a value is unique in the database
 // Tag format: unique=EntityName.fieldName
-// Example: unique=User.email
+// Example: unique=User.email.
 func (v *UniqueValidator) Validate(ctx context.Context, fl validator.FieldLevel) bool {
 	// Parse the tag parameter (e.g., "User.email")
 	param := fl.Param()

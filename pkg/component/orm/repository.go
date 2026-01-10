@@ -6,7 +6,9 @@ import (
 	"gorm.io/gorm"
 )
 
-// BaseRepositoryInterface defines the common CRUD operations interface
+// BaseRepositoryInterface defines the common CRUD operations interface.
+//
+//nolint:interfacebloat // Repository interface intentionally includes comprehensive CRUD operations
 type BaseRepositoryInterface[T any] interface {
 	// Base repository methods
 	FindByID(ctx context.Context, id string) (*T, error)
@@ -24,32 +26,32 @@ type BaseRepositoryInterface[T any] interface {
 }
 
 // see https://github.com/aklinkert/go-gorm-repository/blob/master/repository.go for more deailts about this approach
-// BaseRepository provides common CRUD operations for any entity type
+// BaseRepository provides common CRUD operations for any entity type.
 type BaseRepository[T any] struct {
 	db *gorm.DB
 }
 
-// NewBaseRepository creates a new base repository instance
+// NewBaseRepository creates a new base repository instance.
 func NewBaseRepository[T any](db *gorm.DB) *BaseRepository[T] {
 	return &BaseRepository[T]{db: db}
 }
 
-// FindByID retrieves an entity by its string ID
+// FindByID retrieves an entity by its string ID.
 func (r *BaseRepository[T]) FindByID(ctx context.Context, id string) (*T, error) {
 	return r.FindByIDWithPreloads(ctx, id)
 }
 
-// FindByIDWithPreloads retrieves an entity by its string ID with specified preloads
+// FindByIDWithPreloads retrieves an entity by its string ID with specified preloads.
 func (r *BaseRepository[T]) FindByIDWithPreloads(ctx context.Context, id string, preloads ...string) (*T, error) {
 	return r.FindOneWithPreloads(ctx, "id", id, preloads...)
 }
 
-// FindOne retrieves an entity by a specific field
+// FindOne retrieves an entity by a specific field.
 func (r *BaseRepository[T]) FindOne(ctx context.Context, field string, value any) (*T, error) {
 	return r.FindOneWithPreloads(ctx, field, value)
 }
 
-// FindOneWithPreloads retrieves an entity by a specific field with specified preloads
+// FindOneWithPreloads retrieves an entity by a specific field with specified preloads.
 func (r *BaseRepository[T]) FindOneWithPreloads(ctx context.Context, field string, value any, preloads ...string) (*T, error) {
 	var entity T
 	query := r.db.WithContext(ctx)
@@ -62,15 +64,16 @@ func (r *BaseRepository[T]) FindOneWithPreloads(ctx context.Context, field strin
 	if err := query.Where(field+" = ?", value).First(&entity).Error; err != nil {
 		return nil, err
 	}
+
 	return &entity, nil
 }
 
-// Find retrieves all entities (with optional limit/offset)
+// Find retrieves all entities (with optional limit/offset).
 func (r *BaseRepository[T]) Find(ctx context.Context, limit, offset int) ([]*T, error) {
 	return r.FindWithPreloads(ctx, limit, offset)
 }
 
-// FindWithPreloads retrieves all entities with specified preloads (with optional limit/offset)
+// FindWithPreloads retrieves all entities with specified preloads (with optional limit/offset).
 func (r *BaseRepository[T]) FindWithPreloads(ctx context.Context, limit, offset int, preloads ...string) ([]*T, error) {
 	var entities []*T
 	query := r.db.WithContext(ctx)
@@ -90,10 +93,11 @@ func (r *BaseRepository[T]) FindWithPreloads(ctx context.Context, limit, offset 
 	if err := query.Find(&entities).Error; err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
-// Exists checks if an entity exists with given conditions (optimized with LIMIT 1)
+// Exists checks if an entity exists with given conditions (optimized with LIMIT 1).
 func (r *BaseRepository[T]) Exists(ctx context.Context, conditions map[string]any) (bool, error) {
 	var exists bool
 	query := r.db.WithContext(ctx).Model(new(T)).Select("1").Limit(1)
@@ -103,26 +107,28 @@ func (r *BaseRepository[T]) Exists(ctx context.Context, conditions map[string]an
 	}
 
 	err := query.Scan(&exists).Error
+
 	return exists, err
 }
 
-// GetDB returns the underlying GORM database instance
+// GetDB returns the underlying GORM database instance.
 func (r *BaseRepository[T]) GetDB() *gorm.DB {
 	return r.db
 }
 
-// Create inserts a new entity
+// Create inserts a new entity.
 func (r *BaseRepository[T]) Create(ctx context.Context, entity *T) error {
 	return r.db.WithContext(ctx).Create(entity).Error
 }
 
-// Update saves changes to an existing entity
+// Update saves changes to an existing entity.
 func (r *BaseRepository[T]) Update(ctx context.Context, entity *T) error {
 	return r.db.WithContext(ctx).Save(entity).Error
 }
 
-// Delete removes an entity by its string ID
+// Delete removes an entity by its string ID.
 func (r *BaseRepository[T]) Delete(ctx context.Context, id string) error {
 	var entity T
+
 	return r.db.WithContext(ctx).Delete(&entity, id).Error
 }

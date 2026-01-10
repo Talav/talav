@@ -18,7 +18,7 @@ type RepositoryRegistry struct {
 	repositories map[string]ExistsChecker
 }
 
-// NewRepositoryRegistry creates a new repository registry
+// NewRepositoryRegistry creates a new repository registry.
 func NewRepositoryRegistry() *RepositoryRegistry {
 	return &RepositoryRegistry{
 		repositories: make(map[string]ExistsChecker),
@@ -34,6 +34,7 @@ func NewRepositoryRegistryFromRepos(repos []ExistsChecker) *RepositoryRegistry {
 		normalizedEntityName := strings.ToLower(repo.EntityName())
 		registry.repositories[normalizedEntityName] = repo
 	}
+
 	return registry
 }
 
@@ -66,5 +67,6 @@ func (r *RepositoryRegistry) GetExistsChecker(entityName string) (ExistsChecker,
 	if !exists {
 		return nil, fmt.Errorf("repository for entity %s not found", entityName)
 	}
+
 	return repo, nil
 }

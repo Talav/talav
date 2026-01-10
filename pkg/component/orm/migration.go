@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,13 +12,13 @@ import (
 	"gorm.io/gorm"
 )
 
-// Migration handles database schema migrations
+// Migration handles database schema migrations.
 type Migration struct {
 	migrator *migrate.Migrate
 	db       *gorm.DB
 }
 
-// NewMigration creates a new Migration instance
+// NewMigration creates a new Migration instance.
 func NewMigration(migrator *migrate.Migrate, db *gorm.DB) *Migration {
 	return &Migration{
 		migrator: migrator,
@@ -25,7 +26,7 @@ func NewMigration(migrator *migrate.Migrate, db *gorm.DB) *Migration {
 	}
 }
 
-// Create creates a new migration file with the given name
+// Create creates a new migration file with the given name.
 func (s *Migration) Create(name string) error {
 	// Use timestamp-based naming to avoid conflicts between developers
 	// Format: YYYYMMDDHHMMSS (20060102150405 in Go time format)
@@ -36,33 +37,35 @@ func (s *Migration) Create(name string) error {
 	downFile := filepath.Join(migrationsDir, fmt.Sprintf("%s_%s.down.sql", timestamp, name))
 
 	// Create empty migration files
-	if err := os.WriteFile(upFile, []byte(""), 0o644); err != nil {
+	if err := os.WriteFile(upFile, []byte(""), 0o600); err != nil {
 		return fmt.Errorf("failed to create up migration file: %w", err)
 	}
-	if err := os.WriteFile(downFile, []byte(""), 0o644); err != nil {
+	if err := os.WriteFile(downFile, []byte(""), 0o600); err != nil {
 		return fmt.Errorf("failed to create down migration file: %w", err)
 	}
 
 	return nil
 }
 
-// Up applies all pending migrations
+// Up applies all pending migrations.
 func (s *Migration) Up() error {
-	if err := s.migrator.Up(); err != nil && err != migrate.ErrNoChange {
+	if err := s.migrator.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("failed to run migrations up: %w", err)
 	}
+
 	return nil
 }
 
-// Down rolls back the last migration
+// Down rolls back the last migration.
 func (s *Migration) Down() error {
-	if err := s.migrator.Steps(-1); err != nil && err != migrate.ErrNoChange {
+	if err := s.migrator.Steps(-1); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("failed to run migrations down: %w", err)
 	}
+
 	return nil
 }
 
-// Reset drops all tables and recreates the schema_migrations table
+// Reset drops all tables and recreates the schema_migrations table.
 func (s *Migration) Reset() error {
 	if err := s.migrator.Drop(); err != nil {
 		return fmt.Errorf("failed to reset database: %w", err)

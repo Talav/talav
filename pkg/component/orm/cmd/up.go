@@ -7,7 +7,7 @@ import (
 	"github.com/talav/talav/pkg/component/orm"
 )
 
-// NewMigrateUpCmd creates the migrate up command
+// NewMigrateUpCmd creates the migrate up command.
 func NewMigrateUpCmd(migration *orm.Migration, logger *slog.Logger) *cobra.Command {
 	return &cobra.Command{
 		Use:   "up",
@@ -16,10 +16,12 @@ func NewMigrateUpCmd(migration *orm.Migration, logger *slog.Logger) *cobra.Comma
 		RunE: func(c *cobra.Command, args []string) error {
 			if err := migration.Up(); err != nil {
 				logger.Error("Failed to apply migrations", "error", err)
+
 				return err
 			}
 
 			logger.Info("Migrations applied successfully")
+
 			return nil
 		},
 	}

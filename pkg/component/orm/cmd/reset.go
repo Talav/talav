@@ -7,7 +7,7 @@ import (
 	"github.com/talav/talav/pkg/component/orm"
 )
 
-// NewMigrateResetCmd creates the migrate reset command
+// NewMigrateResetCmd creates the migrate reset command.
 func NewMigrateResetCmd(migration *orm.Migration, logger *slog.Logger) *cobra.Command {
 	return &cobra.Command{
 		Use:   "reset",
@@ -17,10 +17,12 @@ func NewMigrateResetCmd(migration *orm.Migration, logger *slog.Logger) *cobra.Co
 			logger.Warn("Resetting database - dropping all tables...")
 			if err := migration.Reset(); err != nil {
 				logger.Error("Failed to reset database", "error", err)
+
 				return err
 			}
 
 			logger.Info("Database reset successfully")
+
 			return nil
 		},
 	}

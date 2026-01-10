@@ -7,7 +7,7 @@ import (
 	"github.com/talav/talav/pkg/component/orm"
 )
 
-// NewMigrateDownCmd creates the migrate down command
+// NewMigrateDownCmd creates the migrate down command.
 func NewMigrateDownCmd(migration *orm.Migration, logger *slog.Logger) *cobra.Command {
 	return &cobra.Command{
 		Use:   "down",
@@ -16,10 +16,12 @@ func NewMigrateDownCmd(migration *orm.Migration, logger *slog.Logger) *cobra.Com
 		RunE: func(c *cobra.Command, args []string) error {
 			if err := migration.Down(); err != nil {
 				logger.Error("Failed to rollback migration", "error", err)
+
 				return err
 			}
 
 			logger.Info("Migration rolled back successfully")
+
 			return nil
 		},
 	}

@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewMigrateCmd creates a new migrate command
+// NewMigrateCmd creates a new migrate command.
 func NewMigrateCmd(
 	createCmd *cobra.Command,
 	upCmd *cobra.Command,
