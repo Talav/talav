@@ -51,6 +51,7 @@ func (h *CreateUserHandler) Handle(ctx context.Context, cmd *CreateUserCommand) 
 	user, err := domain.NewUser(cmd.Name, cmd.Email, cmd.Password, h.hasher)
 	if err != nil {
 		h.logger.Error("Failed to create user domain entity", "error", err)
+
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
@@ -64,6 +65,7 @@ func (h *CreateUserHandler) Handle(ctx context.Context, cmd *CreateUserCommand) 
 		role, err := h.roleRepo.FindOneByName(ctx, roleName)
 		if err != nil {
 			h.logger.Error("Failed to get role by name", "error", err, "roleName", roleName)
+
 			return nil, fmt.Errorf("failed to assign role %s: %w", roleName, err)
 		}
 		roles = append(roles, *role)
@@ -74,6 +76,7 @@ func (h *CreateUserHandler) Handle(ctx context.Context, cmd *CreateUserCommand) 
 	err = h.userRepo.Create(ctx, user)
 	if err != nil {
 		h.logger.Error("Failed to save user to repository", "error", err)
+
 		return nil, fmt.Errorf("failed to save user: %w", err)
 	}
 

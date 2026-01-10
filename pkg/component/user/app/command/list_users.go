@@ -48,6 +48,7 @@ func (h *ListUsersQueryHandler) Handle(ctx context.Context, query *ListUsersQuer
 		if query.NameFilter != "" {
 			db = db.Where("LOWER(name) LIKE LOWER(?)", "%"+query.NameFilter+"%")
 		}
+
 		return db
 	}
 
@@ -55,6 +56,7 @@ func (h *ListUsersQueryHandler) Handle(ctx context.Context, query *ListUsersQuer
 	users, err := h.userRepo.ListWithSpec(ctx, spec, query.Limit, query.Cursor)
 	if err != nil {
 		h.logger.Error("Failed to list users", "error", err)
+
 		return nil, err
 	}
 

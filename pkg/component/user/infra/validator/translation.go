@@ -30,6 +30,7 @@ func (t *PasswordTranslation) Register(validator *v.Validate, trans ut.Translato
 		},
 		func(ut ut.Translator, fe v.FieldError) string {
 			t, _ := ut.T(fe.Tag(), fe.Field())
+
 			return t
 		})
 }

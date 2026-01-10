@@ -28,6 +28,7 @@ func (p *PasswordValidator) Tag() string {
 func (p *PasswordValidator) Fn() v.Func {
 	return func(fl v.FieldLevel) bool {
 		password := fl.Field().String()
+
 		return pv.GetEntropy(password) >= minEntropyBits
 	}
 }
