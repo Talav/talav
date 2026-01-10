@@ -5,9 +5,9 @@ go 1.25.0
 require (
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.29.0
-	github.com/talav/talav/pkg/component/orm v0.0.0-00010101000000-000000000000
-	github.com/talav/talav/pkg/component/security v0.0.0-00010101000000-000000000000
-	github.com/talav/talav/pkg/component/validator v0.0.0-20260109044559-4cdbab846d03
+	github.com/talav/talav/pkg/component/orm v0.0.0-20260110030210-f4bf852d657a
+	github.com/talav/talav/pkg/component/security v0.0.0-20260110030210-f4bf852d657a
+	github.com/talav/talav/pkg/component/validator v0.0.0-20260110030210-f4bf852d657a
 	github.com/wagslane/go-password-validator v0.3.0
 	golang.org/x/crypto v0.45.0
 	gorm.io/gorm v1.31.1

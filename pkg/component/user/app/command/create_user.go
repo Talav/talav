@@ -1,4 +1,4 @@
-package service
+package command
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/talav/talav/pkg/component/security"
 	"github.com/talav/talav/pkg/component/user/domain"
-	"github.com/talav/talav/pkg/component/user/repository"
+	"github.com/talav/talav/pkg/component/user/infra/repository"
 )
 
 // CreateUserCommand represents the command to create a new user.

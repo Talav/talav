@@ -1,0 +1,39 @@
+name: "security-ci"
+
+on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Go module path to test"
+        required: false
+        type: string
+        default: "pkg/module/security"
+  push:
+    branches:
+      - "feat**"
+      - "fix**"
+      - "hotfix**"
+      - "chore**"
+      - "main"
+    paths:
+      - "pkg/module/security/**.go"
+      - "pkg/module/security/go.mod"
+      - "pkg/module/security/go.sum"
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    branches:
+      - main
+    paths:
+      - "pkg/module/security/**.go"
+      - "pkg/module/security/go.mod"
+      - "pkg/module/security/go.sum"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/common-ci.yml
+    secrets: inherit
+    with:
+      module: "pkg/module/security"

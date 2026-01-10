@@ -81,8 +81,12 @@ github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UV
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
-github.com/talav/talav/pkg/component/validator v0.0.0-20260109044559-4cdbab846d03 h1:oHArI1pUjqNdPcq+Q5lnfXfqbi6V1vR1iClu4EzeURQ=
-github.com/talav/talav/pkg/component/validator v0.0.0-20260109044559-4cdbab846d03/go.mod h1:v3kAkZbzyvEIFhr1onnF7/VXVR4HFi7w+jzumH4dg40=
+github.com/talav/talav/pkg/component/orm v0.0.0-20260110030210-f4bf852d657a h1:YHEMLCv7Zd0n1SS4O3dWwSXraDEuymada52sz2Vc2c4=
+github.com/talav/talav/pkg/component/orm v0.0.0-20260110030210-f4bf852d657a/go.mod h1:N0e1KqArRBXrn+yRUsGOxZ7pKbyq3TCpoTVIKxnjh6o=
+github.com/talav/talav/pkg/component/security v0.0.0-20260110030210-f4bf852d657a h1:QWf0L0GsOmnOwfjwukliAAxOn8/Yk0XnXyByKDbPXxw=
+github.com/talav/talav/pkg/component/security v0.0.0-20260110030210-f4bf852d657a/go.mod h1:/kocoVChHHpwtSqeoxB1M9zPtGMVEFX5DoqJhnPbSQc=
+github.com/talav/talav/pkg/component/validator v0.0.0-20260110030210-f4bf852d657a h1:ks8DS1N0FYocW5umrJNKETyaREl/ZYycN2oRCvSaeE0=
+github.com/talav/talav/pkg/component/validator v0.0.0-20260110030210-f4bf852d657a/go.mod h1:v3kAkZbzyvEIFhr1onnF7/VXVR4HFi7w+jzumH4dg40=
 github.com/wagslane/go-password-validator v0.3.0 h1:vfxOPzGHkz5S146HDpavl0cw1DSVP061Ry2PX0/ON6I=
 github.com/wagslane/go-password-validator v0.3.0/go.mod h1:TI1XJ6T5fRdRnHqHt14pvy1tNVnrwe7m3/f1f2fDphQ=
 go.opentelemetry.io/auto/sdk v1.1.0 h1:cH53jehLUN6UFLY71z+NDOiNJqDdPRaXzTel0sJySYA=

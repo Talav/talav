@@ -1,0 +1,39 @@
+name: "fxuser-ci"
+
+on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Go module path to test"
+        required: false
+        type: string
+        default: "pkg/fx/fxuser"
+  push:
+    branches:
+      - "feat**"
+      - "fix**"
+      - "hotfix**"
+      - "chore**"
+      - "main"
+    paths:
+      - "pkg/fx/fxuser/**.go"
+      - "pkg/fx/fxuser/go.mod"
+      - "pkg/fx/fxuser/go.sum"
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    branches:
+      - main
+    paths:
+      - "pkg/fx/fxuser/**.go"
+      - "pkg/fx/fxuser/go.mod"
+      - "pkg/fx/fxuser/go.sum"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/common-ci.yml
+    secrets: inherit
+    with:
+      module: "pkg/fx/fxuser"

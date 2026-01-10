@@ -1,11 +1,11 @@
-package service
+package command
 
 import (
 	"context"
 	"log/slog"
 
 	"github.com/talav/talav/pkg/component/user/domain"
-	"github.com/talav/talav/pkg/component/user/repository"
+	"github.com/talav/talav/pkg/component/user/infra/repository"
 )
 
 // GetUserQuery represents the query to get a user by ID.
