@@ -7,5 +7,5 @@ type ORMConfig struct {
 	Password string `config:"password"`
 	Name     string `config:"name"`
 	Port     int    `config:"port"`
-	SSLMode  string `config:"sslmode"`
+	SSLMode  string `config:"ssl_mode"`
 }

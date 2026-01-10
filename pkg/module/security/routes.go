@@ -2,7 +2,7 @@ package securityhttp
 
 import (
 	"github.com/talav/talav/pkg/component/zorya"
-	"github.com/talav/talav/pkg/module/securityhttp/handler"
+	"github.com/talav/talav/pkg/module/security/handler"
 )
 
 // RegisterRoutes registers all authentication-related routes.

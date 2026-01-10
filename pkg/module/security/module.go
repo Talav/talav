@@ -1,7 +1,7 @@
 package securityhttp
 
 import (
-	"github.com/talav/talav/pkg/module/securityhttp/handler"
+	"github.com/talav/talav/pkg/module/security/handler"
 	"go.uber.org/fx"
 )
 
