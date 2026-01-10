@@ -3,8 +3,8 @@ module github.com/talav/talav/pkg/fx/fxemail
 go 1.25.0
 
 require (
-	github.com/talav/talav/pkg/component/email v0.0.0
-	github.com/talav/talav/pkg/fx/fxconfig v0.0.0
+	github.com/talav/talav/pkg/component/email v0.0.0-20260110164752-0e4fc0abdf5b
+	github.com/talav/talav/pkg/fx/fxconfig v0.0.0-20260110164752-0e4fc0abdf5b
 	go.uber.org/fx v1.24.0
 )
 
@@ -26,7 +26,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.3 // indirect
-	golang.org/x/crypto v0.28.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/text v0.19.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
 )
