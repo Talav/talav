@@ -590,33 +590,45 @@ func transformAndWriteResponse[O any](api API, r *http.Request, w http.ResponseW
 }
 
 // Get registers a GET route handler.
-func Get[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) error {
-	return convenience(api, http.MethodGet, path, handler, options...)
+// Panics on errors since route registration happens during startup
+// and errors represent programming/configuration mistakes.
+func Get[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) {
+	convenience(api, http.MethodGet, path, handler, options...)
 }
 
 // Post registers a POST route handler.
-func Post[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) error {
-	return convenience(api, http.MethodPost, path, handler, options...)
+// Panics on errors since route registration happens during startup
+// and errors represent programming/configuration mistakes.
+func Post[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) {
+	convenience(api, http.MethodPost, path, handler, options...)
 }
 
 // Put registers a PUT route handler.
-func Put[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) error {
-	return convenience(api, http.MethodPut, path, handler, options...)
+// Panics on errors since route registration happens during startup
+// and errors represent programming/configuration mistakes.
+func Put[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) {
+	convenience(api, http.MethodPut, path, handler, options...)
 }
 
 // Delete registers a DELETE route handler.
-func Delete[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) error {
-	return convenience(api, http.MethodDelete, path, handler, options...)
+// Panics on errors since route registration happens during startup
+// and errors represent programming/configuration mistakes.
+func Delete[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) {
+	convenience(api, http.MethodDelete, path, handler, options...)
 }
 
 // Patch registers a PATCH route handler.
-func Patch[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) error {
-	return convenience(api, http.MethodPatch, path, handler, options...)
+// Panics on errors since route registration happens during startup
+// and errors represent programming/configuration mistakes.
+func Patch[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) {
+	convenience(api, http.MethodPatch, path, handler, options...)
 }
 
 // Head registers a HEAD route handler.
-func Head[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) error {
-	return convenience(api, http.MethodHead, path, handler, options...)
+// Panics on errors since route registration happens during startup
+// and errors represent programming/configuration mistakes.
+func Head[I, O any](api API, path string, handler func(context.Context, *I) (*O, error), options ...func(*BaseRoute)) {
+	convenience(api, http.MethodHead, path, handler, options...)
 }
 
 // setPathItemOperation sets the operation on a PathItem based on the HTTP method.
@@ -646,7 +658,9 @@ func setPathItemOperation(pathItem *PathItem, method string, op *Operation) erro
 }
 
 // convenience is a helper function used by Get, Post, Put, Delete, Patch, and Head.
-func convenience[I, O any](api API, method, path string, handler func(context.Context, *I) (*O, error), options ...func(o *BaseRoute)) error {
+// Panics on errors since route registration happens during startup and errors
+// represent programming/configuration mistakes that should fail fast.
+func convenience[I, O any](api API, method, path string, handler func(context.Context, *I) (*O, error), options ...func(o *BaseRoute)) {
 	// generate operation id, generate summary, generate base route, execute all options
 	route := BaseRoute{
 		Method: method,
@@ -656,5 +670,7 @@ func convenience[I, O any](api API, method, path string, handler func(context.Co
 		o(&route)
 	}
 
-	return Register(api, route, handler)
+	if err := Register(api, route, handler); err != nil {
+		panic(fmt.Errorf("failed to register route %s %s: %w", method, path, err))
+	}
 }

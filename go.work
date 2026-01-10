@@ -11,6 +11,7 @@ use (
 	./pkg/component/schema
 	./pkg/component/security
 	./pkg/component/tagparser
+	./pkg/component/user
 	./pkg/component/validator
 	./pkg/component/zorya
 	./pkg/fx/fxblob
@@ -20,5 +21,8 @@ use (
 	./pkg/fx/fxlogger
 	./pkg/fx/fxorm
 	./pkg/fx/fxsecurity
+	./pkg/fx/fxuser
 	./pkg/fx/fxvalidator
+	./pkg/module/security
+	./pkg/module/user
 )

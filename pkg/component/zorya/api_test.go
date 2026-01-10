@@ -59,14 +59,13 @@ func TestOpenAPIEndpoint_EndToEnd(t *testing.T) {
 	api := NewAPI(adapter)
 
 	// 2. Register a simple route (GET /users/{id})
-	err := Get(api, "/users/{id}", func(ctx context.Context, input *GetUserInput) (*GetUserOutput, error) {
+	Get(api, "/users/{id}", func(ctx context.Context, input *GetUserInput) (*GetUserOutput, error) {
 		output := &GetUserOutput{}
 		output.Body.ID = input.ID
 		output.Body.Name = "John Doe"
 
 		return output, nil
 	})
-	require.NoError(t, err, "Should successfully register route")
 
 	// 3. Make HTTP GET request to /openapi.json using httptest
 	req := httptest.NewRequest(http.MethodGet, "/openapi.json", nil)
@@ -81,7 +80,7 @@ func TestOpenAPIEndpoint_EndToEnd(t *testing.T) {
 
 	// 6. Parse response body
 	var spec map[string]interface{}
-	err = json.Unmarshal(recorder.Body.Bytes(), &spec)
+	err := json.Unmarshal(recorder.Body.Bytes(), &spec)
 	require.NoError(t, err, "Response body should be valid JSON")
 
 	// 7. Marshal with indentation for comparison
@@ -240,7 +239,7 @@ func TestOpenAPIEndpoint_FileUpload(t *testing.T) {
 	api := NewAPI(adapter)
 
 	// 2. Register a file upload route (POST /resources/{resource_id}/files)
-	err := Post(api, "/resources/{resource_id}/files", func(ctx context.Context, input *UploadFileInput) (*UploadFileOutput, error) {
+	Post(api, "/resources/{resource_id}/files", func(ctx context.Context, input *UploadFileInput) (*UploadFileOutput, error) {
 		output := &UploadFileOutput{}
 		output.Body.ID = 1
 		output.Body.Filename = input.Body.Filename
@@ -248,7 +247,6 @@ func TestOpenAPIEndpoint_FileUpload(t *testing.T) {
 
 		return output, nil
 	})
-	require.NoError(t, err, "Should successfully register file upload route")
 
 	// 3. Make HTTP GET request to /openapi.json using httptest
 	req := httptest.NewRequest(http.MethodGet, "/openapi.json", nil)
@@ -263,7 +261,7 @@ func TestOpenAPIEndpoint_FileUpload(t *testing.T) {
 
 	// 6. Parse response body
 	var spec map[string]interface{}
-	err = json.Unmarshal(recorder.Body.Bytes(), &spec)
+	err := json.Unmarshal(recorder.Body.Bytes(), &spec)
 	require.NoError(t, err, "Response body should be valid JSON")
 
 	// 7. Marshal with indentation for comparison
@@ -461,7 +459,7 @@ func TestOpenAPIEndpoint_FileDownload(t *testing.T) {
 	api := NewAPI(adapter)
 
 	// 2. Register a file download route (GET /files/{file_id})
-	err := Get(api, "/files/{file_id}", func(ctx context.Context, input *DownloadFileInput) (*DownloadFileOutput, error) {
+	Get(api, "/files/{file_id}", func(ctx context.Context, input *DownloadFileInput) (*DownloadFileOutput, error) {
 		output := &DownloadFileOutput{}
 		output.ContentType = "application/pdf"
 		output.ContentDisposition = "attachment; filename=\"document.pdf\""
@@ -469,7 +467,6 @@ func TestOpenAPIEndpoint_FileDownload(t *testing.T) {
 
 		return output, nil
 	})
-	require.NoError(t, err, "Should successfully register file download route")
 
 	// 3. Make HTTP GET request to /openapi.json using httptest
 	req := httptest.NewRequest(http.MethodGet, "/openapi.json", nil)
@@ -484,7 +481,7 @@ func TestOpenAPIEndpoint_FileDownload(t *testing.T) {
 
 	// 6. Parse response body
 	var spec map[string]interface{}
-	err = json.Unmarshal(recorder.Body.Bytes(), &spec)
+	err := json.Unmarshal(recorder.Body.Bytes(), &spec)
 	require.NoError(t, err, "Response body should be valid JSON")
 
 	// 7. Marshal with indentation for comparison
@@ -641,7 +638,7 @@ func TestOpenAPIEndpoint_FileInResponse(t *testing.T) {
 	api := NewAPI(adapter)
 
 	// 2. Register a route that returns a structured response with a file field (GET /files/{file_id}/with-metadata)
-	err := Get(api, "/files/{file_id}/with-metadata", func(ctx context.Context, input *GetFileWithMetadataInput) (*GetFileWithMetadataOutput, error) {
+	Get(api, "/files/{file_id}/with-metadata", func(ctx context.Context, input *GetFileWithMetadataInput) (*GetFileWithMetadataOutput, error) {
 		output := &GetFileWithMetadataOutput{}
 		output.Body.ID = 1
 		output.Body.Filename = "document.pdf"
@@ -651,7 +648,6 @@ func TestOpenAPIEndpoint_FileInResponse(t *testing.T) {
 
 		return output, nil
 	})
-	require.NoError(t, err, "Should successfully register route with file in response")
 
 	// 3. Make HTTP GET request to /openapi.json using httptest
 	req := httptest.NewRequest(http.MethodGet, "/openapi.json", nil)
@@ -666,7 +662,7 @@ func TestOpenAPIEndpoint_FileInResponse(t *testing.T) {
 
 	// 6. Parse response body
 	var spec map[string]interface{}
-	err = json.Unmarshal(recorder.Body.Bytes(), &spec)
+	err := json.Unmarshal(recorder.Body.Bytes(), &spec)
 	require.NoError(t, err, "Response body should be valid JSON")
 
 	// 7. Marshal with indentation for comparison
@@ -874,14 +870,13 @@ func TestOpenAPIEndpoint_ComprehensiveValidations(t *testing.T) {
 	api := NewAPI(adapter)
 
 	// 2. Register a route with comprehensive validations (POST /resources/{resource_id}/validate)
-	err := Post(api, "/resources/{resource_id}/validate", func(ctx context.Context, input *ComprehensiveValidationInput) (*ComprehensiveValidationOutput, error) {
+	Post(api, "/resources/{resource_id}/validate", func(ctx context.Context, input *ComprehensiveValidationInput) (*ComprehensiveValidationOutput, error) {
 		output := &ComprehensiveValidationOutput{}
 		output.Body.ID = 1
 		output.Body.Message = "Validation successful"
 
 		return output, nil
 	})
-	require.NoError(t, err, "Should successfully register route with comprehensive validations")
 
 	// 3. Make HTTP GET request to /openapi.json using httptest
 	req := httptest.NewRequest(http.MethodGet, "/openapi.json", nil)
@@ -896,7 +891,7 @@ func TestOpenAPIEndpoint_ComprehensiveValidations(t *testing.T) {
 
 	// 6. Parse response body
 	var spec map[string]interface{}
-	err = json.Unmarshal(recorder.Body.Bytes(), &spec)
+	err := json.Unmarshal(recorder.Body.Bytes(), &spec)
 	require.NoError(t, err, "Response body should be valid JSON")
 
 	// 7. Marshal with indentation for comparison
@@ -1241,14 +1236,13 @@ func TestDocsEndpoint_EndToEnd(t *testing.T) {
 	api := NewAPI(adapter)
 
 	// 2. Register a simple route (GET /users/{id})
-	err := Get(api, "/users/{id}", func(ctx context.Context, input *GetUserInput) (*GetUserOutput, error) {
+	Get(api, "/users/{id}", func(ctx context.Context, input *GetUserInput) (*GetUserOutput, error) {
 		output := &GetUserOutput{}
 		output.Body.ID = input.ID
 		output.Body.Name = "John Doe"
 
 		return output, nil
 	})
-	require.NoError(t, err, "Should successfully register route")
 
 	// 3. Make HTTP GET request to /docs using httptest
 	req := httptest.NewRequest(http.MethodGet, "/docs", nil)

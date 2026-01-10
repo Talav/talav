@@ -158,7 +158,7 @@ See the [schema package documentation](../schema/README.md) for detailed informa
 
 ### HTTP Methods
 
-Zorya provides convenience functions for all HTTP methods:
+Zorya provides convenience functions for all HTTP methods. These functions panic on errors since route registration happens during startup and errors represent programming/configuration mistakes:
 
 ```go
 zorya.Get(api, "/users/{id}", handler)
@@ -168,6 +168,8 @@ zorya.Patch(api, "/users/{id}", handler)
 zorya.Delete(api, "/users/{id}", handler)
 zorya.Head(api, "/users/{id}", handler)
 ```
+
+**Note:** For advanced use cases where you need error handling, use `zorya.Register` directly, which returns errors instead of panicking.
 
 ### Advanced Route Configuration
 
@@ -1188,13 +1190,13 @@ type ResponseWriter interface {
   - `WithFormatsReplace(formats map[string]Format) Option` - Replace all formats (excludes defaults)
   - `WithCodec(codec *schema.Codec) Option` - Set custom codec
   - `WithDefaultFormat(format string) Option` - Set default content type
-- `Get[I, O any](api API, path string, handler, ...options)` - Register GET route
-- `Post[I, O any](api API, path string, handler, ...options)` - Register POST route
-- `Put[I, O any](api API, path string, handler, ...options)` - Register PUT route
-- `Patch[I, O any](api API, path string, handler, ...options)` - Register PATCH route
-- `Delete[I, O any](api API, path string, handler, ...options)` - Register DELETE route
-- `Head[I, O any](api API, path string, handler, ...options)` - Register HEAD route
-- `Register[I, O any](api API, route BaseRoute, handler)` - Register route with full configuration
+- `Get[I, O any](api API, path string, handler, ...options)` - Register GET route (panics on errors)
+- `Post[I, O any](api API, path string, handler, ...options)` - Register POST route (panics on errors)
+- `Put[I, O any](api API, path string, handler, ...options)` - Register PUT route (panics on errors)
+- `Patch[I, O any](api API, path string, handler, ...options)` - Register PATCH route (panics on errors)
+- `Delete[I, O any](api API, path string, handler, ...options)` - Register DELETE route (panics on errors)
+- `Head[I, O any](api API, path string, handler, ...options)` - Register HEAD route (panics on errors)
+- `Register[I, O any](api API, route BaseRoute, handler) error` - Register route with full configuration (returns error)
 - `NewGroup(api API, prefixes ...string) *Group` - Create route group
 - **Security Options:**
   - `Secure(opts ...SecurityOption) RouteOption` - Wrap security requirements
