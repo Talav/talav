@@ -3,6 +3,7 @@ go 1.25.0
 use (
 	./pkg/component/blob
 	./pkg/component/config
+	./pkg/component/email
 	./pkg/component/httpserver
 	./pkg/component/logger
 	./pkg/component/mapstructure
@@ -18,6 +19,7 @@ use (
 	./pkg/fx/fxblob
 	./pkg/fx/fxconfig
 	./pkg/fx/fxcore
+	./pkg/fx/fxemail
 	./pkg/fx/fxhttpserver
 	./pkg/fx/fxlogger
 	./pkg/fx/fxorm

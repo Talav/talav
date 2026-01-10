@@ -1,0 +1,39 @@
+name: "fxemail-ci"
+
+on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Go module path to test"
+        required: false
+        type: string
+        default: "pkg/fx/fxemail"
+  push:
+    branches:
+      - "feat**"
+      - "fix**"
+      - "hotfix**"
+      - "chore**"
+      - "main"
+    paths:
+      - "pkg/fx/fxemail/**.go"
+      - "pkg/fx/fxemail/go.mod"
+      - "pkg/fx/fxemail/go.sum"
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    branches:
+      - main
+    paths:
+      - "pkg/fx/fxemail/**.go"
+      - "pkg/fx/fxemail/go.mod"
+      - "pkg/fx/fxemail/go.sum"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/common-ci.yml
+    secrets: inherit
+    with:
+      module: "pkg/fx/fxemail"
