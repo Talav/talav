@@ -63,6 +63,13 @@ linters:
     - usestdlibvars
     - whitespace
 
+issues:
+  exclude-rules:
+    # Disable dupl for test files - test patterns are intentionally similar
+    - path: _test\.go
+      linters:
+        - dupl
+
 formatters:
   enable:
     - gofumpt

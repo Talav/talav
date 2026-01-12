@@ -1,9 +1,6 @@
 go 1.25.0
 
 use (
-	./cmd/app
-	./internal/command
-	./pkg/component/app
 	./pkg/component/blob
 	./pkg/component/config
 	./pkg/component/email

@@ -3,12 +3,19 @@ module github.com/talav/talav/pkg/fx/fxmedia
 go 1.25.0
 
 require (
-	github.com/talav/talav/pkg/component/blob v0.0.0-20251116201256-01845c0b9b05
+	github.com/talav/talav/pkg/component/blob v0.0.0
 	github.com/talav/talav/pkg/component/media v0.0.0
 	github.com/talav/talav/pkg/fx/fxconfig v0.0.0
 	github.com/talav/talav/pkg/fx/fxorm v0.0.0
 	go.uber.org/fx v1.24.0
 	gocloud.dev v0.43.0
+)
+
+replace (
+	github.com/talav/talav/pkg/component/blob => ../../component/blob
+	github.com/talav/talav/pkg/component/media => ../../component/media
+	github.com/talav/talav/pkg/fx/fxconfig => ../fxconfig
+	github.com/talav/talav/pkg/fx/fxorm => ../fxorm
 )
 
 require (
@@ -49,7 +56,7 @@ require (
 	github.com/spf13/cobra v1.10.1 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/talav/talav/pkg/component/config v0.0.0-20251116032221-770a3c931351 // indirect
-	github.com/talav/talav/pkg/component/orm v0.0.0-20251117025947-61a2b5cde488 // indirect
+	github.com/talav/talav/pkg/component/orm v0.0.0-20260110175424-e63bf7f844e9 // indirect
 	github.com/talav/talav/pkg/component/validator v0.0.0-20251116205237-f0ac290e8937 // indirect
 	github.com/talav/talav/pkg/fx/fxcore v0.0.0-20251117025947-61a2b5cde488 // indirect
 	github.com/talav/talav/pkg/fx/fxvalidator v0.0.0-20251116205237-f0ac290e8937 // indirect
@@ -76,11 +83,4 @@ require (
 	google.golang.org/protobuf v1.36.6 // indirect
 	gorm.io/driver/postgres v1.6.0 // indirect
 	gorm.io/gorm v1.31.1 // indirect
-)
-
-replace (
-	github.com/talav/talav/pkg/component/media => ../../component/media
-	github.com/talav/talav/pkg/fx/fxblob => ../fxblob
-	github.com/talav/talav/pkg/fx/fxconfig => ../fxconfig
-	github.com/talav/talav/pkg/fx/fxorm => ../fxorm
 )

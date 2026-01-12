@@ -53,41 +53,65 @@ func (c *ImagingCodec) Encode(writer io.Writer, img image.Image, ext string, enc
 // Supported options:
 //   - "jpeg_quality": int (1-100, default 95)
 //   - "png_compression_level": int (0-9, maps to png.CompressionLevel)
-//   - "gif_num_colors": int (1-256, default 256)
+//   - "gif_num_colors": int (1-256, default 256).
 func buildEncodeOptions(opts map[string]any) []imaging.EncodeOption {
-	var encodeOpts []imaging.EncodeOption
 	if opts == nil {
-		return encodeOpts
+		return nil
 	}
 
-	// JPEG quality (1-100)
-	if quality, ok := opts["jpeg_quality"].(int); ok && quality >= 1 && quality <= 100 {
-		encodeOpts = append(encodeOpts, imaging.JPEGQuality(quality))
-	}
-
-	// PNG compression level (0-9, maps to png.CompressionLevel)
-	if level, ok := opts["png_compression_level"].(int); ok {
-		var compressionLevel png.CompressionLevel
-		switch {
-		case level <= 0:
-			compressionLevel = png.NoCompression
-		case level == 1:
-			compressionLevel = png.BestSpeed
-		case level >= 9:
-			compressionLevel = png.BestCompression
-		default:
-			// Map 2-8 to BestCompression for simplicity
-			compressionLevel = png.BestCompression
-		}
-		encodeOpts = append(encodeOpts, imaging.PNGCompressionLevel(compressionLevel))
-	}
-
-	// GIF number of colors (1-256)
-	if numColors, ok := opts["gif_num_colors"].(int); ok && numColors >= 1 && numColors <= 256 {
-		encodeOpts = append(encodeOpts, imaging.GIFNumColors(numColors))
-	}
+	var encodeOpts []imaging.EncodeOption
+	encodeOpts = appendJPEGQuality(encodeOpts, opts)
+	encodeOpts = appendPNGCompression(encodeOpts, opts)
+	encodeOpts = appendGIFNumColors(encodeOpts, opts)
 
 	return encodeOpts
+}
+
+// appendJPEGQuality adds JPEG quality option if present and valid.
+func appendJPEGQuality(opts []imaging.EncodeOption, config map[string]any) []imaging.EncodeOption {
+	quality, ok := config["jpeg_quality"].(int)
+	if !ok || quality < 1 || quality > 100 {
+		return opts
+	}
+
+	return append(opts, imaging.JPEGQuality(quality))
+}
+
+// appendPNGCompression adds PNG compression level option if present.
+func appendPNGCompression(opts []imaging.EncodeOption, config map[string]any) []imaging.EncodeOption {
+	level, ok := config["png_compression_level"].(int)
+	if !ok {
+		return opts
+	}
+
+	compressionLevel := mapPNGCompressionLevel(level)
+
+	return append(opts, imaging.PNGCompressionLevel(compressionLevel))
+}
+
+// mapPNGCompressionLevel maps integer level (0-9) to png.CompressionLevel.
+func mapPNGCompressionLevel(level int) png.CompressionLevel {
+	switch {
+	case level <= 0:
+		return png.NoCompression
+	case level == 1:
+		return png.BestSpeed
+	case level >= 9:
+		return png.BestCompression
+	default:
+		// Map 2-8 to BestCompression for simplicity
+		return png.BestCompression
+	}
+}
+
+// appendGIFNumColors adds GIF number of colors option if present and valid.
+func appendGIFNumColors(opts []imaging.EncodeOption, config map[string]any) []imaging.EncodeOption {
+	numColors, ok := config["gif_num_colors"].(int)
+	if !ok || numColors < 1 || numColors > 256 {
+		return opts
+	}
+
+	return append(opts, imaging.GIFNumColors(numColors))
 }
 
 // encodeAndMeasure encodes an image and returns metadata about the result

@@ -2,7 +2,7 @@ package media
 
 import (
 	"github.com/talav/talav/pkg/component/media/app/provider"
-	"github.com/talav/talav/pkg/component/media/cdn"
+	"github.com/talav/talav/pkg/component/media/infra/cdn"
 )
 
 // ResizerConfig represents configuration for a resizer.

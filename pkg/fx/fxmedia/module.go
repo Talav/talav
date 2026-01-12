@@ -11,7 +11,7 @@ import (
 	"github.com/talav/talav/pkg/component/media/app/provider"
 	"github.com/talav/talav/pkg/component/media/app/query"
 	"github.com/talav/talav/pkg/component/media/app/thumbnail"
-	"github.com/talav/talav/pkg/component/media/cdn"
+	"github.com/talav/talav/pkg/component/media/infra/cdn"
 	"github.com/talav/talav/pkg/component/media/infra/repo"
 	"github.com/talav/talav/pkg/component/media/infra/resizer"
 	mediastorage "github.com/talav/talav/pkg/component/media/infra/storage"

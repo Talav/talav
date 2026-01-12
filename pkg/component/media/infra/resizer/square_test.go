@@ -93,18 +93,9 @@ func encodeImageToBuffer(t *testing.T, img *image.NRGBA) *bytes.Buffer {
 	return &buf
 }
 
-// decodeAndVerifySquare decodes an image from buffer and verifies it's square with expected dimensions.
-func decodeAndVerifySquare(t *testing.T, buf *bytes.Buffer, expectedSize int) {
-	t.Helper()
-	img, err := imaging.Decode(buf)
-	require.NoError(t, err)
-	bounds := img.Bounds()
-	assert.Equal(t, expectedSize, bounds.Dx())
-	assert.Equal(t, expectedSize, bounds.Dy())
-	assert.Equal(t, bounds.Dx(), bounds.Dy(), "Output image should be square")
-}
-
 // saveImageToOutputDir saves an image to the testdata/output directory.
+//
+//nolint:unparam // Return value may be used for debugging/logging in the future
 func saveImageToOutputDir(t *testing.T, img image.Image, filename string) string {
 	t.Helper()
 	// Try relative path first (when running from package directory)
@@ -118,7 +109,7 @@ func saveImageToOutputDir(t *testing.T, img image.Image, filename string) string
 	absDir, err := filepath.Abs(outputDir)
 	require.NoError(t, err)
 	// Ensure directory exists - use absolute path for MkdirAll
-	err = os.MkdirAll(absDir, 0o755)
+	err = os.MkdirAll(absDir, 0o750)
 	require.NoError(t, err, "Failed to create directory: %s", absDir)
 	// Verify directory was created and is accessible
 	info, err := os.Stat(absDir)
@@ -142,72 +133,20 @@ func TestNewSquareResizer(t *testing.T) {
 
 func TestSquareResizer_Resize_WidthGreaterThanHeight(t *testing.T) {
 	resizer := setupResizer(t)
-
-	// Create test image 200x100 with checkerboard pattern
-	img := createTestImage(200, 100)
-	inputBuf := encodeImageToBuffer(t, img)
-
-	// Resize options
-	opts := ResizeOptions{
-		Width:  200,
-		Height: 100,
-		Format: "jpg",
-	}
-
-	var outputBuf bytes.Buffer
-	result, err := resizer.Resize(context.Background(), inputBuf, opts, &outputBuf)
-
-	require.NoError(t, err)
-	assert.Equal(t, 200, result.Width)
-	assert.Equal(t, 200, result.Height)
-	assert.Greater(t, result.FileSize, int64(0))
-
-	// Decode output to verify it's square
-	outputImg, err := imaging.Decode(&outputBuf)
-	require.NoError(t, err)
-	bounds := outputImg.Bounds()
-	assert.Equal(t, 200, bounds.Dx())
-	assert.Equal(t, 200, bounds.Dy())
-	assert.Equal(t, bounds.Dx(), bounds.Dy(), "Output image should be square")
-
-	// Save input and output for visual inspection
-	saveImageToOutputDir(t, img, "square-width-greater-than-height-input-200x100.jpg")
-	saveImageToOutputDir(t, outputImg, "square-width-greater-than-height-output-200x200.jpg")
+	testSquareResize(t, resizer, "width-greater-than-height",
+		200, 100,
+		ResizeOptions{Width: 200, Height: 100, Format: "jpg"},
+		200,
+	)
 }
 
 func TestSquareResizer_Resize_HeightGreaterThanWidth(t *testing.T) {
 	resizer := setupResizer(t)
-
-	// Create test image 100x200 with checkerboard pattern
-	img := createTestImage(100, 200)
-	inputBuf := encodeImageToBuffer(t, img)
-
-	// Resize options
-	opts := ResizeOptions{
-		Width:  100,
-		Height: 200,
-		Format: "jpg",
-	}
-
-	var outputBuf bytes.Buffer
-	result, err := resizer.Resize(context.Background(), inputBuf, opts, &outputBuf)
-
-	require.NoError(t, err)
-	assert.Equal(t, 200, result.Width)
-	assert.Equal(t, 200, result.Height)
-	assert.Greater(t, result.FileSize, int64(0))
-
-	// Decode output to verify it's square
-	outputImg, err := imaging.Decode(&outputBuf)
-	require.NoError(t, err)
-	bounds := outputImg.Bounds()
-	assert.Equal(t, 200, bounds.Dx())
-	assert.Equal(t, 200, bounds.Dy())
-	assert.Equal(t, bounds.Dx(), bounds.Dy(), "Output image should be square")
-
-	// Save input and output for visual inspection
-	saveImageToOutputDir(t, img, "square-height-greater-than-width-input-100x200.jpg")
-	saveImageToOutputDir(t, outputImg, "square-height-greater-than-width-output-200x200.jpg")
+	testSquareResize(t, resizer, "height-greater-than-width",
+		100, 200,
+		ResizeOptions{Width: 100, Height: 200, Format: "jpg"},
+		200,
+	)
 }
 
 func TestSquareResizer_Resize_DifferentFormats(t *testing.T) {
@@ -398,6 +337,7 @@ func TestSquareResizer_Resize_WithRealImageFile(t *testing.T) {
 
 	// Load real image file from testdata
 	testImagePath := filepath.Join("..", "..", "testdata", "test-1.jpg")
+	//nolint:gosec // Test file path is safe - it's a relative path within testdata
 	file, err := os.Open(testImagePath)
 	require.NoError(t, err, "Failed to open test image file")
 	defer func() { _ = file.Close() }()
@@ -450,10 +390,10 @@ func TestSquareResizer_Resize_WithRealImageFile(t *testing.T) {
 	saveImageToOutputDir(t, originalImg, fmt.Sprintf("square-with-real-image-file-input-%dx%d.jpg", originalWidth, originalHeight))
 
 	outputPath := filepath.Join("..", "..", "testdata", "output")
-	err = os.MkdirAll(outputPath, 0o755)
+	err = os.MkdirAll(outputPath, 0o750)
 	require.NoError(t, err)
 	outputPath = filepath.Join(outputPath, fmt.Sprintf("square-with-real-image-file-output-%dx%d.jpg", expectedSize, expectedSize))
-	err = os.WriteFile(outputPath, outputBytes, 0o644)
+	err = os.WriteFile(outputPath, outputBytes, 0o600)
 	require.NoError(t, err)
 	t.Logf("Output image saved to: %s", outputPath)
 
@@ -476,75 +416,23 @@ func TestSquareResizer_Resize_WithRealImageFile(t *testing.T) {
 
 func TestSquareResizer_Resize_SmallerImageThanRequested(t *testing.T) {
 	resizer := setupResizer(t)
-
 	// Create small test image 50x50 with checkerboard pattern
 	// This will make it obvious when upscaled
-	img := createTestImage(50, 50)
-	inputBuf := encodeImageToBuffer(t, img)
-
-	// Request larger dimensions (200x200)
-	opts := ResizeOptions{
-		Width:  200,
-		Height: 200,
-		Format: "jpg",
-	}
-
-	var outputBuf bytes.Buffer
-	result, err := resizer.Resize(context.Background(), inputBuf, opts, &outputBuf)
-
-	require.NoError(t, err)
-	// Should upscale to requested size (max of width/height = 200)
-	assert.Equal(t, 200, result.Width)
-	assert.Equal(t, 200, result.Height)
-	assert.Greater(t, result.FileSize, int64(0))
-
-	// Decode output to verify it's square and upscaled
-	outputImg, err := imaging.Decode(&outputBuf)
-	require.NoError(t, err)
-	bounds := outputImg.Bounds()
-	assert.Equal(t, 200, bounds.Dx(), "Image should be upscaled to requested width")
-	assert.Equal(t, 200, bounds.Dy(), "Image should be upscaled to requested height")
-	assert.Equal(t, bounds.Dx(), bounds.Dy(), "Output image should be square")
-
-	// Save both input and output for visual inspection
-	saveImageToOutputDir(t, img, "square-smaller-image-than-requested-input-50x50.jpg")
-	saveImageToOutputDir(t, outputImg, "square-smaller-image-than-requested-output-200x200.jpg")
+	testSquareResize(t, resizer, "smaller-image-than-requested",
+		50, 50,
+		ResizeOptions{Width: 200, Height: 200, Format: "jpg"},
+		200,
+	)
 }
 
 func TestSquareResizer_Resize_SmallerNonSquareImage(t *testing.T) {
 	resizer := setupResizer(t)
-
 	// Create small non-square test image 50x30 with checkerboard pattern
-	img := createTestImage(50, 30)
-	inputBuf := encodeImageToBuffer(t, img)
-
-	// Request larger square dimensions (200x200)
-	opts := ResizeOptions{
-		Width:  200,
-		Height: 200,
-		Format: "jpg",
-	}
-
-	var outputBuf bytes.Buffer
-	result, err := resizer.Resize(context.Background(), inputBuf, opts, &outputBuf)
-
-	require.NoError(t, err)
-	// Should upscale to requested size (max of width/height = 200)
-	assert.Equal(t, 200, result.Width)
-	assert.Equal(t, 200, result.Height)
-	assert.Greater(t, result.FileSize, int64(0))
-
-	// Decode output to verify it's square and upscaled
-	outputImg, err := imaging.Decode(&outputBuf)
-	require.NoError(t, err)
-	bounds := outputImg.Bounds()
-	assert.Equal(t, 200, bounds.Dx(), "Image should be upscaled to requested width")
-	assert.Equal(t, 200, bounds.Dy(), "Image should be upscaled to requested height")
-	assert.Equal(t, bounds.Dx(), bounds.Dy(), "Output image should be square")
-
-	// Save both input and output for visual inspection
-	saveImageToOutputDir(t, img, "square-smaller-nonsquare-input-50x30.jpg")
-	saveImageToOutputDir(t, outputImg, "square-smaller-nonsquare-output-200x200.jpg")
+	testSquareResize(t, resizer, "smaller-nonsquare",
+		50, 30,
+		ResizeOptions{Width: 200, Height: 200, Format: "jpg"},
+		200,
+	)
 }
 
 func TestSquareResizer_Resize_ValidImageRoundTrip(t *testing.T) {
@@ -585,13 +473,14 @@ func TestSquareResizer_Resize_ValidImageRoundTrip(t *testing.T) {
 
 	// Save to disk for roundtrip verification
 	outputDir := filepath.Join("..", "..", "testdata", "output")
-	err = os.MkdirAll(outputDir, 0o755)
+	err = os.MkdirAll(outputDir, 0o750)
 	require.NoError(t, err)
 	outputPath := filepath.Join(outputDir, "square-valid-image-roundtrip-saved-200x200.jpg")
-	err = os.WriteFile(outputPath, outputBytes, 0o644)
+	err = os.WriteFile(outputPath, outputBytes, 0o600)
 	require.NoError(t, err)
 
 	// Read back from disk
+	//nolint:gosec // Test file path is safe - it's a relative path within testdata/output
 	file, err := os.Open(outputPath)
 	require.NoError(t, err, "Failed to open saved image file")
 	defer func() { _ = file.Close() }()
