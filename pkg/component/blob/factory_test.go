@@ -34,4 +34,3 @@ func TestDefaultBlobFactory_Create_InvalidURL(t *testing.T) {
 	assert.Nil(t, bucket, "bucket should be nil on error")
 	assert.Contains(t, err.Error(), "failed to open blob bucket", "error message should indicate bucket opening failure")
 }
-

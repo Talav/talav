@@ -20,7 +20,7 @@ type testBodyStruct struct {
 	Count int    `schema:"count"`
 }
 
-func createBodyMetadata(bodyType BodyType, fieldType reflect.Type) *StructMetadata {
+func createBodyMetadata(_ BodyType, fieldType reflect.Type) *StructMetadata {
 	structType := reflect.StructOf([]reflect.StructField{
 		{
 			Name: "Body",
@@ -33,6 +33,7 @@ func createBodyMetadata(bodyType BodyType, fieldType reflect.Type) *StructMetada
 	if err != nil {
 		panic(fmt.Sprintf("failed to get struct metadata: %v", err))
 	}
+
 	return structMeta
 }
 

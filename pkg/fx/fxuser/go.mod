@@ -51,7 +51,7 @@ require (
 require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/talav/talav/pkg/component/user v0.0.0-20260110030210-f4bf852d657a
+	github.com/talav/talav/pkg/component/user v0.0.0-20260113034123-9da34ad44376
 	github.com/talav/talav/pkg/fx/fxconfig v0.0.0-20260110030210-f4bf852d657a
 	github.com/talav/talav/pkg/fx/fxorm v0.0.0-20260110030210-f4bf852d657a
 	github.com/talav/talav/pkg/fx/fxvalidator v0.0.0-20260110030210-f4bf852d657a
@@ -61,7 +61,3 @@ require (
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 )
-
-replace github.com/talav/talav/pkg/component/user => ../../component/user
-
-replace github.com/talav/talav/pkg/component/security => ../../component/security

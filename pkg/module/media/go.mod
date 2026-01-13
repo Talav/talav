@@ -3,15 +3,10 @@ module github.com/talav/talav/pkg/module/media
 go 1.25.0
 
 require (
-	github.com/talav/talav/pkg/component/media v0.0.0
-	github.com/talav/talav/pkg/component/zorya v0.0.0
+	github.com/talav/talav/pkg/component/media v0.0.0-20260113034123-9da34ad44376
+	github.com/talav/talav/pkg/component/zorya v0.0.0-20260113034123-9da34ad44376
 	go.uber.org/fx v1.24.0
 	gorm.io/gorm v1.31.1
-)
-
-replace (
-	github.com/talav/talav/pkg/component/media => ../../component/media
-	github.com/talav/talav/pkg/component/zorya => ../../component/zorya
 )
 
 require (

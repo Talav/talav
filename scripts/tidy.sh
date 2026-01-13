@@ -7,7 +7,7 @@ go work sync
 
 # 2. Tidy all modules
 echo "Tidying modules..."
-for dir in pkg/component/* pkg/fx/*; do
+for dir in pkg/component/* pkg/fx/* pkg/module/*; do
   if [ -f "$dir/go.mod" ]; then
     echo "Tidying $dir..."
     go mod tidy -C "$dir"

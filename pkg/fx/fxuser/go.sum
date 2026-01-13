@@ -122,6 +122,10 @@ github.com/talav/talav/pkg/component/config v0.0.0-20251116032221-770a3c931351 h
 github.com/talav/talav/pkg/component/config v0.0.0-20251116032221-770a3c931351/go.mod h1:ypUhcJ0MWnKO4HTFy2basRwuboIjYbDzgkbJqtnICdc=
 github.com/talav/talav/pkg/component/orm v0.0.0-20260110030210-f4bf852d657a h1:YHEMLCv7Zd0n1SS4O3dWwSXraDEuymada52sz2Vc2c4=
 github.com/talav/talav/pkg/component/orm v0.0.0-20260110030210-f4bf852d657a/go.mod h1:N0e1KqArRBXrn+yRUsGOxZ7pKbyq3TCpoTVIKxnjh6o=
+github.com/talav/talav/pkg/component/security v0.0.0-20260110030210-f4bf852d657a h1:QWf0L0GsOmnOwfjwukliAAxOn8/Yk0XnXyByKDbPXxw=
+github.com/talav/talav/pkg/component/security v0.0.0-20260110030210-f4bf852d657a/go.mod h1:/kocoVChHHpwtSqeoxB1M9zPtGMVEFX5DoqJhnPbSQc=
+github.com/talav/talav/pkg/component/user v0.0.0-20260113034123-9da34ad44376 h1:P1Vdx8WkwIylnwg7RFB4YCtvQyPXzrguU12LPNdBX0U=
+github.com/talav/talav/pkg/component/user v0.0.0-20260113034123-9da34ad44376/go.mod h1:dDLqE0lGZl2d0VdOiqyvHtwl/+Y8H/9TyE4JSJdWlVs=
 github.com/talav/talav/pkg/component/validator v0.0.0-20260110030210-f4bf852d657a h1:ks8DS1N0FYocW5umrJNKETyaREl/ZYycN2oRCvSaeE0=
 github.com/talav/talav/pkg/component/validator v0.0.0-20260110030210-f4bf852d657a/go.mod h1:v3kAkZbzyvEIFhr1onnF7/VXVR4HFi7w+jzumH4dg40=
 github.com/talav/talav/pkg/fx/fxconfig v0.0.0-20260110030210-f4bf852d657a h1:VAxX3ZDowOwKndyupu+PYvIkBK7hei3QPlQooUE2NIo=

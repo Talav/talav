@@ -36,6 +36,7 @@ func createParamMetadata(structVal any) *StructMetadata {
 	if err != nil {
 		panic(fmt.Sprintf("failed to build struct metadata: %v", err))
 	}
+
 	return structMeta
 }
 

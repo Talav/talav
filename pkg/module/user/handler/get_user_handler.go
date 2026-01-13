@@ -47,6 +47,7 @@ func (h *GetUserHandler) getUserByID(ctx context.Context, userID string) (*dto.G
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, zorya.Error404NotFound("User not found")
 		}
+
 		return nil, err
 	}
 

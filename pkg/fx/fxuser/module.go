@@ -66,6 +66,7 @@ var Module = fx.Module(
 func NewUserRepository(db *gorm.DB, logger *slog.Logger) repository.UserRepository {
 	repo := repository.NewUserRepository(db)
 	logger.Info("User repository initialized", "entity", repo.EntityName())
+
 	return repo
 }
 
@@ -73,6 +74,7 @@ func NewUserRepository(db *gorm.DB, logger *slog.Logger) repository.UserReposito
 func NewRoleRepository(db *gorm.DB, logger *slog.Logger) *repository.RoleRepository {
 	repo := repository.NewRoleRepository(db)
 	logger.Info("Role repository initialized", "entity", repo.EntityName())
+
 	return repo
 }
 
@@ -80,5 +82,6 @@ func NewRoleRepository(db *gorm.DB, logger *slog.Logger) *repository.RoleReposit
 func NewPasswordResetTokenRepository(db *gorm.DB, logger *slog.Logger) repository.PasswordResetTokenRepository {
 	repo := repository.NewPasswordResetTokenRepository(db)
 	logger.Info("Password reset token repository initialized")
+
 	return repo
 }

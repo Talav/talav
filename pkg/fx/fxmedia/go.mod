@@ -3,19 +3,12 @@ module github.com/talav/talav/pkg/fx/fxmedia
 go 1.25.0
 
 require (
-	github.com/talav/talav/pkg/component/blob v0.0.0
-	github.com/talav/talav/pkg/component/media v0.0.0
-	github.com/talav/talav/pkg/fx/fxconfig v0.0.0
-	github.com/talav/talav/pkg/fx/fxorm v0.0.0
+	github.com/talav/talav/pkg/component/blob v0.0.0-20260113034123-9da34ad44376
+	github.com/talav/talav/pkg/component/media v0.0.0-20260113034123-9da34ad44376
+	github.com/talav/talav/pkg/fx/fxconfig v0.0.0-20260113034123-9da34ad44376
+	github.com/talav/talav/pkg/fx/fxorm v0.0.0-20260113034123-9da34ad44376
 	go.uber.org/fx v1.24.0
 	gocloud.dev v0.43.0
-)
-
-replace (
-	github.com/talav/talav/pkg/component/blob => ../../component/blob
-	github.com/talav/talav/pkg/component/media => ../../component/media
-	github.com/talav/talav/pkg/fx/fxconfig => ../fxconfig
-	github.com/talav/talav/pkg/fx/fxorm => ../fxorm
 )
 
 require (

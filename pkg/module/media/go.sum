@@ -186,6 +186,8 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/talav/talav/pkg/component/mapstructure v0.0.0-20251212040909-717bc712a8cc h1:xJQZ8VobWaIljRZvzVsJ4MZWkaliqUVl0e4XtaflcWo=
 github.com/talav/talav/pkg/component/mapstructure v0.0.0-20251212040909-717bc712a8cc/go.mod h1:1CDFG81Tfze0FAz94enpqPVIORpr8feyUe9Uc0/EABg=
+github.com/talav/talav/pkg/component/media v0.0.0-20260113034123-9da34ad44376 h1:TTRjT0B2hi7L53OwpYHgO9kJkP+JJ1gV592vIQWFXPo=
+github.com/talav/talav/pkg/component/media v0.0.0-20260113034123-9da34ad44376/go.mod h1:Ra7K5y3e7maPbRP2Af0KbKJRiVEujA9IWHaFgcZkG4Q=
 github.com/talav/talav/pkg/component/negotiation v0.0.0-20251213015208-199315015cbe h1:pE956h589pEiGucDx0zm1IPV2uTgJvZaaFxJAx5mtRs=
 github.com/talav/talav/pkg/component/negotiation v0.0.0-20251213015208-199315015cbe/go.mod h1:LyN/80u17lIgtcStiJ/YK5PPRgTT6XRtUH1m5SbDE8M=
 github.com/talav/talav/pkg/component/orm v0.0.0-20260110175424-e63bf7f844e9 h1:zzm+zWihU76jVlMZZW68bSAX+SchJ9t5BKQwjnhDvew=
@@ -194,6 +196,8 @@ github.com/talav/talav/pkg/component/schema v0.0.0-20251213015208-199315015cbe h
 github.com/talav/talav/pkg/component/schema v0.0.0-20251213015208-199315015cbe/go.mod h1:zVrl4yLjFpBxWlA7UHxZClZvKZ7X3OSF5pv+TTsd18Y=
 github.com/talav/talav/pkg/component/tagparser v0.0.0-20251210172924-f671c53a0295 h1:K9ILOpSggi7AEYmurE9AWdzuwIbn7aI/8zF4+M+/ozU=
 github.com/talav/talav/pkg/component/tagparser v0.0.0-20251210172924-f671c53a0295/go.mod h1:h+5Y2qtpUCVuiIUWW8Yp8bzLTZvtD8Cji/oVayZd7z0=
+github.com/talav/talav/pkg/component/zorya v0.0.0-20260113034123-9da34ad44376 h1:FlOcA+RMt6kvT0+tum0/75lratb25pnvZzLVA8gVlls=
+github.com/talav/talav/pkg/component/zorya v0.0.0-20260113034123-9da34ad44376/go.mod h1:yQkBKJaCEMkliiJZtLlWYPr6fMtEhtyOA4zt2Sy7P4Y=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
 github.com/x448/float16 v0.8.4/go.mod h1:14CWIYCyZA/cWjXOioeEpHeN/83MdbZDRQHoFcYsOfg=
 github.com/zeebo/errs v1.4.0 h1:XNdoD/RRMKP7HD0UhJnIzUy74ISdGGxURlYG8HSWSfM=
