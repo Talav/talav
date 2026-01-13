@@ -8,9 +8,11 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httplog/v3"
 	"github.com/talav/talav/pkg/component/httpserver"
+	"github.com/talav/talav/pkg/component/httpserver/cmd"
 	"github.com/talav/talav/pkg/component/zorya"
 	"github.com/talav/talav/pkg/component/zorya/adapters"
 	"github.com/talav/talav/pkg/fx/fxconfig"
+	"github.com/talav/talav/pkg/fx/fxcore"
 	"go.uber.org/fx"
 )
 
@@ -18,6 +20,8 @@ import (
 const ModuleName = "httpserver"
 
 // FxHTTPServerModule is the [Fx] HTTP server module.
+// It provides HTTP server components via DI without automatic lifecycle management.
+// Commands control the server lifecycle.
 var FxHTTPServerModule = fx.Module(
 	ModuleName,
 	fxconfig.AsConfig("httpserver", httpserver.DefaultConfig()),
@@ -27,7 +31,8 @@ var FxHTTPServerModule = fx.Module(
 			return httpserver.NewServer(cfg.Server, api, logger)
 		},
 	),
-	fx.Invoke(RegisterLifecycle),
+	// Register serve-http command
+	fxcore.AsRootCommand(cmd.NewServeHTTPCmd),
 )
 
 // MiddlewareParams allows injection of registered middlewares.
