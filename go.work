@@ -29,6 +29,7 @@ use (
 	./pkg/fx/fxseeder
 	./pkg/fx/fxuser
 	./pkg/fx/fxvalidator
+	./pkg/module/framework
 	./pkg/module/media
 	./pkg/module/security
 	./pkg/module/user
