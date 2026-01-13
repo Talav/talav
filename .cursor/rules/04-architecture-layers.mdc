@@ -1,0 +1,207 @@
+---
+description: Component hierarchy and dependency rules
+alwaysApply: true
+globs: ["*.go"]
+---
+
+## Architecture Layers and Dependency Rules
+
+This project follows a strict layered architecture to ensure proper separation of concerns and maintainability.
+
+### Layer Hierarchy (Bottom to Top)
+
+```
+┌─────────────────────────────────────┐
+│ Application Layer                   │  ← Can import everything
+│ (main.go, framework module)         │
+└─────────────────────────────────────┘
+              ↑ (imports)
+┌─────────────────────────────────────┐
+│ FX Layer                            │  ← Can import components only
+│ (pkg/fx/*)                          │  ← NO framework imports
+└─────────────────────────────────────┘
+              ↑ (imports)
+┌─────────────────────────────────────┐
+│ Component Layer                     │  ← Can import other components only
+│ (pkg/component/*)                   │  ← NO framework, NO FX imports
+└─────────────────────────────────────┘
+```
+
+### Layer Rules
+
+#### 1. Component Layer (`pkg/component/*`)
+**CAN:**
+- Import other components (e.g., `pkg/component/user` can import `pkg/component/email`)
+- Import standard library and third-party libraries
+- Define business logic, domain models, repositories, services
+- Define commands (in `cmd/` or `command/` subdirectories)
+- Implement pure interfaces with no framework assumptions
+
+**CANNOT:**
+- Import `pkg/framework/*` - components must be framework-agnostic
+- Import `pkg/fx/*` - components must not know about DI wiring
+- Know about application lifecycle management (SignalManager, ServiceCoordinator, etc.)
+- Know about dependency injection mechanisms
+
+**Example:**
+```go
+// ✅ CORRECT: Component command with no framework knowledge
+package cmd
+
+import (
+    "github.com/spf13/cobra"
+    "github.com/talav/talav/pkg/component/httpserver"
+)
+
+func NewServeHTTPCommand(server *httpserver.Server) *cobra.Command {
+    return &cobra.Command{
+        RunE: func(cmd *cobra.Command, args []string) error {
+            return server.Start(cmd.Context()) // Simple, direct
+        },
+    }
+}
+```
+
+```go
+// ❌ WRONG: Component importing framework
+package cmd
+
+import (
+    "github.com/talav/talav/pkg/framework" // ❌ NO!
+    "github.com/talav/talav/pkg/component/httpserver"
+)
+
+func NewServeHTTPCommand(
+    server *httpserver.Server,
+    coordinator *framework.ServiceCoordinator, // ❌ NO!
+) *cobra.Command { ... }
+```
+
+#### 2. FX Layer (`pkg/fx/*`)
+**CAN:**
+- Import components from `pkg/component/*`
+- Wire dependencies using Uber FX
+- Register commands with command groups
+- Provide component instances to DI container
+- Import standard library and third-party libraries
+
+**CANNOT:**
+- Import `pkg/framework/*` - FX modules receive framework services via DI
+- Contain business logic (should delegate to components)
+- Know about framework orchestration details
+
+**Example:**
+```go
+// ✅ CORRECT: FX module wiring components
+package fxhttpserver
+
+import (
+    "github.com/talav/talav/pkg/component/httpserver"
+    "github.com/talav/talav/pkg/component/httpserver/cmd"
+    "github.com/talav/talav/pkg/fx/fxcore"
+    "go.uber.org/fx"
+)
+
+var FxHTTPServerModule = fx.Module(
+    "httpserver",
+    fx.Provide(httpserver.NewServer),
+    fxcore.AsRootCommand(cmd.NewServeHTTPCommand),
+)
+```
+
+```go
+// ❌ WRONG: FX module importing framework
+package fxhttpserver
+
+import (
+    "github.com/talav/talav/pkg/framework" // ❌ NO!
+)
+
+func someWiringFunction(coordinator *framework.ServiceCoordinator) { ... }
+```
+
+**If FX needs framework services:** They must be provided via FX DI (from `FxFrameworkModule`)
+
+```go
+// ✅ CORRECT: Receiving framework services via DI
+type Params struct {
+    fx.In
+    Server      *httpserver.Server
+    Logger      *slog.Logger              // Provided by FxFrameworkModule
+    Coordinator *ServiceCoordinator       // Provided by FxFrameworkModule (interface)
+}
+```
+
+#### 3. Framework/Application Layer (`pkg/framework/*`, `main.go`)
+**CAN:**
+- Import everything: components, FX modules, third-party libraries
+- Orchestrate application lifecycle
+- Manage service coordination and signal handling
+- Provide framework services to FX via `FxFrameworkModule`
+- Bootstrap the application
+
+**CANNOT:**
+- Be imported by lower layers (components, FX)
+
+**Example:**
+```go
+// ✅ CORRECT: Framework module providing services to FX
+package framework
+
+import "go.uber.org/fx"
+
+var FxFrameworkModule = fx.Module(
+    "framework",
+    fx.Provide(
+        NewSignalManager,
+        NewServiceCoordinator,
+        // ... other framework services
+    ),
+)
+```
+
+### Key Principles
+
+1. **Dependency Inversion**: Higher layers depend on lower layers, never the reverse
+2. **Components are Pure**: No framework or DI knowledge - just business logic
+3. **FX is Wiring Only**: Connects components together, receives framework services via DI
+4. **Framework Orchestrates**: Manages lifecycle, provides infrastructure services
+
+### Common Mistakes to Avoid
+
+❌ **Component importing framework:**
+```go
+import "github.com/talav/talav/pkg/framework" // In pkg/component/* - WRONG!
+```
+
+❌ **FX importing framework:**
+```go
+import "github.com/talav/talav/pkg/framework" // In pkg/fx/* - WRONG!
+```
+
+❌ **Component knowing about DI:**
+```go
+func NewService() fx.Option { ... } // In pkg/component/* - WRONG!
+```
+
+✅ **Correct: Framework providing to FX, FX wiring components:**
+```go
+// pkg/framework/module.go
+var FxFrameworkModule = fx.Module(...)
+
+// pkg/fx/fxhttpserver/module.go - receives Logger from framework via DI
+var FxHTTPServerModule = fx.Module(
+    fx.Provide(httpserver.NewServer), // Component constructor
+)
+
+// pkg/component/httpserver/server.go
+func NewServer(logger *slog.Logger) *Server { ... } // Pure component
+```
+
+### Rationale
+
+This layering ensures:
+- **Testability**: Components can be tested in isolation without framework setup
+- **Reusability**: Components can be used in different applications/frameworks
+- **Maintainability**: Clear boundaries prevent circular dependencies
+- **Flexibility**: Framework can be changed without touching components
