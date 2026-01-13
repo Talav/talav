@@ -6,7 +6,7 @@ import (
 	"go.uber.org/fx"
 )
 
-const ModuleName = "user"
+const ModuleName = "user-module"
 
 // Module provides HTTP handlers and routes for the user module.
 // It depends on fxuser.Module which provides service handlers.

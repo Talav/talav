@@ -6,7 +6,7 @@ import (
 )
 
 // ModuleName is the module name.
-const ModuleName = "security"
+const ModuleName = "security-module"
 
 // Module provides HTTP endpoints for authentication.
 //

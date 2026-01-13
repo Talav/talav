@@ -5,7 +5,7 @@ import (
 	"go.uber.org/fx"
 )
 
-const ModuleName = "mediahttp"
+const ModuleName = "media-module"
 
 // FxMediaHTTPModule provides HTTP handlers and routes for the media module.
 // It depends on fxmedia.FxMediaModule which provides commands and queries.
