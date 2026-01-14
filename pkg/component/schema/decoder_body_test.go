@@ -20,12 +20,23 @@ type testBodyStruct struct {
 	Count int    `schema:"count"`
 }
 
-func createBodyMetadata(_ BodyType, fieldType reflect.Type) *StructMetadata {
+func createBodyMetadata(bodyType BodyType, fieldType reflect.Type) *StructMetadata {
+	var tagValue string
+	switch bodyType {
+	case BodyTypeMultipart:
+		tagValue = `body:"multipart"`
+	case BodyTypeFile:
+		tagValue = `body:"file"`
+	case BodyTypeStructured:
+		tagValue = `body:""`
+	default:
+		tagValue = `body:""`
+	}
 	structType := reflect.StructOf([]reflect.StructField{
 		{
 			Name: "Body",
 			Type: fieldType,
-			Tag:  reflect.StructTag(`body:""`),
+			Tag:  reflect.StructTag(tagValue),
 		},
 	})
 	metadata := NewDefaultMetadata()

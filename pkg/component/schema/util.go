@@ -156,7 +156,7 @@ func (b *bodyContentType) isMultipart() bool {
 }
 
 func (b *bodyContentType) isFile() bool {
-	return b.bodyType == BodyTypeFile && strings.Contains(b.contentType, "application/octet-stream")
+	return b.bodyType == BodyTypeFile
 }
 
 func (b *bodyContentType) isXML() bool {

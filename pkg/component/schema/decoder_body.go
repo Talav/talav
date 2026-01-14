@@ -102,7 +102,29 @@ func (d *defaultDecoder) decodeURLEncodedForm(bodyBytes []byte, bodyField *Field
 		return nil, fmt.Errorf("field is not a body field")
 	}
 
-	return map[string]any{bodyMeta.MapKey: decodedMap}, nil
+	// Get struct type and metadata to filter unknown fields
+	structType := bodyField.Type
+	if structType.Kind() == reflect.Ptr {
+		structType = structType.Elem()
+	}
+	metadata, err := d.metadata.GetStructMetadata(structType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get struct metadata: %w", err)
+	}
+
+	// Filter decodedMap to only include fields present in metadata
+	filteredMap := make(map[string]any)
+	for _, fieldMeta := range metadata.Fields {
+		schemaMeta, ok := GetTagMetadata[*SchemaMetadata](&fieldMeta, d.schemaTag)
+		if !ok {
+			continue
+		}
+		if val, exists := decodedMap[schemaMeta.ParamName]; exists {
+			filteredMap[schemaMeta.ParamName] = val
+		}
+	}
+
+	return map[string]any{bodyMeta.MapKey: filteredMap}, nil
 }
 
 // decodeMultipartBody decodes multipart form body content.
@@ -163,13 +185,11 @@ func (d *defaultDecoder) decodeFileBody(bodyBytes []byte, bodyField *FieldMetada
 // processMultipartField processes a single multipart form field (file or regular).
 func (d *defaultDecoder) processMultipartField(form *multipart.Form, fieldMeta FieldMetadata, result map[string]any) error {
 	// Get schema metadata (or default for untagged fields)
-	var paramName, mapKey string
+	var paramName string
 	if schemaMeta, ok := GetTagMetadata[*SchemaMetadata](&fieldMeta, "schema"); ok {
 		paramName = schemaMeta.ParamName
-		mapKey = schemaMeta.MapKey
 	} else if defaultMeta, ok := GetTagMetadata[*SchemaMetadata](&fieldMeta, "schema"); ok {
 		paramName = defaultMeta.ParamName
-		mapKey = defaultMeta.MapKey
 	} else {
 		// No metadata, skip
 		return nil
@@ -184,7 +204,7 @@ func (d *defaultDecoder) processMultipartField(form *multipart.Form, fieldMeta F
 			if err != nil {
 				return fmt.Errorf("failed to open file field %s: %w", paramName, err)
 			}
-			result[mapKey] = fileReaders
+			result[paramName] = fileReaders
 		}
 
 		return nil
@@ -194,9 +214,9 @@ func (d *defaultDecoder) processMultipartField(form *multipart.Form, fieldMeta F
 	values := form.Value[paramName]
 	if len(values) > 0 {
 		if len(values) == 1 {
-			result[mapKey] = values[0]
+			result[paramName] = values[0]
 		} else {
-			result[mapKey] = stringSliceToAny(values)
+			result[paramName] = stringSliceToAny(values)
 		}
 	}
 
