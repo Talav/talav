@@ -1,7 +1,6 @@
 package fxhttpserver
 
 import (
-	"context"
 	"log/slog"
 
 	"github.com/go-chi/chi/v5"
@@ -17,14 +16,14 @@ import (
 )
 
 // ModuleName is the module name.
-const ModuleName = "httpserver"
+const ModuleName = "fx-httpserver"
 
 // FxHTTPServerModule is the [Fx] HTTP server module.
 // It provides HTTP server components via DI without automatic lifecycle management.
 // Commands control the server lifecycle.
 var FxHTTPServerModule = fx.Module(
 	ModuleName,
-	fxconfig.AsConfig("httpserver", httpserver.DefaultConfig()),
+	fxconfig.AsConfigWithDefaults("httpserver", httpserver.DefaultConfig(), httpserver.Config{}),
 	fx.Provide(
 		newFxZoryaAPI,
 		func(cfg httpserver.Config, api zorya.API, logger *slog.Logger) (*httpserver.Server, error) {
@@ -115,24 +114,4 @@ func buildAllMiddlewares(userMiddlewares []middlewareEntry, cfg httpserver.Confi
 	allMiddlewares = append(allMiddlewares, userMiddlewares...)
 
 	return allMiddlewares
-}
-
-// RegisterLifecycle registers the HTTP server lifecycle hooks.
-func RegisterLifecycle(lc fx.Lifecycle, server *httpserver.Server, logger *slog.Logger) {
-	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			// Start server in a goroutine
-			go func() {
-				if err := server.Start(ctx); err != nil {
-					logger.Error("HTTP server error", "error", err)
-				}
-			}()
-
-			return nil
-		},
-		OnStop: func(ctx context.Context) error {
-			// Server will stop when context is cancelled
-			return nil
-		},
-	})
 }
