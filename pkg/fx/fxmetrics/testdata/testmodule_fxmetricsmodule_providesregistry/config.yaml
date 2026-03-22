@@ -1,0 +1,5 @@
+metrics:
+  collect:
+    build: false
+    go: false
+    process: false
