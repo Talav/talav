@@ -132,7 +132,7 @@ func TestDefaultMetricsRegistryFactory_Create_GoCollectorRegistrationError(t *te
 
 func TestDefaultMetricsRegistryFactory_Create_ProcessCollectorRegistrationError(t *testing.T) {
 	prePopulated := prometheus.NewRegistry()
-	prePopulated.MustRegister(prometheus.NewGauge(prometheus.GaugeOpts{
+	prePopulated.MustRegister(prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "process_cpu_seconds_total",
 		Help: "conflicting metric to trigger registration error",
 	}))
