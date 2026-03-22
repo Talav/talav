@@ -28,7 +28,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
-	github.com/klauspost/compress v1.17.9 // indirect
+	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/knadh/koanf/maps v0.1.2 // indirect
 	github.com/knadh/koanf/parsers/dotenv v1.1.1 // indirect
 	github.com/knadh/koanf/parsers/yaml v1.1.0 // indirect

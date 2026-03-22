@@ -3,6 +3,7 @@ module github.com/talav/talav/pkg/component/config
 go 1.25.0
 
 require (
+	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/knadh/koanf/parsers/dotenv v1.1.1
 	github.com/knadh/koanf/parsers/yaml v1.1.0
 	github.com/knadh/koanf/providers/env/v2 v2.0.0
@@ -14,7 +15,6 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
-	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/knadh/koanf/maps v0.1.2 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
