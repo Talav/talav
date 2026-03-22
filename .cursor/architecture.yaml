@@ -1,0 +1,279 @@
+# Talav Framework Architecture Constraints
+# Machine-readable architecture rules for validation and LLM guidance
+
+version: "1.0"
+framework: talav
+
+# Layer definitions with import restrictions
+layers:
+  - name: component
+    description: "Pure business logic with no framework dependencies"
+    paths:
+      - "pkg/component/*"
+    can_import:
+      - "pkg/component/*"  # Components can import other components
+      - "stdlib"           # Standard library
+      - "third-party"      # External packages
+    cannot_import:
+      - "pkg/fx/*"         # NO FX imports (violates component autonomy)
+      - "pkg/module/*"     # NO framework imports (components are pure)
+    responsibilities:
+      - "Domain models and business logic"
+      - "Repositories and services"
+      - "Cobra commands for self-management"
+      - "Pure interfaces with no framework assumptions"
+    
+  - name: fx
+    description: "Dependency injection wiring layer"
+    paths:
+      - "pkg/fx/*"
+    can_import:
+      - "pkg/component/*"  # FX modules wire components
+      - "go.uber.org/fx"   # FX framework
+      - "stdlib"
+      - "third-party"
+    cannot_import:
+      - "pkg/module/*"     # NO framework imports (FX is middleware)
+    responsibilities:
+      - "Wire components via Uber FX modules"
+      - "Register commands to application"
+      - "Load configuration for components"
+      - "NO business logic (delegate to components)"
+    
+  - name: application
+    description: "Application orchestration and bootstrap"
+    paths:
+      - "pkg/module/*"
+      - "main.go"
+    can_import:
+      - "*"  # Application layer can import everything
+    responsibilities:
+      - "Bootstrap application with framework.NewApplication()"
+      - "Compose FX modules"
+      - "Define CLI entry point"
+      - "Orchestrate lifecycle"
+
+# Naming conventions
+conventions:
+  component:
+    pattern: "pkg/component/{name}"
+    module: "github.com/talav/talav/pkg/component/{name}"
+    example: "pkg/component/email"
+  
+  fx_module:
+    pattern: "pkg/fx/fx{name}"
+    module: "github.com/talav/talav/pkg/fx/fx{name}"
+    example: "pkg/fx/fxemail"
+    
+  application_module:
+    pattern: "pkg/module/{name}"
+    module: "github.com/talav/talav/pkg/module/{name}"
+    example: "pkg/module/framework"
+
+# Quality gates
+quality:
+  test_coverage:
+    component:
+      minimum: 80
+      description: "Components must have ≥80% test coverage"
+    fx:
+      minimum: 60
+      description: "FX modules must have ≥60% test coverage"
+    
+  linting:
+    enabled: true
+    command: "golangci-lint run"
+    config: ".golangci.yml"
+  
+  architecture_validation:
+    enabled: true
+    on_commit: true
+    tools:
+      - import_checker
+      - circular_dependency_checker
+
+# Common patterns
+patterns:
+  dependency_injection:
+    description: "Use constructor injection, not method injection"
+    good_example: |
+      func NewService(repo Repository, logger *slog.Logger) *Service {
+          return &Service{repo: repo, logger: logger}
+      }
+    bad_example: |
+      func NewService() *Service {
+          return &Service{repo: globalRepo}  // ❌ Global state
+      }
+  
+  command_definition:
+    description: "Components define commands, FX modules register them"
+    component_example: |
+      // pkg/component/httpserver/cmd/serve.go
+      func NewServeHTTPCmd(server *Server, logger *slog.Logger) *cobra.Command {
+          return &cobra.Command{
+              Use: "serve-http",
+              RunE: func(cmd *cobra.Command, args []string) error {
+                  return server.Start(cmd.Context())
+              },
+          }
+      }
+    fx_example: |
+      // pkg/fx/fxhttpserver/module.go
+      var FxHTTPServerModule = fx.Module(
+          "httpserver",
+          fx.Provide(httpserver.NewServer),
+          fxcore.AsRootCommand(cmd.NewServeHTTPCmd),
+      )
+  
+  error_handling:
+    description: "Panic for configuration errors, return error for runtime errors"
+    configuration_error: |
+      func NewApplication(opts ...Option) *Application {
+          if err := validateConfig(); err != nil {
+              panic(fmt.Errorf("invalid config: %w", err))  // ✅ Fail-fast
+          }
+      }
+    runtime_error: |
+      func (s *Service) ProcessRequest(ctx context.Context) error {
+          if err := s.repo.Save(ctx, data); err != nil {
+              return fmt.Errorf("save failed: %w", err)  // ✅ Return error
+          }
+      }
+
+# Anti-patterns (what NOT to do)
+anti_patterns:
+  - name: "Component imports FX"
+    description: "Components must not depend on FX framework"
+    example: |
+      // ❌ BAD: Component importing FX
+      package mycomponent
+      import "github.com/talav/talav/pkg/fx/fxcore"  // VIOLATION
+    
+  - name: "FX imports framework"
+    description: "FX modules must not import application layer"
+    example: |
+      // ❌ BAD: FX importing framework
+      package fxmycomp
+      import "github.com/talav/talav/pkg/module/framework"  // VIOLATION
+    
+  - name: "Global state"
+    description: "Avoid global variables, use dependency injection"
+    example: |
+      // ❌ BAD: Global variable
+      var globalDB *gorm.DB
+      func init() { globalDB = setupDB() }
+  
+  - name: "Method injection"
+    description: "Use constructor injection, not SetX() methods"
+    example: |
+      // ❌ BAD: Method injection
+      func (s *Service) SetLogger(logger *slog.Logger) {
+          s.logger = logger
+      }
+
+# Validation rules for automated checking
+validation_rules:
+  - id: no-component-fx-import
+    description: "Components cannot import pkg/fx/*"
+    check: "import_restriction"
+    layer: "component"
+    forbidden_patterns:
+      - "github.com/talav/talav/pkg/fx/*"
+    severity: "error"
+    
+  - id: no-component-framework-import
+    description: "Components cannot import pkg/module/*"
+    check: "import_restriction"
+    layer: "component"
+    forbidden_patterns:
+      - "github.com/talav/talav/pkg/module/*"
+    severity: "error"
+    
+  - id: no-fx-framework-import
+    description: "FX modules cannot import pkg/module/*"
+    check: "import_restriction"
+    layer: "fx"
+    forbidden_patterns:
+      - "github.com/talav/talav/pkg/module/*"
+    severity: "error"
+  
+  - id: no-circular-dependencies
+    description: "No circular dependencies between packages"
+    check: "circular_dependency"
+    severity: "error"
+  
+  - id: test-coverage-component
+    description: "Components must have ≥80% test coverage"
+    check: "coverage"
+    layer: "component"
+    minimum: 80
+    severity: "warning"
+  
+  - id: test-coverage-fx
+    description: "FX modules must have ≥60% test coverage"
+    check: "coverage"
+    layer: "fx"
+    minimum: 60
+    severity: "warning"
+
+# LLM guidance
+llm_guidance:
+  context_files:
+    - ".cursor/rules/01-general.mdc"
+    - ".cursor/rules/02-function-ordering.mdc"
+    - ".cursor/rules/03-testing.mdc"
+    - ".cursor/architecture.yaml"
+  
+  before_generating_code:
+    - "Check which layer the code belongs to (component/fx/application)"
+    - "Verify import restrictions for that layer"
+    - "Follow naming conventions from this file"
+    - "Use patterns from 'patterns' section"
+    - "Avoid anti-patterns from 'anti_patterns' section"
+  
+  component_checklist:
+    - "Does NOT import pkg/fx/* or pkg/module/*"
+    - "Uses constructor injection for dependencies"
+    - "Includes tests with ≥80% coverage"
+    - "Follows function ordering from 02-function-ordering.mdc"
+    - "Has README.md with examples"
+  
+  fx_module_checklist:
+    - "Only imports pkg/component/* (no pkg/module/*)"
+    - "Wires components via fx.Provide"
+    - "Registers commands via fxcore.AsRootCommand"
+    - "Loads config via fxconfig.AsConfig"
+    - "Contains NO business logic"
+
+# Tool integration
+tools:
+  golangci-lint:
+    config: ".golangci.yml"
+    custom_linters:
+      - name: "import-restrictions"
+        enabled: true
+  
+  pre-commit:
+    hooks:
+      - validate-architecture
+      - run-linter
+      - check-coverage
+  
+  ci:
+    checks:
+      - architecture-validation
+      - test-coverage
+      - linting
+      - build
+
+# References
+references:
+  documentation:
+    - "docs/00-context/vision.md"
+    - "docs/00-context/system-map.md"
+    - "docs/04-process/dev-workflow.md"
+  
+  examples:
+    component: "pkg/component/email"
+    fx_module: "pkg/fx/fxemail"
+    application: "pkg/module/framework"
