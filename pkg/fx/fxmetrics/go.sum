@@ -52,6 +52,8 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/talav/talav/pkg/component/config v0.0.0-20251116032221-770a3c931351 h1:CEiXoLipAqmG41fL1Gp702i/VnUQnwY5pk8B46UHbo4=
 github.com/talav/talav/pkg/component/config v0.0.0-20251116032221-770a3c931351/go.mod h1:ypUhcJ0MWnKO4HTFy2basRwuboIjYbDzgkbJqtnICdc=
+github.com/talav/talav/pkg/component/metrics v0.0.0-20260322140823-2450d9245de4 h1:ZV1+cQXoFdLlsch83ZqVz2xWM3iITf7pCvFInjzV+rk=
+github.com/talav/talav/pkg/component/metrics v0.0.0-20260322140823-2450d9245de4/go.mod h1:ETln4qUtwix/Umg7viupRZtbsOyN8wz2+Bfyp2GE3T8=
 github.com/talav/talav/pkg/fx/fxconfig v0.0.0-20251116051607-5973f6a3ba6e h1:ykOpNUJO5Q/IRh6rvnkQrdP/OAdCVXE8SoDmM8WVTUk=
 github.com/talav/talav/pkg/fx/fxconfig v0.0.0-20251116051607-5973f6a3ba6e/go.mod h1:jjpkZQV2sVU2Qvh3OEFJdz9oBLJH1EwVlL/VI54w7JU=
 go.uber.org/dig v1.19.0 h1:BACLhebsYdpQ7IROQ1AGPjrXcP5dF80U3gKoFzbaq/4=
