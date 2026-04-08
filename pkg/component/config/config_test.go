@@ -20,6 +20,7 @@ func loadYAMLConfig(t *testing.T, relDir, appEnv string) *Config {
 		Parser:   yaml.Parser(),
 	})
 	require.NoError(t, err)
+
 	return cfg
 }
 
@@ -33,6 +34,7 @@ func TestUnmarshalMergeKeys(t *testing.T) {
 			name:   "two_keys_overlay",
 			relDir: "scenario_merge_keys",
 			run: func(t *testing.T, cfg *Config) {
+				t.Helper()
 				var s struct {
 					Host string `config:"host"`
 					Port int    `config:"port"`
@@ -46,6 +48,7 @@ func TestUnmarshalMergeKeys(t *testing.T) {
 			name:   "second_key_unmarshal_error_wraps_key",
 			relDir: "scenario_merge_keys_bad_overlay",
 			run: func(t *testing.T, cfg *Config) {
+				t.Helper()
 				var s struct {
 					Host string `config:"host"`
 					Port int    `config:"port"`
@@ -59,6 +62,7 @@ func TestUnmarshalMergeKeys(t *testing.T) {
 			name:   "slice_replaced_by_later_key",
 			relDir: "scenario_merge_keys",
 			run: func(t *testing.T, cfg *Config) {
+				t.Helper()
 				var tc struct {
 					Tags []string `config:"tags"`
 				}
@@ -70,6 +74,7 @@ func TestUnmarshalMergeKeys(t *testing.T) {
 			name:   "empty_keys_no_op",
 			relDir: "scenario_merge_keys",
 			run: func(t *testing.T, cfg *Config) {
+				t.Helper()
 				var s struct {
 					Host string `config:"host"`
 					Port int    `config:"port"`
