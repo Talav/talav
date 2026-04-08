@@ -125,6 +125,9 @@ patterns:
           fxcore.AsRootCommand(cmd.NewServeHTTPCmd),
       )
   
+  config_validation:
+    description: "Optional config.Validatable with pointer-receiver Validate; fxconfig.AsConfig runs it after unmarshal"
+  
   error_handling:
     description: "Panic for configuration errors, return error for runtime errors"
     configuration_error: |

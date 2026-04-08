@@ -1,7 +1,9 @@
 package fxconfig
 
 import (
+	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/knadh/koanf/parsers/yaml"
@@ -11,6 +13,34 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxtest"
 )
+
+// errFxValidatableTest is returned by test [Validatable] implementations when validation must fail.
+var errFxValidatableTest = errors.New("fx validatable test")
+
+type widgetConfig struct {
+	Reject bool `config:"reject"`
+}
+
+func (c *widgetConfig) Validate() error {
+	if c.Reject {
+		return errFxValidatableTest
+	}
+
+	return nil
+}
+
+type serverConfigWithValidate struct {
+	Host string `config:"host"`
+	Port int    `config:"port"`
+}
+
+func (c *serverConfigWithValidate) Validate() error {
+	if c.Port == 9000 {
+		return errFxValidatableTest
+	}
+
+	return nil
+}
 
 func TestModule_NewFxConfig_WithConfigSources(t *testing.T) {
 	testdataDir := filepath.Join("testdata", "testmodule_newfxconfig_withconfigsources")
@@ -140,6 +170,81 @@ func TestModule_AsConfigWithDefaults_Provider(t *testing.T) {
 	// User config only sets port, host should use default
 	assert.Equal(t, "localhost", serverCfg.Host) // default value
 	assert.Equal(t, 9000, serverCfg.Port)        // user config overrides default
+}
+
+func TestModule_AsConfig_Validatable_OK(t *testing.T) {
+	testdataDir := filepath.Join("testdata", "testmodule_asconfig_validatable_ok")
+	t.Setenv("APP_ENV", "dev")
+
+	var widgetCfg widgetConfig
+
+	fxtest.New(
+		t,
+		fx.NopLogger,
+		FxConfigModule,
+		AsConfigSource(config.ConfigSource{
+			Path:     testdataDir,
+			Patterns: []string{"config.yaml"},
+			Parser:   yaml.Parser(),
+		}),
+		AsConfig("widget", widgetConfig{}),
+		fx.Populate(&widgetCfg),
+	).RequireStart().RequireStop()
+
+	assert.False(t, widgetCfg.Reject)
+}
+
+func TestModule_AsConfig_Validatable_Error(t *testing.T) {
+	testdataDir := filepath.Join("testdata", "testmodule_asconfig_validatable_err")
+	t.Setenv("APP_ENV", "dev")
+
+	var widgetCfg widgetConfig
+
+	app := fx.New(
+		fx.NopLogger,
+		FxConfigModule,
+		AsConfigSource(config.ConfigSource{
+			Path:     testdataDir,
+			Patterns: []string{"config.yaml"},
+			Parser:   yaml.Parser(),
+		}),
+		AsConfig("widget", widgetConfig{}),
+		fx.Populate(&widgetCfg),
+	)
+
+	err := app.Err()
+	require.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), `config key "widget"`))
+	require.ErrorIs(t, err, errFxValidatableTest)
+}
+
+func TestModule_AsConfigWithDefaults_Validatable_Error(t *testing.T) {
+	testdataDir := filepath.Join("testdata", "testmodule_asconfigwithdefaults_validatable_err")
+	t.Setenv("APP_ENV", "dev")
+
+	defaults := serverConfigWithValidate{
+		Host: "localhost",
+		Port: 8080,
+	}
+
+	var serverCfg serverConfigWithValidate
+
+	app := fx.New(
+		fx.NopLogger,
+		FxConfigModule,
+		AsConfigSource(config.ConfigSource{
+			Path:     testdataDir,
+			Patterns: []string{"config.yaml"},
+			Parser:   yaml.Parser(),
+		}),
+		AsConfigWithDefaults("server", defaults, serverConfigWithValidate{}),
+		fx.Populate(&serverCfg),
+	)
+
+	err := app.Err()
+	require.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), `config key "server"`))
+	require.ErrorIs(t, err, errFxValidatableTest)
 }
 
 func TestModule_NewFxConfig_ErrorHandling(t *testing.T) {

@@ -1,6 +1,8 @@
 package fxconfig
 
 import (
+	"fmt"
+
 	"github.com/talav/talav/pkg/component/config"
 	"go.uber.org/fx"
 )
@@ -18,6 +20,11 @@ func AsConfigSource(source config.ConfigSource) fx.Option {
 // AsConfig registers a config provider that extracts a config of type T from the main config at the given key.
 // This is a generic function that each module can use to declare its config.
 //
+// After a successful unmarshal, if *T implements [config.Validatable], [config.Validatable.Validate] is called.
+// Validation errors are wrapped with the config key and support [errors.Unwrap].
+//
+// Use struct type T (for example logger.LoggerConfig{}), not *T, with AsConfig.
+//
 // Example usage:
 //
 //	fxconfig.AsConfig("logger", logger.LoggerConfig{})
@@ -31,6 +38,10 @@ func AsConfig[T any](key string, _ T) fx.Option {
 				return cfg, err
 			}
 
+			if err := config.Validate(&cfg); err != nil {
+				return cfg, fmt.Errorf("config key %q: %w", key, err)
+			}
+
 			return cfg, nil
 		},
 	)
@@ -38,6 +49,11 @@ func AsConfig[T any](key string, _ T) fx.Option {
 
 // AsConfigWithDefaults registers a config provider that starts with defaults, then unmarshals user config on top.
 // Only fields present in user config override defaults. Uses standard Go unmarshaling behavior.
+//
+// After a successful unmarshal, if *T implements [config.Validatable], [config.Validatable.Validate] is called.
+// Validation errors are wrapped with the config key and support [errors.Unwrap].
+//
+// Use struct type T (for example httpserver.Config{}), not *T, with AsConfigWithDefaults.
 //
 // Example usage:
 //
@@ -50,6 +66,10 @@ func AsConfigWithDefaults[T any](key string, defaults T, _ T) fx.Option {
 			cfg := defaults
 			if err := mainConfig.UnmarshalKey(key, &cfg); err != nil {
 				return cfg, err
+			}
+
+			if err := config.Validate(&cfg); err != nil {
+				return cfg, fmt.Errorf("config key %q: %w", key, err)
 			}
 
 			return cfg, nil

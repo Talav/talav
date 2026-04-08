@@ -290,6 +290,25 @@ cfg.UnmarshalKey("app", &appCfg)
 
 **Note**: The package uses `config` struct tags (not `koanf`) by default for better abstraction.
 
+## Validation
+
+Structs can implement [`Validatable`](validatable.go) with a **pointer receiver**:
+
+```go
+func (c *MyConfig) Validate() error {
+    if c.Port <= 0 {
+        return errors.New("port must be positive")
+    }
+    return nil
+}
+```
+
+In the Talav Fx layer, `fxconfig.AsConfig` and `fxconfig.AsConfigWithDefaults` call [`Validate`](validatable.go) automatically **after** a successful unmarshal when `*T` implements `Validatable`. Validation errors are wrapped with the config key (for example `config key "logger"`) using `%w`, so `errors.Is` and `errors.Unwrap` still see the error from `Validate`.
+
+Use a **struct** zero value in `AsConfig` (for example `AsConfig("logger", logger.LoggerConfig{})`), not a pointer type `*MyConfig`.
+
+Without Fx, after a successful `UnmarshalKey`, call `config.Validate(&dest)` when the value should be checked.
+
 ## Environment Detection
 
 The environment is determined by the `APP_ENV` environment variable:
