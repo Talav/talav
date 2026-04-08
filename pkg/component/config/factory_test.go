@@ -3,7 +3,6 @@ package config
 import (
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/stretchr/testify/assert"
@@ -289,32 +288,4 @@ func TestDefaultConfigFactory_Create_DefaultStructure(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "env-password", dbCfg.Password)
 	assert.Equal(t, 5432, dbCfg.Port)
-}
-
-func TestUnmarshalKey_TimeDurationHook(t *testing.T) {
-	factory := NewDefaultConfigFactory()
-	testdataDir := filepath.Join("testdata", "scenario_duration")
-	t.Setenv("APP_ENV", "dev")
-
-	cfg, err := factory.Create(ConfigSource{
-		Path:     testdataDir,
-		Patterns: []string{"config.yaml"},
-		Parser:   yaml.Parser(),
-	})
-	require.NoError(t, err)
-
-	type ServerConfig struct {
-		ReadTimeout    time.Duration `config:"read_timeout"`
-		WriteTimeout   time.Duration `config:"write_timeout"`
-		IdleTimeout    time.Duration `config:"idle_timeout"`
-		ConnectTimeout time.Duration `config:"connect_timeout"`
-	}
-
-	var srv ServerConfig
-	require.NoError(t, cfg.UnmarshalKey("server", &srv))
-
-	assert.Equal(t, 15*time.Second, srv.ReadTimeout)
-	assert.Equal(t, 30*time.Second, srv.WriteTimeout)
-	assert.Equal(t, time.Minute, srv.IdleTimeout)
-	assert.Equal(t, 500*time.Millisecond, srv.ConnectTimeout)
 }

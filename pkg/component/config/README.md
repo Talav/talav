@@ -303,11 +303,58 @@ func (c *MyConfig) Validate() error {
 }
 ```
 
-In the Talav Fx layer, `fxconfig.AsConfig` and `fxconfig.AsConfigWithDefaults` call [`Validate`](validatable.go) automatically **after** a successful unmarshal when `*T` implements `Validatable`. Validation errors are wrapped with the config key (for example `config key "logger"`) using `%w`, so `errors.Is` and `errors.Unwrap` still see the error from `Validate`.
+In the Talav Fx layer, `fxconfig.AsConfig`, `fxconfig.AsConfigWithDefaults`, and `fxconfig.AsConfigMergeKeys` call [`Validate`](validatable.go) automatically **after** a successful unmarshal (or merge-then-unmarshal) when `*T` implements `Validatable`. Validation errors are wrapped with the config key (for example `config key "logger"`) using `%w`, so `errors.Is` and `errors.Unwrap` still see the error from `Validate`.
 
 Use a **struct** zero value in `AsConfig` (for example `AsConfig("logger", logger.LoggerConfig{})`), not a pointer type `*MyConfig`.
 
 Without Fx, after a successful `UnmarshalKey`, call `config.Validate(&dest)` when the value should be checked.
+
+## Merging multiple keys
+
+[`UnmarshalMergeKeys`](config.go) applies [`UnmarshalKey`](config.go) **in order** into the **same** struct pointer. Each step only sets fields present under that koanf path; fields missing from a later path keep values from earlier steps. **Slices and maps** are replaced in full when a later subtree defines them, not merged element-by-element.
+
+Put your **baseline** YAML under the **first** key in the list; add overlay keys for environment- or tenant-specific deltas.
+
+```yaml
+server_defaults:
+  host: "0.0.0.0"
+  port: 8080
+server_overlay:
+  port: 9090
+```
+
+```go
+var srv ServerConfig
+if err := cfg.UnmarshalMergeKeys([]string{"server_defaults", "server_overlay"}, &srv); err != nil {
+	return err
+}
+if err := config.Validate(&srv); err != nil {
+	return err
+}
+```
+
+### Fx: `AsConfigMergeKeys`
+
+```go
+fxconfig.AsConfigMergeKeys(
+	"httpserver", // validateErrorKey: used only if Validate() fails (not a koanf path; Fx resolves by type T)
+	[]string{"server_defaults", "server_overlay"},
+	httpserver.ServerConfig{},
+)
+```
+
+Unmarshal errors are wrapped with the **failing merge key** (the koanf path). Validation errors use **validateErrorKey** in the message.
+
+### When to use what
+
+| Approach | Use when |
+|----------|----------|
+| Multiple [`ConfigSource`](factory.go) | Different files/directories should load into **one** tree with normal source priority (YAML → env, etc.). |
+| [`UnmarshalKey`](config.go) / `fxconfig.AsConfig` | One subtree maps to one struct. |
+| [`UnmarshalMergeKeys`](config.go) / `fxconfig.AsConfigMergeKeys` | Several subtrees (same struct shape) should **overlay** in memory in a fixed order. |
+| `fxconfig.AsConfigWithDefaults` | You want **Go** defaults (`DefaultConfig()`) plus **one** config key — not multiple merge paths. |
+
+If you need **Go `Default*()` plus several YAML keys**, use a custom `fx.Provide` that starts from `defaults` and calls `UnmarshalMergeKeys`, or put the baseline in the **first** merge key’s YAML.
 
 ## Environment Detection
 

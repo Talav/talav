@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/knadh/koanf/v2"
 )
@@ -17,6 +19,25 @@ type Config struct {
 //   - strings → time.Duration  (e.g. "15s", "100ms")
 //   - comma-separated strings → []string slices
 func (c *Config) UnmarshalKey(key string, dest any) error {
+	return c.unmarshalKey(key, dest)
+}
+
+// UnmarshalMergeKeys unmarshals each key path in order into dest using the same rules as [Config.UnmarshalKey].
+// Later keys overlay earlier ones for fields present in each subtree; fields absent from a subtree are left unchanged.
+// Slices and maps are replaced when the source subtree defines them, not merged element-wise.
+//
+// An empty keys slice is a no-op. On failure, the error wraps the failing key with [fmt.Errorf] using %w.
+func (c *Config) UnmarshalMergeKeys(keys []string, dest any) error {
+	for _, k := range keys {
+		if err := c.unmarshalKey(k, dest); err != nil {
+			return fmt.Errorf("config key %q: %w", k, err)
+		}
+	}
+
+	return nil
+}
+
+func (c *Config) unmarshalKey(key string, dest any) error {
 	return c.k.UnmarshalWithConf(key, dest, koanf.UnmarshalConf{
 		Tag: "config",
 		DecoderConfig: &mapstructure.DecoderConfig{
@@ -25,7 +46,9 @@ func (c *Config) UnmarshalKey(key string, dest any) error {
 				mapstructure.StringToSliceHookFunc(","),
 			),
 			WeaklyTypedInput: true,
-			Result:           dest,
+			// Explicit false so overlay via [Config.UnmarshalMergeKeys] keeps fields missing from later keys.
+			ZeroFields: false,
+			Result:     dest,
 		},
 	})
 }

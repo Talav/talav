@@ -1,0 +1,6 @@
+merge_base:
+  host: localhost
+  port: 8080
+
+merge_bad:
+  port: not-a-number

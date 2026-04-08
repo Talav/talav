@@ -76,3 +76,28 @@ func AsConfigWithDefaults[T any](key string, defaults T, _ T) fx.Option {
 		},
 	)
 }
+
+// AsConfigMergeKeys registers a provider that unmarshals mergeKeys in order into a new T (zero value),
+// then runs [config.Validate] when *T implements [config.Validatable].
+//
+// validateErrorKey is used only when validation fails (wrapped as config key %q with %w).
+// It is not a koanf path and is not used by Fx for dependency resolution; types are resolved by T.
+// Unmarshal failures retain wrapping from [config.Config.UnmarshalMergeKeys] (the failing path key).
+//
+// Use struct type T, not *T. The first mergeKeys entry is usually the YAML baseline subtree; later keys overlay.
+func AsConfigMergeKeys[T any](validateErrorKey string, mergeKeys []string, _ T) fx.Option {
+	return fx.Provide(
+		func(mainConfig *config.Config) (T, error) {
+			var cfg T
+			if err := mainConfig.UnmarshalMergeKeys(mergeKeys, &cfg); err != nil {
+				return cfg, err
+			}
+
+			if err := config.Validate(&cfg); err != nil {
+				return cfg, fmt.Errorf("config key %q: %w", validateErrorKey, err)
+			}
+
+			return cfg, nil
+		},
+	)
+}

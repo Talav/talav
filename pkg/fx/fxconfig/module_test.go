@@ -42,6 +42,17 @@ func (c *serverConfigWithValidate) Validate() error {
 	return nil
 }
 
+// mergeKeysFlatConfig is used for AsConfigMergeKeys success tests (no Validatable).
+type mergeKeysFlatConfig struct {
+	Name  string `config:"name"`
+	Extra string `config:"extra"`
+}
+
+// mergeKeysPortConfig is used when testing merge unmarshal errors.
+type mergeKeysPortConfig struct {
+	Port int `config:"port"`
+}
+
 func TestModule_NewFxConfig_WithConfigSources(t *testing.T) {
 	testdataDir := filepath.Join("testdata", "testmodule_newfxconfig_withconfigsources")
 	t.Setenv("APP_ENV", "dev")
@@ -245,6 +256,76 @@ func TestModule_AsConfigWithDefaults_Validatable_Error(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), `config key "server"`))
 	require.ErrorIs(t, err, errFxValidatableTest)
+}
+
+func TestModule_AsConfigMergeKeys_OK(t *testing.T) {
+	testdataDir := filepath.Join("testdata", "testmodule_asconfig_mergekeys_ok")
+	t.Setenv("APP_ENV", "dev")
+
+	var got mergeKeysFlatConfig
+
+	fxtest.New(
+		t,
+		fx.NopLogger,
+		FxConfigModule,
+		AsConfigSource(config.ConfigSource{
+			Path:     testdataDir,
+			Patterns: []string{"config.yaml"},
+			Parser:   yaml.Parser(),
+		}),
+		AsConfigMergeKeys("merged_cfg", []string{"mergekeys_base", "mergekeys_overlay"}, mergeKeysFlatConfig{}),
+		fx.Populate(&got),
+	).RequireStart().RequireStop()
+
+	assert.Equal(t, "merged", got.Name)
+	assert.Equal(t, "from-overlay", got.Extra)
+}
+
+func TestModule_AsConfigMergeKeys_Validate_Error(t *testing.T) {
+	testdataDir := filepath.Join("testdata", "testmodule_asconfig_mergekeys_validate_err")
+	t.Setenv("APP_ENV", "dev")
+
+	var got widgetConfig
+
+	app := fx.New(
+		fx.NopLogger,
+		FxConfigModule,
+		AsConfigSource(config.ConfigSource{
+			Path:     testdataDir,
+			Patterns: []string{"config.yaml"},
+			Parser:   yaml.Parser(),
+		}),
+		AsConfigMergeKeys("mergekeysValidateLabel", []string{"mergekeys_v_base", "mergekeys_v_overlay"}, widgetConfig{}),
+		fx.Populate(&got),
+	)
+
+	err := app.Err()
+	require.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), `config key "mergekeysValidateLabel"`))
+	require.ErrorIs(t, err, errFxValidatableTest)
+}
+
+func TestModule_AsConfigMergeKeys_Unmarshal_ErrorWrapsFailingPath(t *testing.T) {
+	testdataDir := filepath.Join("testdata", "testmodule_asconfig_mergekeys_unmarshal_err")
+	t.Setenv("APP_ENV", "dev")
+
+	var got mergeKeysPortConfig
+
+	app := fx.New(
+		fx.NopLogger,
+		FxConfigModule,
+		AsConfigSource(config.ConfigSource{
+			Path:     testdataDir,
+			Patterns: []string{"config.yaml"},
+			Parser:   yaml.Parser(),
+		}),
+		AsConfigMergeKeys("service", []string{"mergekeys_u_base", "mergekeys_u_bad"}, mergeKeysPortConfig{}),
+		fx.Populate(&got),
+	)
+
+	err := app.Err()
+	require.Error(t, err)
+	assert.True(t, strings.Contains(err.Error(), `config key "mergekeys_u_bad"`))
 }
 
 func TestModule_NewFxConfig_ErrorHandling(t *testing.T) {

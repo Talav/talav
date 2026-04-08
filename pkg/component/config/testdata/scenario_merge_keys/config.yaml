@@ -1,0 +1,15 @@
+merge_base:
+  host: localhost
+  port: 8080
+
+merge_overlay:
+  port: 9090
+
+merge_slice_base:
+  tags:
+    - a
+    - b
+
+merge_slice_overlay:
+  tags:
+    - c
