@@ -30,12 +30,8 @@ func main() {
     if err != nil {
         panic(err)
     }
-    
-    // Access values directly
-    appName := cfg.k.String("app.name")
-    dbHost := cfg.k.String("database.host")
-    
-    // Or unmarshal into structs
+
+    // Unmarshal into structs
     type AppConfig struct {
         Name    string `config:"name"`
         Version string `config:"version"`
@@ -51,7 +47,7 @@ func main() {
 
 ### Default File Patterns
 
-When using `factory.Create()` without arguments, the following files are loaded in order:
+When using `factory.Create()` with no arguments, or the sources returned by [`DefaultConfigSources`](factory.go) before any extras, the following files are loaded in order (then OS environment variables last):
 
 **YAML Files** (from `./configs/`):
 - `config.yaml` - Base configuration
@@ -186,7 +182,11 @@ Given:
 
 ## Custom Configuration Sources
 
-You can define custom sources with full control over file patterns, paths, and parsers:
+You can define custom sources with full control over file patterns, paths, and parsers.
+
+### Replacing defaults entirely
+
+Passing **any** `ConfigSource` to `Create` **replaces** the built-in default list. Only an empty `Create()` uses [`DefaultConfigSources`](factory.go) implicitly.
 
 ```go
 factory := config.NewDefaultConfigFactory()
@@ -203,6 +203,29 @@ cfg, err := factory.Create(
         Parser:   config.NewDotenvParser(),
     },
 )
+```
+
+### Default sources plus extra directories
+
+Use [`CreateWithDefaultSources`](factory.go) when you want the same `./configs` YAML stack and `.` dotenv patterns **and** additional sources (later sources override earlier file layers; OS env is still applied last):
+
+```go
+factory := config.NewDefaultConfigFactory()
+
+cfg, err := factory.CreateWithDefaultSources(
+    config.ConfigSource{
+        Path:     "./overlay",
+        Patterns: []string{"config.yaml", "config_{env}.yaml", "config_{env}_local.yaml"},
+        Parser:   yaml.Parser(),
+    },
+)
+```
+
+Equivalent without the helper:
+
+```go
+extra := []config.ConfigSource{ /* additional sources */ }
+cfg, err := factory.Create(append(config.DefaultConfigSources(), extra...)...)
 ```
 
 ### Custom Parsers
@@ -350,6 +373,7 @@ Unmarshal errors are wrapped with the **failing merge key** (the koanf path). Va
 | Approach | Use when |
 |----------|----------|
 | Multiple [`ConfigSource`](factory.go) | Different files/directories should load into **one** tree with normal source priority (YAML → env, etc.). |
+| [`CreateWithDefaultSources`](factory.go) / [`DefaultConfigSources`](factory.go) | You want the **standard** `./configs` + `.` file layers **plus** more sources, without copying default definitions. |
 | [`UnmarshalKey`](config.go) / `fxconfig.AsConfig` | One subtree maps to one struct. |
 | [`UnmarshalMergeKeys`](config.go) / `fxconfig.AsConfigMergeKeys` | Several subtrees (same struct shape) should **overlay** in memory in a fixed order. |
 | `fxconfig.AsConfigWithDefaults` | You want **Go** defaults (`DefaultConfig()`) plus **one** config key — not multiple merge paths. |
@@ -419,6 +443,7 @@ See `factory_test.go` for comprehensive examples covering:
 - Mixed YAML and `.env` sources
 - Environment variable expansion
 - Multiple source directories
+- `CreateWithDefaultSources` (defaults plus an extra source)
 - Custom parsers
 
 ## API Reference
@@ -433,11 +458,13 @@ See `factory_test.go` for comprehensive examples covering:
 ### Functions
 
 - `NewDefaultConfigFactory()`: Creates a new default factory
+- `DefaultConfigSources() []ConfigSource`: Returns the default YAML + dotenv sources (same as empty `Create()`); each call returns a new slice
 - `NewDotenvParser()`: Creates a dotenv parser with key normalization
 - `EnvTransformFunc()`: Returns transform function for environment variables
 
 ### Methods
 
 - `Config.UnmarshalKey(key string, dest any) error`: Unmarshals config into struct
-- `ConfigFactory.Create(sources ...ConfigSource) (*Config, error)`: Creates configuration
+- `ConfigFactory.Create(sources ...ConfigSource) (*Config, error)`: Creates configuration; empty sources uses `DefaultConfigSources()`
+- `ConfigFactory.CreateWithDefaultSources(extra ...ConfigSource) (*Config, error)`: `Create` with `DefaultConfigSources()` followed by `extra`
 

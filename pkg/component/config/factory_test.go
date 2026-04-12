@@ -289,3 +289,22 @@ func TestDefaultConfigFactory_Create_DefaultStructure(t *testing.T) {
 	assert.Equal(t, "env-password", dbCfg.Password)
 	assert.Equal(t, 5432, dbCfg.Port)
 }
+
+func TestDefaultConfigFactory_CreateWithDefaultSources_AppendsExtraSources(t *testing.T) {
+	factory := NewDefaultConfigFactory()
+	testdataDir := filepath.Join("testdata", "scenario1_yaml_only")
+	t.Setenv("APP_ENV", "dev")
+
+	cfg, err := factory.CreateWithDefaultSources(
+		ConfigSource{
+			Path:     testdataDir,
+			Patterns: []string{"config.yaml", "config_{env}.yaml", "config_{env}_local.yaml"},
+			Parser:   yaml.Parser(),
+		},
+	)
+
+	require.NoError(t, err)
+	assert.Equal(t, "yaml-local", cfg.k.String("app.name"))
+	assert.Equal(t, "local-host", cfg.k.String("database.host"))
+	assert.Equal(t, int64(5432), cfg.k.Int64("database.port"))
+}

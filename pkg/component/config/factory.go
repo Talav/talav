@@ -22,6 +22,8 @@ type ConfigSource struct {
 // ConfigFactory is the interface for [Config] factories.
 type ConfigFactory interface {
 	Create(sources ...ConfigSource) (*Config, error)
+	// CreateWithDefaultSources loads [DefaultConfigSources] first, then extra sources (later override earlier).
+	CreateWithDefaultSources(extra ...ConfigSource) (*Config, error)
 }
 
 // DefaultConfigFactory is the default [ConfigFactory] implementation.
@@ -30,6 +32,23 @@ type DefaultConfigFactory struct{}
 // NewDefaultConfigFactory returns a [DefaultConfigFactory], implementing [ConfigFactory].
 func NewDefaultConfigFactory() ConfigFactory {
 	return &DefaultConfigFactory{}
+}
+
+// DefaultConfigSources returns the YAML and dotenv sources used when [DefaultConfigFactory.Create]
+// is called with no arguments. Each call returns a new slice.
+func DefaultConfigSources() []ConfigSource {
+	return []ConfigSource{
+		{
+			Path:     "./configs",
+			Patterns: []string{"config.yaml", "config_{env}.yaml", "config_{env}_local.yaml"},
+			Parser:   yaml.Parser(),
+		},
+		{
+			Path:     ".",
+			Patterns: []string{".env", ".env.{env}", ".env.local", ".env.{env}.local"},
+			Parser:   NewDotenvParser(),
+		},
+	}
 }
 
 // Create returns a new [Config].
@@ -51,20 +70,8 @@ func NewDefaultConfigFactory() ConfigFactory {
 //		},
 //	)
 func (f *DefaultConfigFactory) Create(sources ...ConfigSource) (*Config, error) {
-	// Default sources mimic current behavior (YAML → ENV → env vars)
 	if len(sources) == 0 {
-		sources = []ConfigSource{
-			{
-				Path:     "./configs",
-				Patterns: []string{"config.yaml", "config_{env}.yaml", "config_{env}_local.yaml"},
-				Parser:   yaml.Parser(),
-			},
-			{
-				Path:     ".",
-				Patterns: []string{".env", ".env.{env}", ".env.local", ".env.{env}.local"},
-				Parser:   NewDotenvParser(),
-			},
-		}
+		sources = DefaultConfigSources()
 	}
 
 	k := koanf.New(".")
@@ -87,6 +94,12 @@ func (f *DefaultConfigFactory) Create(sources ...ConfigSource) (*Config, error) 
 	f.expandEnvPlaceholders(k)
 
 	return &Config{k}, nil
+}
+
+// CreateWithDefaultSources loads [DefaultConfigSources] first, then extra sources.
+// Later sources override earlier file layers; OS environment variables are still applied last.
+func (f *DefaultConfigFactory) CreateWithDefaultSources(extra ...ConfigSource) (*Config, error) {
+	return f.Create(append(DefaultConfigSources(), extra...)...)
 }
 
 // expandPatterns expands file patterns by replacing placeholders.
