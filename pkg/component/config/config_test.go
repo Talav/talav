@@ -225,3 +225,16 @@ func TestUnmarshalMergeKeys_LeafScalarSecondMergeKey(t *testing.T) {
 	assert.Equal(t, "from-base", got.Keep, "first merge key applied")
 	assert.Empty(t, got.SecondKey, "second merge step did not apply")
 }
+
+func TestUnmarshalMergeKeys_K1AndK20K3ExactPaths(t *testing.T) {
+	cfg := loadYAMLConfig(t, "scenario_merge_keys_k1_k2_0_k3", "dev")
+
+	var got struct {
+		Title string `config:"title"`
+		Keep  string `config:"keep"`
+	}
+
+	require.NoError(t, cfg.UnmarshalMergeKeys([]string{"k1", "k2.0.k3"}, &got))
+	assert.Equal(t, "from-k2-0-k3", got.Title)
+	assert.Equal(t, "from-k1-keep", got.Keep)
+}
