@@ -1,0 +1,33 @@
+# Slice of objects: Koanf typically flattens to items.0.id, items.1.id, ...
+items:
+  - id: zero
+    label: first
+  - id: one
+    label: second
+
+# Map whose key is the string "0" (not a YAML sequence)
+map_string_zero:
+  "0":
+    id: map-key-string-zero
+    label: from-map
+
+# Nested slice under a merge-style prefix
+merge_base:
+  items:
+    - id: base-only
+      label: base
+
+merge_overlay:
+  items:
+    - id: overlay-replaces
+      label: overlay
+
+# Merge keys where the second path contains a numeric-looking segment in the middle (overlay.0).
+# "0" must be a map key (quoted), not a YAML sequence, or Koanf will not resolve the path.
+merge_mpk_base:
+  title: base-title
+  keep: from-base
+
+merge_mpk_overlay:
+  "0":
+    second_key: from-overlay-zero
