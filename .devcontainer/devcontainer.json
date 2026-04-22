@@ -2,7 +2,7 @@
     // See https://containers.dev/implementors/json_reference/
     // User defined settings
     "containerEnv": {
-        "TZ": "${localEnv:TZ}"
+        "TZ": "America/Los_Angeles"
     },
     // Fixed settings
     "name": "project-dev",
