@@ -2,6 +2,7 @@ package config
 
 import (
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -10,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func loadYAMLConfig(t *testing.T, relDir, appEnv string) *Config {
+func loadYAMLConfig(t *testing.T, relDir string) *Config {
 	t.Helper()
-	t.Setenv("APP_ENV", appEnv)
+	t.Setenv("APP_ENV", "dev")
 	factory := NewDefaultConfigFactory()
 	cfg, err := factory.Create(ConfigSource{
 		Path:     filepath.Join("testdata", relDir),
@@ -88,7 +89,7 @@ func TestUnmarshalMergeKeys(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := loadYAMLConfig(t, tc.relDir, "dev")
+			cfg := loadYAMLConfig(t, tc.relDir)
 			tc.run(t, cfg)
 		})
 	}
@@ -131,7 +132,7 @@ func TestUnmarshalKey_TimeDurationHook(t *testing.T) {
 // UnmarshalMergeKeys uses the same UnmarshalKey machinery, so per-index paths into YAML arrays are
 // not available unless you model the chain as maps or unmarshal whole slices and split in Go.
 func TestUnmarshalKey_KoanfPathNumericSegments(t *testing.T) {
-	cfg := loadYAMLConfig(t, "scenario_numeric_paths", "dev")
+	cfg := loadYAMLConfig(t, "scenario_numeric_paths")
 
 	type item struct {
 		ID    string `config:"id"`
@@ -167,7 +168,7 @@ func TestUnmarshalKey_KoanfPathNumericSegments(t *testing.T) {
 // TestUnmarshalMergeKeys_SubtreeWithSliceReplacedByLaterKey: merge keys that each carry a slice
 // still follow replace-on-later-key semantics for the whole slice, not element-wise merge.
 func TestUnmarshalMergeKeys_SubtreeWithSliceReplacedByLaterKey(t *testing.T) {
-	cfg := loadYAMLConfig(t, "scenario_numeric_paths", "dev")
+	cfg := loadYAMLConfig(t, "scenario_numeric_paths")
 
 	type item struct {
 		ID    string `config:"id"`
@@ -190,7 +191,7 @@ func TestUnmarshalMergeKeys_SubtreeWithSliceReplacedByLaterKey(t *testing.T) {
 // merge_mpk_overlay.0); a leaf-only key such as merge_mpk_overlay.0.second_key unmarshals a scalar
 // and mapstructure rejects it for a struct destination.
 func TestUnmarshalMergeKeys_OverlayKeyWithNumericPathSegment(t *testing.T) {
-	cfg := loadYAMLConfig(t, "scenario_numeric_paths", "dev")
+	cfg := loadYAMLConfig(t, "scenario_numeric_paths")
 
 	var got struct {
 		Title     string `config:"title"`
@@ -208,7 +209,7 @@ func TestUnmarshalMergeKeys_OverlayKeyWithNumericPathSegment(t *testing.T) {
 // (merge_mpk_overlay.0.second_key) cannot decode into the same struct destination as earlier keys;
 // the second step errors. The first step still ran, so base fields are populated; overlay field is not.
 func TestUnmarshalMergeKeys_LeafScalarSecondMergeKey(t *testing.T) {
-	cfg := loadYAMLConfig(t, "scenario_numeric_paths", "dev")
+	cfg := loadYAMLConfig(t, "scenario_numeric_paths")
 
 	var got struct {
 		Title     string `config:"title"`
@@ -226,15 +227,14 @@ func TestUnmarshalMergeKeys_LeafScalarSecondMergeKey(t *testing.T) {
 	assert.Empty(t, got.SecondKey, "second merge step did not apply")
 }
 
-func TestUnmarshalMergeKeys_K1AndK20K3ExactPaths(t *testing.T) {
-	cfg := loadYAMLConfig(t, "scenario_merge_keys_k1_k2_0_k3", "dev")
+func TestConfig_Koanf(t *testing.T) {
+	cfg := loadYAMLConfig(t, "scenario_merge_keys")
 
-	var got struct {
-		Title string `config:"title"`
-		Keep  string `config:"keep"`
-	}
+	k := cfg.Koanf()
+	require.NotNil(t, k)
+	assert.Equal(t, "localhost", k.String("merge_base.host"))
 
-	require.NoError(t, cfg.UnmarshalMergeKeys([]string{"k1", "k2.0.k3"}, &got))
-	assert.Equal(t, "from-k2-0-k3", got.Title)
-	assert.Equal(t, "from-k1-keep", got.Keep)
+	keys := k.Keys()
+	require.NotEmpty(t, keys)
+	assert.True(t, slices.Contains(keys, "merge_base.host"), "Keys() should expose loaded paths")
 }

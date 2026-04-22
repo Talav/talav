@@ -464,7 +464,9 @@ See `factory_test.go` for comprehensive examples covering:
 
 ### Methods
 
-- `Config.UnmarshalKey(key string, dest any) error`: Unmarshals config into struct
+- `Config.UnmarshalKey(key string, dest any) error`: Unmarshals config into struct (includes duration and comma-slice decode hooks)
+- `Config.UnmarshalMergeKeys(keys []string, dest any) error`: Applies each key path in order into the same `dest` with `ZeroFields: false` overlay semantics; empty `keys` is a no-op
+- `Config.Koanf() *koanf.Koanf`: Direct access to Koanf for `Keys`, `Get`, `String`, `Marshal`, `Raw`, `All`, etc.; no `UnmarshalKey` hooks on that API
 - `ConfigFactory.Create(sources ...ConfigSource) (*Config, error)`: Creates configuration; empty sources uses `DefaultConfigSources()`
 - `ConfigFactory.CreateWithDefaultSources(extra ...ConfigSource) (*Config, error)`: `Create` with `DefaultConfigSources()` followed by `extra`
 

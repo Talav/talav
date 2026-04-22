@@ -37,6 +37,14 @@ func (c *Config) UnmarshalMergeKeys(keys []string, dest any) error {
 	return nil
 }
 
+// Koanf returns the underlying [*koanf.Koanf]. Use it for Koanf APIs that do not need this
+// package’s struct unmarshaling hooks ([Config.UnmarshalKey] duration and comma-slice decode, etc.):
+// Keys, String, Get, All, Marshal, Raw, and similar. Prefer [Config.UnmarshalKey] when decoding
+// into structs so those hooks apply.
+func (c *Config) Koanf() *koanf.Koanf {
+	return c.k
+}
+
 func (c *Config) unmarshalKey(key string, dest any) error {
 	return c.k.UnmarshalWithConf(key, dest, koanf.UnmarshalConf{
 		Tag: "config",
