@@ -3,6 +3,7 @@ package framework
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os/signal"
 	"runtime"
 	"syscall"
@@ -11,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/talav/talav/pkg/fx/fxcore"
 	"go.uber.org/fx"
+	"go.uber.org/fx/fxevent"
 )
 
 // Application represents the main framework application.
@@ -27,12 +29,16 @@ type Application struct {
 	// Cobra CLI
 	rootCmd          *cobra.Command
 	rootCommandHooks []func(*cobra.Command)
+
+	// Logging
+	logger *slog.Logger
 }
 
 // NewApplication creates a new Application with the given options.
 func NewApplication(opts ...Option) *Application {
 	a := &Application{
 		modules: make([]fx.Option, 0),
+		logger:  slog.Default(),
 	}
 
 	for _, opt := range opts {
@@ -112,9 +118,13 @@ func (a *Application) createVersionCommand() *cobra.Command {
 func (a *Application) initFX(ctx context.Context) error {
 	var commandsParam fxcore.FxCommandsParam
 
+	// Build FX logger adapter: non-error events at warn, errors at error level.
+	fxLogger := &fxevent.SlogLogger{Logger: a.logger}
+	fxLogger.UseLogLevel(slog.LevelWarn)
+
 	// Build FX options
 	opts := []fx.Option{
-		fx.NopLogger, // Suppress FX logs
+		fx.WithLogger(func() fxevent.Logger { return fxLogger }),
 		fx.Supply(a.environment),
 	}
 	opts = append(opts, a.modules...)

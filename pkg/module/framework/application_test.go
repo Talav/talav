@@ -1,6 +1,8 @@
 package framework
 
 import (
+	"io"
+	"log/slog"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -48,6 +50,26 @@ func TestApplication_RootCommand(t *testing.T) {
 	require.NotNil(t, app.rootCmd, "root command should not be nil")
 	assert.Equal(t, "test-app", app.rootCmd.Use)
 	assert.Equal(t, "1.0.0", app.rootCmd.Version)
+}
+
+func TestWithLogger_Default(t *testing.T) {
+	app := NewApplication(
+		WithName("test-app"),
+		WithVersion("1.0.0"),
+		WithEnvironment("test"),
+	)
+	assert.Equal(t, slog.Default(), app.logger)
+}
+
+func TestWithLogger_Custom(t *testing.T) {
+	custom := slog.New(slog.NewTextHandler(io.Discard, nil))
+	app := NewApplication(
+		WithName("test-app"),
+		WithVersion("1.0.0"),
+		WithEnvironment("test"),
+		WithLogger(custom),
+	)
+	assert.Same(t, custom, app.logger)
 }
 
 func TestWithRootCommandHook(t *testing.T) {

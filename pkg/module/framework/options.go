@@ -1,6 +1,8 @@
 package framework
 
 import (
+	"log/slog"
+
 	"github.com/spf13/cobra"
 	"go.uber.org/fx"
 )
@@ -33,6 +35,23 @@ func WithEnvironment(env string) Option {
 func WithModules(modules ...fx.Option) Option {
 	return func(a *Application) {
 		a.modules = append(a.modules, modules...)
+	}
+}
+
+// WithLogger sets the slog.Logger used for FX's internal event reporting
+// (dependency resolution, lifecycle hooks, errors). The logger is captured at
+// NewApplication time; configure it before calling Run or NewApplication.
+//
+// Non-error FX events (provider registration, lifecycle hooks, "started") are
+// logged at warn level, suppressing routine DI noise. FX error events (invoke
+// failed, missing type, rollback) are logged at error level regardless of the
+// warn floor. To see all FX output, pass a logger whose handler enables debug
+// level.
+//
+// Default: slog.Default() at the time NewApplication is called.
+func WithLogger(logger *slog.Logger) Option {
+	return func(a *Application) {
+		a.logger = logger
 	}
 }
 
