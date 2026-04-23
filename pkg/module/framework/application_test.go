@@ -3,6 +3,7 @@ package framework
 import (
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/fx"
@@ -47,4 +48,46 @@ func TestApplication_RootCommand(t *testing.T) {
 	require.NotNil(t, app.rootCmd, "root command should not be nil")
 	assert.Equal(t, "test-app", app.rootCmd.Use)
 	assert.Equal(t, "1.0.0", app.rootCmd.Version)
+}
+
+func TestWithRootCommandHook(t *testing.T) {
+	app := NewApplication(
+		WithName("test-app"),
+		WithVersion("1.0.0"),
+		WithEnvironment("test"),
+		WithRootCommandHook(func(cmd *cobra.Command) {
+			if cmd.Annotations == nil {
+				cmd.Annotations = make(map[string]string)
+			}
+			cmd.Annotations["framework_test"] = "1"
+		}),
+	)
+	require.NotNil(t, app.rootCmd)
+	assert.Equal(t, "1", app.rootCmd.Annotations["framework_test"])
+}
+
+func TestWithRootCommandHook_MultipleLastWins(t *testing.T) {
+	var order []int
+	app := NewApplication(
+		WithName("test-app"),
+		WithVersion("1.0.0"),
+		WithEnvironment("test"),
+		WithRootCommandHook(func(cmd *cobra.Command) {
+			order = append(order, 1)
+			if cmd.Annotations == nil {
+				cmd.Annotations = make(map[string]string)
+			}
+			cmd.Annotations["k"] = "first"
+		}),
+		WithRootCommandHook(func(cmd *cobra.Command) {
+			order = append(order, 2)
+			if cmd.Annotations == nil {
+				cmd.Annotations = make(map[string]string)
+			}
+			cmd.Annotations["k"] = "second"
+		}),
+	)
+	require.NotNil(t, app.rootCmd)
+	assert.Equal(t, []int{1, 2}, order)
+	assert.Equal(t, "second", app.rootCmd.Annotations["k"])
 }

@@ -1,6 +1,9 @@
 package framework
 
-import "go.uber.org/fx"
+import (
+	"github.com/spf13/cobra"
+	"go.uber.org/fx"
+)
 
 // Option is a function that configures an Application.
 type Option func(*Application)
@@ -30,5 +33,29 @@ func WithEnvironment(env string) Option {
 func WithModules(modules ...fx.Option) Option {
 	return func(a *Application) {
 		a.modules = append(a.modules, modules...)
+	}
+}
+
+// WithRootCommandHook registers a function that is called on the root
+// *cobra.Command after the root and built-in subcommands (e.g. version) are
+// set up, but before FX is initialized and module-registered subcommands are
+// attached. Use it to set PersistentPreRun, PersistentPostRun, global flags,
+// or other root-level Cobra options.
+//
+// WithRootCommandHook may be specified multiple times; hooks run in
+// registration order. If two hooks set the same field on the root command, the
+// last registration wins (there is no automatic chaining).
+//
+// Cobra's default is that only the first PersistentPreRun or PersistentPostRun
+// found on the path from the executing subcommand up toward the root is run
+// (unless the application sets cobra.EnableTraverseRunHooks to run all
+// parents' persistent hooks in order). A root hook that sets only the root’s
+// Persistent* runs for a subcommand when no command closer to the leaf defines
+// Persistent* (see Cobra’s execute flow). PersistentPostRun is not run if
+// earlier execution or validation returns an error before the normal
+// post-chain.
+func WithRootCommandHook(fn func(*cobra.Command)) Option {
+	return func(a *Application) {
+		a.rootCommandHooks = append(a.rootCommandHooks, fn)
 	}
 }

@@ -99,8 +99,12 @@ app := framework.NewApplication(
         fxlogger.FxLoggerModule,
         fxhttpserver.FxHTTPServerModule,
     ),
+    // Optional: framework.WithRootCommandHook registers a callback on the root command after
+    // built-in subcommands (e.g. version) and before FX module commands. See go doc on WithRootCommandHook.
 )
 ```
+
+Cobra details (`Persistent*`, `EnableTraverseRunHooks`, multiple hooks) are in the `WithRootCommandHook` doc comment, not repeated here.
 
 ### Environment Detection
 

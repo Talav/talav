@@ -25,7 +25,8 @@ type Application struct {
 	commands []*cobra.Command
 
 	// Cobra CLI
-	rootCmd *cobra.Command
+	rootCmd          *cobra.Command
+	rootCommandHooks []func(*cobra.Command)
 }
 
 // NewApplication creates a new Application with the given options.
@@ -86,6 +87,10 @@ func (a *Application) createRootCommand() *cobra.Command {
 
 	// Add built-in version command
 	cmd.AddCommand(a.createVersionCommand())
+
+	for _, hook := range a.rootCommandHooks {
+		hook(cmd)
+	}
 
 	return cmd
 }
