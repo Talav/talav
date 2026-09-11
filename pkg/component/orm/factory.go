@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database"
 	migratePostgres "github.com/golang-migrate/migrate/v4/database/postgres"
+	migrateSQLite "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -83,15 +85,22 @@ func (f *DefaultMigrationFactory) Create(db *gorm.DB) (*Migration, error) {
 		return nil, fmt.Errorf("failed to get sql.DB: %w", err)
 	}
 
-	// Create PostgreSQL driver
-	driver, err := migratePostgres.WithInstance(sqlDB, &migratePostgres.Config{})
+	var driver database.Driver
+	dialect := db.Name()
+	switch dialect {
+	case "postgres":
+		driver, err = migratePostgres.WithInstance(sqlDB, &migratePostgres.Config{})
+	case "sqlite":
+		driver, err = migrateSQLite.WithInstance(sqlDB, &migrateSQLite.Config{})
+	default:
+		return nil, fmt.Errorf("unsupported migration database %q", dialect)
+	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to create database driver: %w", err)
+		return nil, fmt.Errorf("failed to create %s migration driver: %w", db.Name(), err)
 	}
 
-	// Initialize migrate instance
 	migrationsDir := "migrations"
-	migrator, err := migrate.NewWithDatabaseInstance("file://"+migrationsDir, "postgres", driver)
+	migrator, err := migrate.NewWithDatabaseInstance("file://"+migrationsDir, dialect, driver)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create migrator: %w", err)
 	}

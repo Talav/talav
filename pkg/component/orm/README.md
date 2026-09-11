@@ -1,6 +1,6 @@
 # orm
 
-GORM + golang-migrate wrapper for PostgreSQL. Provides a `*gorm.DB` factory and a `Migration` type for running SQL migrations from the `./migrations` directory.
+GORM + golang-migrate integration. Provides a PostgreSQL `*gorm.DB` factory and a `Migration` type for running SQL migrations from the `./migrations` directory against PostgreSQL or an existing SQLite GORM connection.
 
 ## Configuration
 
@@ -62,5 +62,5 @@ Repositories should implement `orm.ExistsChecker` to participate in the unique v
 
 ## Notes
 
-- Only PostgreSQL is supported currently. The `driver` config field is present but unused.
+- The ORM factory supports PostgreSQL. Applications that own an SQLite GORM connection can pass it to `DefaultMigrationFactory`.
 - Slow query threshold is hardcoded at 200ms with slog-based GORM logger.
