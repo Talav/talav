@@ -14,68 +14,50 @@ import (
 func TestDefaultMigrationFactory_Create_SQLite(t *testing.T) {
 	root := t.TempDir()
 	migrationsDir := filepath.Join(root, "migrations")
-	if err := os.Mkdir(migrationsDir, 0o700); err != nil {
-		t.Fatalf("create migrations directory: %v", err)
-	}
-	if err := os.WriteFile(
+	requireNoError(t, "create migrations directory", os.Mkdir(migrationsDir, 0o700))
+	requireNoError(t, "write up migration", os.WriteFile(
 		filepath.Join(migrationsDir, "20260911000000_create_records.up.sql"),
 		[]byte("CREATE TABLE records (id INTEGER PRIMARY KEY);"),
 		0o600,
-	); err != nil {
-		t.Fatalf("write up migration: %v", err)
-	}
-	if err := os.WriteFile(
+	))
+	requireNoError(t, "write down migration", os.WriteFile(
 		filepath.Join(migrationsDir, "20260911000000_create_records.down.sql"),
 		[]byte("DROP TABLE records;"),
 		0o600,
-	); err != nil {
-		t.Fatalf("write down migration: %v", err)
-	}
+	))
 	t.Chdir(root)
 
 	db, err := gorm.Open(sqlite.Open(filepath.Join(root, "database.sqlite")), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open SQLite database: %v", err)
-	}
+	requireNoError(t, "open SQLite database", err)
 	sqlDB, err := db.DB()
-	if err != nil {
-		t.Fatalf("get sql.DB: %v", err)
-	}
+	requireNoError(t, "get sql.DB", err)
 	t.Cleanup(func() {
-		if err := sqlDB.Close(); err != nil {
-			t.Errorf("close SQLite database: %v", err)
-		}
+		requireNoError(t, "close SQLite database", sqlDB.Close())
 	})
 
 	migration, err := NewDefaultMigrationFactory().Create(db)
+	requireNoError(t, "create SQLite migration", err)
+	requireNoError(t, "migrate up", migration.Up())
+	requireTablePresence(t, db, "records", true)
+	requireNoError(t, "migrate down", migration.Down())
+	requireTablePresence(t, db, "records", false)
+	requireNoError(t, "migrate up after down", migration.Up())
+	requireNoError(t, "reset migrations", migration.Reset())
+	requireTablePresence(t, db, "records", false)
+	requireTablePresence(t, db, "schema_migrations", true)
+	requireNoError(t, "migrate up after reset", migration.Up())
+}
+
+func requireNoError(t *testing.T, operation string, err error) {
+	t.Helper()
 	if err != nil {
-		t.Fatalf("create SQLite migration: %v", err)
+		t.Fatalf("%s: %v", operation, err)
 	}
-	if err := migration.Up(); err != nil {
-		t.Fatalf("migrate up: %v", err)
-	}
-	if !db.Migrator().HasTable("records") {
-		t.Fatal("migrate up did not create records table")
-	}
-	if err := migration.Down(); err != nil {
-		t.Fatalf("migrate down: %v", err)
-	}
-	if db.Migrator().HasTable("records") {
-		t.Fatal("migrate down did not drop records table")
-	}
-	if err := migration.Up(); err != nil {
-		t.Fatalf("migrate up after down: %v", err)
-	}
-	if err := migration.Reset(); err != nil {
-		t.Fatalf("reset migrations: %v", err)
-	}
-	if db.Migrator().HasTable("records") {
-		t.Fatal("reset did not drop records table")
-	}
-	if !db.Migrator().HasTable("schema_migrations") {
-		t.Fatal("reset did not recreate schema migrations table")
-	}
-	if err := migration.Up(); err != nil {
-		t.Fatalf("migrate up after reset: %v", err)
+}
+
+func requireTablePresence(t *testing.T, db *gorm.DB, table string, expected bool) {
+	t.Helper()
+	if db.Migrator().HasTable(table) != expected {
+		t.Fatalf("table %q presence: got %t, want %t", table, !expected, expected)
 	}
 }
