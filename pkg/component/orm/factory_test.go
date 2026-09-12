@@ -3,13 +3,57 @@
 package orm
 
 import (
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
+
+func TestGORMDialector(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   ORMConfig
+		expected string
+	}{
+		{
+			name: "PostgreSQL",
+			config: ORMConfig{
+				Driver: DriverPostgres,
+				DSN:    "host=localhost user=app dbname=app port=5432 sslmode=disable",
+			},
+			expected: DriverPostgres,
+		},
+		{
+			name: "MySQL",
+			config: ORMConfig{
+				Driver: DriverMySQL,
+				DSN:    "app:secret@tcp(localhost:3306)/app?multiStatements=true",
+			},
+			expected: DriverMySQL,
+		},
+		{
+			name: "SQLite",
+			config: ORMConfig{
+				Driver: DriverSQLite,
+				DSN:    "database.sqlite",
+			},
+			expected: DriverSQLite,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dialector, err := gormDialector(test.config)
+			requireNoError(t, "create GORM dialector", err)
+			if dialector.Name() != test.expected {
+				t.Fatalf("dialector name: got %q, want %q", dialector.Name(), test.expected)
+			}
+		})
+	}
+}
 
 func TestDefaultMigrationFactory_Create_SQLite(t *testing.T) {
 	root := t.TempDir()
@@ -27,8 +71,19 @@ func TestDefaultMigrationFactory_Create_SQLite(t *testing.T) {
 	))
 	t.Chdir(root)
 
-	db, err := gorm.Open(sqlite.Open(filepath.Join(root, "database.sqlite")), &gorm.Config{})
+	db, err := NewDefaultORMFactory().Create(ORMConfig{
+		Driver:                 DriverSQLite,
+		DSN:                    filepath.Join(root, "database.sqlite"),
+		PrepareStmt:            true,
+		SkipDefaultTransaction: true,
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	requireNoError(t, "open SQLite database", err)
+	if !db.PrepareStmt {
+		t.Fatal("prepared statements are disabled")
+	}
+	if !db.SkipDefaultTransaction {
+		t.Fatal("default transactions are enabled")
+	}
 	sqlDB, err := db.DB()
 	requireNoError(t, "get sql.DB", err)
 	t.Cleanup(func() {

@@ -1,29 +1,39 @@
 # orm
 
-GORM + golang-migrate integration. Provides a PostgreSQL `*gorm.DB` factory and a `Migration` type for running SQL migrations from the `./migrations` directory against PostgreSQL or an existing SQLite GORM connection.
+GORM + golang-migrate integration for PostgreSQL, MySQL, and SQLite. It provides a configured `*gorm.DB` factory and a `Migration` type that runs SQL migrations from `./migrations`.
 
 ## Configuration
 
 ```go
 type ORMConfig struct {
-    Host     string `config:"host"`
-    User     string `config:"user"`
-    Password string `config:"password"`
-    Name     string `config:"name"`
-    Port     int    `config:"port"`
-    SSLMode  string `config:"sslmode"`
+	Driver                 string `config:"driver"`
+	DSN                    string `config:"dsn"`
+	PrepareStmt            bool   `config:"prepare_stmt"`
+	SkipDefaultTransaction bool   `config:"skip_default_transaction"`
 }
+```
+
+Each driver receives its native DSN unchanged:
+
+```yaml
+database:
+  driver: postgres
+  dsn: host=localhost user=myapp password=secret dbname=myapp_db port=5432 sslmode=disable TimeZone=UTC
 ```
 
 ```yaml
 database:
-  host: localhost
-  user: myapp
-  password: secret
-  name: myapp_db
-  port: 5432
-  sslmode: disable
+  driver: mysql
+  dsn: myapp:secret@tcp(localhost:3306)/myapp?multiStatements=true
 ```
+
+```yaml
+database:
+  driver: sqlite
+  dsn: ./var/myapp.sqlite
+```
+
+MySQL requires `multiStatements=true` because the migration runner executes SQL migration files through the same connection.
 
 ## Usage
 
@@ -31,12 +41,8 @@ database:
 factory := orm.NewDefaultORMFactory()
 
 db, err := factory.Create(orm.ORMConfig{
-    Host:     "localhost",
-    User:     "myapp",
-    Password: "secret",
-    Name:     "myapp_db",
-    Port:     5432,
-    SSLMode:  "disable",
+	Driver: orm.DriverPostgres,
+	DSN:    "host=localhost user=myapp password=secret dbname=myapp_db port=5432 sslmode=disable TimeZone=UTC",
 }, logger)
 ```
 
@@ -62,5 +68,6 @@ Repositories should implement `orm.ExistsChecker` to participate in the unique v
 
 ## Notes
 
-- The ORM factory supports PostgreSQL. Applications that own an SQLite GORM connection can pass it to `DefaultMigrationFactory`.
+- Supported driver values are exactly `postgres`, `mysql`, and `sqlite`.
+- `PrepareStmt` and `SkipDefaultTransaction` map directly to the corresponding GORM connection settings and default to `false`.
 - Slow query threshold is hardcoded at 200ms with slog-based GORM logger.

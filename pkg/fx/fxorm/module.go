@@ -1,6 +1,8 @@
 package fxorm
 
 import (
+	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/talav/talav/pkg/component/orm"
@@ -22,13 +24,11 @@ var FxORMModule = fx.Module(
 	fx.Provide(
 		orm.NewDefaultORMFactory,
 		orm.NewDefaultMigrationFactory,
-		func(cfg orm.ORMConfig, factory orm.ORMFactory, logger *slog.Logger) (*gorm.DB, error) {
-			return factory.Create(cfg, logger)
-		},
-		NewFxMigration,
+		newORM,
+		newMigration,
 	),
 	// Register unique validator to validator group
-	fxvalidator.AsValidatorConstructorCtx(NewFxUniqueValidatorDefinition),
+	fxvalidator.AsValidatorConstructorCtx(newUniqueValidatorDefinition),
 	// Register unique translation to validator group
 	fxvalidator.AsTranslationConstructor(NewUniqueTranslation),
 	// Register migrate command subcommands with named tags
@@ -43,15 +43,39 @@ var FxORMModule = fx.Module(
 	),
 )
 
-// FxUniqueValidatorDefinitionParam allows injection of the required dependencies in [NewFxUniqueValidatorDefinition].
-type FxUniqueValidatorDefinitionParam struct {
+type ormParams struct {
+	fx.In
+
+	Lifecycle fx.Lifecycle
+	Config    orm.ORMConfig
+	Factory   orm.ORMFactory
+	Logger    *slog.Logger
+}
+
+func newORM(p ormParams) (*gorm.DB, error) {
+	db, err := p.Factory.Create(p.Config, p.Logger)
+	if err != nil {
+		return nil, err
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("get database connection: %w", err)
+	}
+	p.Lifecycle.Append(fx.Hook{
+		OnStop: func(context.Context) error {
+			return sqlDB.Close()
+		},
+	})
+
+	return db, nil
+}
+
+type uniqueValidatorDefinitionParams struct {
 	fx.In
 	Repositories []orm.ExistsChecker `group:"repository-checkers"`
 }
 
-// NewFxUniqueValidatorDefinition returns a [validator.ValidationDefinitionCtx] for the unique validator.
-// It creates a repository registry from the provided repositories, creates the validator, and wraps it as a definition.
-func NewFxUniqueValidatorDefinition(p FxUniqueValidatorDefinitionParam) validator.ValidationDefinitionCtx {
+func newUniqueValidatorDefinition(p uniqueValidatorDefinitionParams) validator.ValidationDefinitionCtx {
 	registry := orm.NewRepositoryRegistryFromRepos(p.Repositories)
 	validator := orm.NewUniqueValidator(registry)
 
@@ -60,14 +84,12 @@ func NewFxUniqueValidatorDefinition(p FxUniqueValidatorDefinitionParam) validato
 	}
 }
 
-// FxMigrationParam allows injection of the required dependencies in [NewFxMigration].
-type FxMigrationParam struct {
+type migrationParams struct {
 	fx.In
 	Factory orm.MigrationFactory
 	DB      *gorm.DB
 }
 
-// NewFxMigration returns a [orm.Migration] instance.
-func NewFxMigration(p FxMigrationParam) (*orm.Migration, error) {
+func newMigration(p migrationParams) (*orm.Migration, error) {
 	return p.Factory.Create(p.DB)
 }

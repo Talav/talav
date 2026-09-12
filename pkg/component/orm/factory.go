@@ -7,10 +7,13 @@ import (
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database"
+	migrateMySQL "github.com/golang-migrate/migrate/v4/database/mysql"
 	migratePostgres "github.com/golang-migrate/migrate/v4/database/postgres"
 	migrateSQLite "github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 )
@@ -29,23 +32,15 @@ func NewDefaultORMFactory() ORMFactory {
 }
 
 // Create returns a new [gorm.DB] from the given [ORMConfig].
-//
-// Example:
-//
-//	var factory = NewDefaultORMFactory()
-//	var db, _ = factory.Create(ORMConfig{
-//		Host:     "localhost",
-//		User:     "user",
-//		Password: "password",
-//		Name:     "dbname",
-//		Port:     5432,
-//		SSLMode:  "disable",
-//	}, logger)
 func (f *DefaultORMFactory) Create(cfg ORMConfig, logger *slog.Logger) (*gorm.DB, error) {
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=%s TimeZone=UTC",
-		cfg.Host, cfg.User, cfg.Password, cfg.Name, cfg.Port, cfg.SSLMode)
+	dialector, err := gormDialector(cfg)
+	if err != nil {
+		return nil, err
+	}
 
 	gormConfig := &gorm.Config{
+		PrepareStmt:            cfg.PrepareStmt,
+		SkipDefaultTransaction: cfg.SkipDefaultTransaction,
 		Logger: gormlogger.NewSlogLogger(
 			logger,
 			gormlogger.Config{
@@ -57,12 +52,25 @@ func (f *DefaultORMFactory) Create(cfg ORMConfig, logger *slog.Logger) (*gorm.DB
 		),
 	}
 
-	db, err := gorm.Open(postgres.Open(dsn), gormConfig)
+	db, err := gorm.Open(dialector, gormConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return nil, fmt.Errorf("failed to connect to %s database: %w", cfg.Driver, err)
 	}
 
 	return db, nil
+}
+
+func gormDialector(cfg ORMConfig) (gorm.Dialector, error) {
+	switch cfg.Driver {
+	case DriverPostgres:
+		return postgres.Open(cfg.DSN), nil
+	case DriverMySQL:
+		return mysql.Open(cfg.DSN), nil
+	case DriverSQLite:
+		return sqlite.Open(cfg.DSN), nil
+	default:
+		return nil, fmt.Errorf("unsupported database driver %q", cfg.Driver)
+	}
 }
 
 // MigrationFactory is the interface for [Migration] factories.
@@ -88,9 +96,11 @@ func (f *DefaultMigrationFactory) Create(db *gorm.DB) (*Migration, error) {
 	var driver database.Driver
 	dialect := db.Name()
 	switch dialect {
-	case "postgres":
+	case DriverPostgres:
 		driver, err = migratePostgres.WithInstance(sqlDB, &migratePostgres.Config{})
-	case "sqlite":
+	case DriverMySQL:
+		driver, err = migrateMySQL.WithInstance(sqlDB, &migrateMySQL.Config{})
+	case DriverSQLite:
 		driver, err = migrateSQLite.WithInstance(sqlDB, &migrateSQLite.Config{})
 	default:
 		return nil, fmt.Errorf("unsupported migration database %q", dialect)

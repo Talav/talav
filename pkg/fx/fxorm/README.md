@@ -17,12 +17,8 @@ fx.New(
 
 ```yaml
 database:
-  host: localhost
-  user: myapp
-  password: secret
-  name: myapp_db
-  port: 5432
-  sslmode: disable
+  driver: postgres
+  dsn: host=localhost user=myapp password=secret dbname=myapp_db port=5432 sslmode=disable TimeZone=UTC
 ```
 
 ## CLI commands registered
@@ -53,5 +49,6 @@ This registers the repository:
 
 ## Notes
 
-- Only PostgreSQL is supported.
+- PostgreSQL, MySQL, and SQLite are supported. See the component ORM README for their configuration shapes.
+- The module closes its database connection during FX shutdown.
 - Slow query threshold is 200ms (hardcoded). Queries above this log at WARN level via slog.
