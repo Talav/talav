@@ -38,21 +38,10 @@ func WithModules(modules ...fx.Option) Option {
 	}
 }
 
-// WithLogger sets the slog.Logger used for FX's internal event reporting
-// (dependency resolution, lifecycle hooks, errors). The logger is captured at
-// NewApplication time; configure it before calling Run or NewApplication.
-//
-// Non-error FX events (provider registration, lifecycle hooks, "started") are
-// logged at warn level, suppressing routine DI noise. FX error events (invoke
-// failed, missing type, rollback) are logged at error level regardless of the
-// warn floor. To see all FX output, pass a logger whose handler enables debug
-// level.
-//
-// Default: slog.Default() at the time NewApplication is called.
+// WithLogger provides the shared slog.Logger for application components and FX events.
+// Use it instead of FxLoggerModule; configure it before creating the application.
 func WithLogger(logger *slog.Logger) Option {
-	return func(a *Application) {
-		a.logger = logger
-	}
+	return WithModules(fx.Supply(logger))
 }
 
 // WithRootCommandHook registers a function that is called on the root

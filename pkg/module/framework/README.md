@@ -99,13 +99,17 @@ app := framework.NewApplication(
         fxlogger.FxLoggerModule,
         fxhttpserver.FxHTTPServerModule,
     ),
-    // Optional: framework.WithLogger sets the slog.Logger for FX event reporting (default: slog.Default() at warn level).
+    // Alternatively, use framework.WithLogger(log) instead of FxLoggerModule.
     // Optional: framework.WithRootCommandHook registers a callback on the root command after
     // built-in subcommands (e.g. version) and before FX module commands. See go doc on WithRootCommandHook.
 )
 ```
 
-`WithLogger` godoc covers non-error vs error level behaviour and the capture-at-construction-time note.
+FX and application components use the same injected `*slog.Logger`. Provide it
+with `FxLoggerModule` (and `FxConfigModule`), or `WithLogger(log)`; initialization
+fails if no logger is provided. Its handler controls the level for all consumers.
+FX uses its standard INFO and ERROR event levels.
+
 Cobra details (`Persistent*`, `EnableTraverseRunHooks`, multiple hooks) are in the `WithRootCommandHook` doc comment, not repeated here.
 
 ### Environment Detection

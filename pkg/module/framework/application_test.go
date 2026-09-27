@@ -1,6 +1,8 @@
 package framework
 
 import (
+	"bytes"
+	"errors"
 	"io"
 	"log/slog"
 	"testing"
@@ -13,6 +15,7 @@ import (
 
 func TestNewApplication(t *testing.T) {
 	app := NewApplication(
+		WithLogger(slog.New(slog.NewTextHandler(io.Discard, nil))),
 		WithName("test-app"),
 		WithVersion("1.0.0"),
 		WithEnvironment("test"),
@@ -34,6 +37,7 @@ func TestApplication_WithModules(t *testing.T) {
 	// NewApplication now panics on FX init failure, so if this succeeds,
 	// the module was registered and initialized correctly
 	app := NewApplication(
+		WithLogger(slog.New(slog.NewTextHandler(io.Discard, nil))),
 		WithEnvironment("test"),
 		WithModules(testModule),
 	)
@@ -43,6 +47,7 @@ func TestApplication_WithModules(t *testing.T) {
 
 func TestApplication_RootCommand(t *testing.T) {
 	app := NewApplication(
+		WithLogger(slog.New(slog.NewTextHandler(io.Discard, nil))),
 		WithName("test-app"),
 		WithVersion("1.0.0"),
 	)
@@ -52,28 +57,28 @@ func TestApplication_RootCommand(t *testing.T) {
 	assert.Equal(t, "1.0.0", app.rootCmd.Version)
 }
 
-func TestWithLogger_Default(t *testing.T) {
-	app := NewApplication(
-		WithName("test-app"),
-		WithVersion("1.0.0"),
-		WithEnvironment("test"),
-	)
-	assert.Equal(t, slog.Default(), app.logger)
+func TestApplication_RequiresLogger(t *testing.T) {
+	var app Application
+	require.ErrorContains(t, app.initFX(t.Context()), "*slog.Logger")
 }
 
 func TestWithLogger_Custom(t *testing.T) {
+	var injected *slog.Logger
 	custom := slog.New(slog.NewTextHandler(io.Discard, nil))
 	app := NewApplication(
 		WithName("test-app"),
 		WithVersion("1.0.0"),
 		WithEnvironment("test"),
 		WithLogger(custom),
+		WithModules(fx.Populate(&injected)),
 	)
-	assert.Same(t, custom, app.logger)
+	assert.Same(t, custom, injected)
+	require.NoError(t, app.Shutdown(t.Context()))
 }
 
 func TestWithRootCommandHook(t *testing.T) {
 	app := NewApplication(
+		WithLogger(slog.New(slog.NewTextHandler(io.Discard, nil))),
 		WithName("test-app"),
 		WithVersion("1.0.0"),
 		WithEnvironment("test"),
@@ -91,6 +96,7 @@ func TestWithRootCommandHook(t *testing.T) {
 func TestWithRootCommandHook_MultipleLastWins(t *testing.T) {
 	var order []int
 	app := NewApplication(
+		WithLogger(slog.New(slog.NewTextHandler(io.Discard, nil))),
 		WithName("test-app"),
 		WithVersion("1.0.0"),
 		WithEnvironment("test"),
@@ -112,4 +118,36 @@ func TestWithRootCommandHook_MultipleLastWins(t *testing.T) {
 	require.NotNil(t, app.rootCmd)
 	assert.Equal(t, []int{1, 2}, order)
 	assert.Equal(t, "second", app.rootCmd.Annotations["k"])
+}
+
+func TestApplication_FXLogging_UsesLoggerLevel(t *testing.T) {
+	for _, level := range []slog.Level{slog.LevelDebug, slog.LevelInfo, slog.LevelWarn, slog.LevelError} {
+		t.Run(level.String(), func(t *testing.T) {
+			var output bytes.Buffer
+			log := slog.New(slog.NewJSONHandler(&output, &slog.HandlerOptions{Level: level}))
+			require.Panics(t, func() {
+				NewApplication(
+					WithModules(
+						fx.Provide(func() *slog.Logger { return log }),
+						fx.Invoke(func(logger *slog.Logger) error {
+							logger.Info("application info")
+							logger.Error("application error")
+							return errors.New("test failure")
+						}),
+					),
+				)
+			})
+
+			if level <= slog.LevelInfo {
+				assert.Contains(t, output.String(), `"level":"INFO","msg":"provided"`)
+				assert.Contains(t, output.String(), `"msg":"application info"`)
+			} else {
+				assert.NotContains(t, output.String(), `"msg":"provided"`)
+				assert.NotContains(t, output.String(), `"msg":"application info"`)
+			}
+			assert.Contains(t, output.String(), `"level":"ERROR","msg":"invoke failed"`)
+			assert.Contains(t, output.String(), `"level":"ERROR","msg":"application error"`)
+			assert.Contains(t, output.String(), "test failure")
+		})
+	}
 }
