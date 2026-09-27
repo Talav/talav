@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/knadh/koanf/v2"
@@ -9,7 +10,14 @@ import (
 
 // Config allows to access the application configuration using koanf.
 type Config struct {
-	k *koanf.Koanf
+	k           *koanf.Koanf
+	decodeHooks []mapstructure.DecodeHookFunc
+}
+
+// WithDecodeHooks returns a copy with additional hooks, run before the built-in hooks.
+// It shares the loaded values; hooks must pass unrelated inputs through.
+func (c *Config) WithDecodeHooks(hooks ...mapstructure.DecodeHookFunc) *Config {
+	return &Config{k: c.k, decodeHooks: slices.Concat(c.decodeHooks, hooks)}
 }
 
 // UnmarshalKey unmarshals the configuration at the given key path into the provided struct.
@@ -50,6 +58,7 @@ func (c *Config) unmarshalKey(key string, dest any) error {
 		Tag: "config",
 		DecoderConfig: &mapstructure.DecoderConfig{
 			DecodeHook: mapstructure.ComposeDecodeHookFunc(
+				mapstructure.ComposeDecodeHookFunc(c.decodeHooks...),
 				mapstructure.StringToTimeDurationHookFunc(),
 				mapstructure.StringToSliceHookFunc(","),
 			),

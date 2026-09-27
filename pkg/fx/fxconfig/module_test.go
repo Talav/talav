@@ -2,10 +2,13 @@ package fxconfig
 
 import (
 	"errors"
+	"net/netip"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,6 +16,40 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxtest"
 )
+
+func TestModule_DecodeHooks(t *testing.T) {
+	t.Setenv("HOOKS_ADDRESS", "192.0.2.1")
+	t.Setenv("HOOKS_ENABLED", "enabled")
+	type hookConfig struct {
+		Address netip.Addr `config:"address"`
+		Enabled bool       `config:"enabled"`
+	}
+	hook := mapstructure.DecodeHookFuncKind(func(from, to reflect.Kind, raw any) (any, error) {
+		if from == reflect.String && to == reflect.Bool {
+			return raw == "enabled", nil
+		}
+
+		return raw, nil
+	})
+
+	for _, provider := range []fx.Option{
+		AsConfig("hooks", hookConfig{}),
+		AsConfigWithDefaults("hooks", hookConfig{}, hookConfig{}),
+		AsConfigMergeKeys("hooks", []string{"hooks"}, hookConfig{}),
+	} {
+		var got hookConfig
+		fxtest.New(t,
+			fx.NopLogger,
+			FxConfigModule,
+			AsConfigDecodeHook(hook),
+			AsConfigDecodeHookConstructor(mapstructure.TextUnmarshallerHookFunc),
+			provider,
+			fx.Populate(&got),
+		).RequireStart().RequireStop()
+		assert.Equal(t, netip.MustParseAddr("192.0.2.1"), got.Address)
+		assert.True(t, got.Enabled)
+	}
+}
 
 // errFxValidatableTest is returned by test [Validatable] implementations when validation must fail.
 var errFxValidatableTest = errors.New("fx validatable test")

@@ -1,15 +1,43 @@
 package config
 
 import (
+	"net/netip"
 	"path/filepath"
 	"slices"
 	"testing"
 	"time"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestConfig_WithDecodeHooks(t *testing.T) {
+	cfg := loadYAMLConfig(t, "scenario_duration")
+	require.NoError(t, cfg.Koanf().Set("server.address", "192.0.2.1"))
+	require.NoError(t, cfg.Koanf().Set("server.tags", "a,b"))
+	hooks := []mapstructure.DecodeHookFunc{mapstructure.TextUnmarshallerHookFunc()}
+	custom := cfg.WithDecodeHooks(hooks...).WithDecodeHooks()
+	hooks[0] = nil
+
+	var direct, merged struct {
+		Address     netip.Addr    `config:"address"`
+		ReadTimeout time.Duration `config:"read_timeout"`
+		Tags        []string      `config:"tags"`
+	}
+	require.NoError(t, custom.UnmarshalKey("server", &direct))
+	require.NoError(t, custom.UnmarshalMergeKeys([]string{"server"}, &merged))
+	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), direct.Address)
+	assert.Equal(t, 15*time.Second, direct.ReadTimeout)
+	assert.Equal(t, []string{"a", "b"}, direct.Tags)
+	assert.Equal(t, direct, merged)
+
+	var address netip.Addr
+	require.Error(t, cfg.UnmarshalKey("server.address", &address))
+	require.NoError(t, custom.Koanf().Set("server.address", "invalid"))
+	require.Error(t, custom.UnmarshalKey("server.address", &address))
+}
 
 func loadYAMLConfig(t *testing.T, relDir string) *Config {
 	t.Helper()

@@ -93,7 +93,7 @@ func (f *DefaultConfigFactory) Create(sources ...ConfigSource) (*Config, error) 
 	// Expand environment variable placeholders
 	f.expandEnvPlaceholders(k)
 
-	return &Config{k}, nil
+	return &Config{k: k}, nil
 }
 
 // CreateWithDefaultSources loads [DefaultConfigSources] first, then extra sources.

@@ -3,9 +3,27 @@ package fxconfig
 import (
 	"fmt"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/talav/talav/pkg/component/config"
 	"go.uber.org/fx"
 )
+
+// AsConfigDecodeHook registers a native decode hook. Hook order is unspecified.
+func AsConfigDecodeHook(hook mapstructure.DecodeHookFunc, annotations ...fx.Annotation) fx.Option {
+	return AsConfigDecodeHookConstructor(func() mapstructure.DecodeHookFunc { return hook }, annotations...)
+}
+
+// AsConfigDecodeHookConstructor registers a hook constructor with optional dependency annotations.
+// The helper supplies fx.As and fx.ResultTags; callers must not override them.
+func AsConfigDecodeHookConstructor(constructor any, annotations ...fx.Annotation) fx.Option {
+	allAnnotations := append([]fx.Annotation(nil), annotations...)
+	allAnnotations = append(allAnnotations,
+		fx.As(new(mapstructure.DecodeHookFunc)),
+		fx.ResultTags(`group:"config-decode-hooks"`),
+	)
+
+	return fx.Provide(fx.Annotate(constructor, allAnnotations...))
+}
 
 // AsConfigSource registers an additional config source.
 func AsConfigSource(source config.ConfigSource) fx.Option {

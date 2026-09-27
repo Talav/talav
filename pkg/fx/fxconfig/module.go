@@ -1,6 +1,7 @@
 package fxconfig
 
 import (
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/talav/talav/pkg/component/config"
 	"go.uber.org/fx"
 )
@@ -21,14 +22,16 @@ var FxConfigModule = fx.Module(
 type FxConfigParam struct {
 	fx.In
 	Factory       config.ConfigFactory
-	ConfigSources []config.ConfigSource `group:"config-sources"`
+	ConfigSources []config.ConfigSource         `group:"config-sources"`
+	DecodeHooks   []mapstructure.DecodeHookFunc `group:"config-decode-hooks"`
 }
 
 // NewFxConfig returns a [config.Config].
 func NewFxConfig(p FxConfigParam) (*config.Config, error) {
-	if len(p.ConfigSources) > 0 {
-		return p.Factory.Create(p.ConfigSources...)
+	cfg, err := p.Factory.Create(p.ConfigSources...)
+	if err != nil {
+		return nil, err
 	}
 
-	return p.Factory.Create()
+	return cfg.WithDecodeHooks(p.DecodeHooks...), nil
 }
