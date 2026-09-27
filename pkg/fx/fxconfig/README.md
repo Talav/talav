@@ -218,6 +218,29 @@ logger:
   output_path: /var/log/app.log
 ```
 
+## Custom Decode Hooks
+
+Register a string parser with `AsConfigParser`. Fx collects registered hooks automatically and applies them to the shared `*config.Config`, including `AsConfig`, `AsConfigWithDefaults`, and `AsConfigMergeKeys`. For example, with `net/netip` imported and `SERVER_ADDRESS=192.0.2.1`:
+
+```go
+type ServerConfig struct {
+	Address netip.Addr `config:"address"`
+}
+
+fx.New(
+	fxconfig.FxConfigModule,
+	fxconfig.AsConfigParser(netip.ParseAddr),
+	fxconfig.AsConfig("server", ServerConfig{}),
+	fx.Invoke(func(cfg ServerConfig) {
+		fmt.Println(cfg.Address)
+	}),
+).Run()
+```
+
+`AsConfigParser` uses [`config.StringParserHook`](../../component/config/README.md#custom-decode-hooks), including its input checks. Hooks run before the built-in conversions; order between registered hooks is unspecified, so avoid competing parsers for the same type.
+
+Use `AsConfigDecodeHook(hook)` for a native mapstructure hook, or `AsConfigDecodeHookConstructor(constructor, annotations...)` when constructing a hook requires injected dependencies. The helpers supply the Fx result type and group annotations.
+
 ## Custom Configuration Factory
 
 Override the default factory with a custom implementation:

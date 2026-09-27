@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"reflect"
 	"slices"
 
 	"github.com/go-viper/mapstructure/v2"
@@ -74,4 +75,25 @@ type AppConfig struct {
 	Env     string `config:"env"`
 	Name    string `config:"name"`
 	Version string `config:"version"`
+}
+
+// StringParserHook parses strings into T. Non-string inputs must already be T or *T;
+// other destination types pass through unchanged. Strings are parsed even when T is string.
+func StringParserHook[T any](parse func(string) (T, error)) mapstructure.DecodeHookFuncType {
+	target := reflect.TypeFor[T]()
+
+	return func(_ reflect.Type, to reflect.Type, data any) (any, error) {
+		if to != target {
+			return data, nil
+		}
+
+		switch value := data.(type) {
+		case string:
+			return parse(value)
+		case *T, T:
+			return data, nil
+		default:
+			return nil, fmt.Errorf("expected a string for %s, got %T", target, data)
+		}
+	}
 }

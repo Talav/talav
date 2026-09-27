@@ -8,6 +8,11 @@ import (
 	"go.uber.org/fx"
 )
 
+// AsConfigParser registers a string parser for T through [config.StringParserHook].
+func AsConfigParser[T any](parse func(string) (T, error), annotations ...fx.Annotation) fx.Option {
+	return AsConfigDecodeHook(config.StringParserHook(parse), annotations...)
+}
+
 // AsConfigDecodeHook registers a native decode hook. Hook order is unspecified.
 func AsConfigDecodeHook(hook mapstructure.DecodeHookFunc, annotations ...fx.Annotation) fx.Option {
 	return AsConfigDecodeHookConstructor(func() mapstructure.DecodeHookFunc { return hook }, annotations...)

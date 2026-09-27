@@ -313,6 +313,31 @@ cfg.UnmarshalKey("app", &appCfg)
 
 **Note**: The package uses `config` struct tags (not `koanf`) by default for better abstraction.
 
+### Custom Decode Hooks
+
+Use `WithDecodeHooks` to add conversions after loading configuration. `StringParserHook` adapts a parser with signature `func(string) (T, error)` into a decode hook. For example, with `net/netip` imported and `SERVER_ADDRESS=192.0.2.1`:
+
+```go
+cfg, err := config.NewDefaultConfigFactory().Create()
+if err != nil {
+    panic(err)
+}
+cfg = cfg.WithDecodeHooks(config.StringParserHook(netip.ParseAddr))
+
+var server struct {
+    Address netip.Addr `config:"address"`
+}
+if err := cfg.UnmarshalKey("server", &server); err != nil {
+    panic(err)
+}
+```
+
+Keep the returned config: `WithDecodeHooks` returns a copy that shares the loaded values. Custom hooks run before the built-in duration and comma-separated slice hooks in both `UnmarshalKey` and `UnmarshalMergeKeys`.
+
+`StringParserHook` handles the exact target type `T`: it parses strings, preserves already-typed non-string inputs (`T` or `*T`), and rejects other inputs. Unrelated target types pass through unchanged. Quote numeric-looking strings in YAML when they should reach a string parser.
+
+For other conversions, pass native mapstructure hooks directly to `WithDecodeHooks`. For Fx registration, see [Custom Decode Hooks](../../fx/fxconfig/README.md#custom-decode-hooks).
+
 ## Validation
 
 Structs can implement [`Validatable`](validatable.go) with a **pointer receiver**:
@@ -461,9 +486,11 @@ See `factory_test.go` for comprehensive examples covering:
 - `DefaultConfigSources() []ConfigSource`: Returns the default YAML + dotenv sources (same as empty `Create()`); each call returns a new slice
 - `NewDotenvParser()`: Creates a dotenv parser with key normalization
 - `EnvTransformFunc()`: Returns transform function for environment variables
+- `StringParserHook[T](parse func(string) (T, error)) mapstructure.DecodeHookFuncType`: Adapts a string parser into a decode hook for `T`
 
 ### Methods
 
+- `Config.WithDecodeHooks(hooks ...mapstructure.DecodeHookFunc) *Config`: Returns a copy with additional decode hooks, sharing the loaded values
 - `Config.UnmarshalKey(key string, dest any) error`: Unmarshals config into struct (includes duration and comma-slice decode hooks)
 - `Config.UnmarshalMergeKeys(keys []string, dest any) error`: Applies each key path in order into the same `dest` with `ZeroFields: false` overlay semantics; empty `keys` is a no-op
 - `Config.Koanf() *koanf.Koanf`: Direct access to Koanf for `Keys`, `Get`, `String`, `Marshal`, `Raw`, `All`, etc.; no `UnmarshalKey` hooks on that API

@@ -17,6 +17,23 @@ import (
 	"go.uber.org/fx/fxtest"
 )
 
+func TestModule_AsConfigParser(t *testing.T) {
+	t.Setenv("PARSER_ADDRESS", "192.0.2.1")
+	type parserConfig struct {
+		Address *netip.Addr `config:"address"`
+	}
+	var got parserConfig
+	fxtest.New(t,
+		fx.NopLogger,
+		FxConfigModule,
+		AsConfigParser(netip.ParseAddr),
+		AsConfig("parser", parserConfig{}),
+		fx.Populate(&got),
+	).RequireStart().RequireStop()
+	require.NotNil(t, got.Address)
+	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), *got.Address)
+}
+
 func TestModule_DecodeHooks(t *testing.T) {
 	t.Setenv("HOOKS_ADDRESS", "192.0.2.1")
 	t.Setenv("HOOKS_ENABLED", "enabled")

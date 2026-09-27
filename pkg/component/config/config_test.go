@@ -4,6 +4,8 @@ import (
 	"net/netip"
 	"path/filepath"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +14,66 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestStringParserHook(t *testing.T) {
+	type parsedInt int64
+	typed := parsedInt(25)
+	calls := 0
+	hook := StringParserHook(func(raw string) (parsedInt, error) {
+		calls++
+		value, err := strconv.ParseInt(raw, 10, 64)
+
+		return parsedInt(value), err
+	})
+	cfg := loadYAMLConfig(t, "scenario_duration").WithDecodeHooks(hook, hook)
+	for _, tc := range []struct {
+		name      string
+		raw       any
+		wantCalls int
+		wantError string
+	}{
+		{name: "string", raw: "25", wantCalls: 1},
+		{name: "typed", raw: typed},
+		{name: "typed_pointer", raw: &typed},
+		{name: "float", raw: 2.25, wantError: "expected a string"},
+		{name: "integer", raw: int64(25), wantError: "expected a string"},
+		{name: "boolean", raw: true, wantError: "expected a string"},
+		{name: "parse_error", raw: "invalid", wantCalls: 1, wantError: "invalid syntax"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls = 0
+			require.NoError(t, cfg.Koanf().Set("value", tc.raw))
+			var got *parsedInt
+			err := cfg.UnmarshalKey("value", &got)
+			assert.Equal(t, tc.wantCalls, calls)
+			if tc.wantError != "" {
+				require.ErrorContains(t, err, tc.wantError)
+				if tc.name == "parse_error" {
+					require.ErrorIs(t, err, strconv.ErrSyntax)
+				}
+
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			assert.Equal(t, typed, *got)
+		})
+	}
+}
+
+func TestStringParserHook_StringTarget(t *testing.T) {
+	cfg := loadYAMLConfig(t, "scenario_merge_keys").WithDecodeHooks(
+		StringParserHook(func(raw string) (string, error) { return strings.ToUpper(raw), nil }),
+	)
+	var got struct {
+		Host string `config:"host"`
+		Port int    `config:"port"`
+	}
+	require.NoError(t, cfg.UnmarshalKey("merge_base", &got))
+	assert.Equal(t, "LOCALHOST", got.Host)
+	assert.Equal(t, 8080, got.Port)
+}
 
 func TestConfig_WithDecodeHooks(t *testing.T) {
 	cfg := loadYAMLConfig(t, "scenario_duration")
