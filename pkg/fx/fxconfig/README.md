@@ -241,6 +241,19 @@ fx.New(
 
 Use `AsConfigDecodeHook(hook)` for a native mapstructure hook, or `AsConfigDecodeHookConstructor(constructor, annotations...)` when constructing a hook requires injected dependencies. The helpers supply the Fx result type and group annotations.
 
+### Decoder Configuration
+
+`AsConfig`, `AsConfigWithDefaults`, and `AsConfigMergeKeys` forward optional decoder callbacks to the corresponding config methods:
+
+```go
+fxconfig.AsConfig("server", ServerConfig{}, func(dc *mapstructure.DecoderConfig) {
+	dc.ErrorUnset = true
+	dc.AllowUnsetPointer = true
+})
+```
+
+Callbacks apply only to that registration. `ErrorUnset` still requires input for defaulted fields and checks each merge layer independently. See [Decoder Configuration](../../component/config/README.md#decoder-configuration) for override precedence and missing/null input behavior.
+
 ## Custom Configuration Factory
 
 Override the default factory with a custom implementation:
@@ -352,7 +365,7 @@ fxconfig.AsConfigSource(config.ConfigSource{
 ### AsConfig[T]
 
 ```go
-func AsConfig[T any](key string, _ T) fx.Option
+func AsConfig[T any](key string, _ T, options ...func(*mapstructure.DecoderConfig)) fx.Option
 ```
 
 Registers a typed configuration provider that extracts configuration at the given key.

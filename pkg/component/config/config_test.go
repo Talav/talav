@@ -88,17 +88,105 @@ func TestConfig_WithDecodeHooks(t *testing.T) {
 		ReadTimeout time.Duration `config:"read_timeout"`
 		Tags        []string      `config:"tags"`
 	}
-	require.NoError(t, custom.UnmarshalKey("server", &direct))
+	var metadata mapstructure.Metadata
+	require.NoError(t, custom.UnmarshalKey("server", &direct, func(dc *mapstructure.DecoderConfig) {
+		dc.Metadata = &metadata
+	}))
 	require.NoError(t, custom.UnmarshalMergeKeys([]string{"server"}, &merged))
 	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), direct.Address)
 	assert.Equal(t, 15*time.Second, direct.ReadTimeout)
 	assert.Equal(t, []string{"a", "b"}, direct.Tags)
 	assert.Equal(t, direct, merged)
+	assert.Contains(t, metadata.Keys, "read_timeout")
 
 	var address netip.Addr
 	require.Error(t, cfg.UnmarshalKey("server.address", &address))
 	require.NoError(t, custom.Koanf().Set("server.address", "invalid"))
 	require.Error(t, custom.UnmarshalKey("server.address", &address))
+}
+
+func TestUnmarshalKey_ErrorUnset(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		raw       any
+		wantError string
+	}{
+		{name: "missing_field", raw: map[string]any{"count": 0}, wantError: "enabled"},
+		{name: "explicit_zero", raw: map[string]any{"count": 0, "enabled": false}},
+		{name: "null_field", raw: map[string]any{"count": nil, "enabled": false}},
+		{name: "null_block", raw: nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := loadYAMLConfig(t, "scenario_merge_keys")
+			require.NoError(t, cfg.Koanf().Set("options", tc.raw))
+			var got struct {
+				Count    int     `config:"count"`
+				Enabled  bool    `config:"enabled"`
+				Optional *string `config:"optional"`
+			}
+			err := cfg.UnmarshalKey("options", &got, func(dc *mapstructure.DecoderConfig) {
+				dc.ErrorUnset = true
+				dc.AllowUnsetPointer = true
+			})
+			if tc.wantError != "" {
+				require.ErrorContains(t, err, tc.wantError)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Zero(t, got)
+		})
+	}
+}
+
+func TestUnmarshalKey_DecoderOptions(t *testing.T) {
+	cfg := loadYAMLConfig(t, "scenario_merge_keys").WithDecodeHooks(
+		StringParserHook(func(string) (string, error) { return "registered", nil }),
+	)
+	for _, tag := range []string{"custom", ""} {
+		t.Run("tag_"+tag, func(t *testing.T) {
+			var got, other struct {
+				Name string `custom:"host" koanf:"host"`
+			}
+			err := cfg.UnmarshalKey("merge_base", &got,
+				func(dc *mapstructure.DecoderConfig) {
+					dc.TagName = tag
+					dc.DecodeHook = StringParserHook(func(raw string) (string, error) {
+						return strings.ToUpper(raw), nil
+					})
+				},
+				func(dc *mapstructure.DecoderConfig) {
+					dc.Result = &other
+					dc.DecodeHook = mapstructure.ComposeDecodeHookFunc(dc.DecodeHook,
+						StringParserHook(func(raw string) (string, error) {
+							return raw + "!", nil
+						}),
+					)
+				},
+			)
+			require.NoError(t, err)
+			assert.Equal(t, "LOCALHOST!", got.Name)
+			assert.Empty(t, other.Name)
+		})
+	}
+	var got struct {
+		Host string `config:"host"`
+	}
+	require.NoError(t, cfg.UnmarshalKey("merge_base", &got))
+	assert.Equal(t, "registered", got.Host)
+	require.Error(t, cfg.UnmarshalKey("merge_base", got))
+}
+
+func TestUnmarshalMergeKeys_ErrorUnset(t *testing.T) {
+	cfg := loadYAMLConfig(t, "scenario_merge_keys")
+	var got struct {
+		Host string `config:"host"`
+		Port int    `config:"port"`
+	}
+	err := cfg.UnmarshalMergeKeys([]string{"merge_base", "merge_overlay"}, &got, func(dc *mapstructure.DecoderConfig) {
+		dc.ErrorUnset = true
+	})
+	require.ErrorContains(t, err, `config key "merge_overlay"`)
+	require.ErrorContains(t, err, "host")
 }
 
 func loadYAMLConfig(t *testing.T, relDir string) *Config {

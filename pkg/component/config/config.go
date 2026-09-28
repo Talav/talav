@@ -23,12 +23,13 @@ func (c *Config) WithDecodeHooks(hooks ...mapstructure.DecodeHookFunc) *Config {
 
 // UnmarshalKey unmarshals the configuration at the given key path into the provided struct.
 // Uses "config" struct tag by default (instead of "koanf").
+// Options run in order after defaults and registered hooks; Result always points to dest.
 //
 // Decode hooks applied automatically:
 //   - strings → time.Duration  (e.g. "15s", "100ms")
 //   - comma-separated strings → []string slices
-func (c *Config) UnmarshalKey(key string, dest any) error {
-	return c.unmarshalKey(key, dest)
+func (c *Config) UnmarshalKey(key string, dest any, options ...func(*mapstructure.DecoderConfig)) error {
+	return c.unmarshalKey(key, dest, options...)
 }
 
 // UnmarshalMergeKeys unmarshals each key path in order into dest using the same rules as [Config.UnmarshalKey].
@@ -36,9 +37,10 @@ func (c *Config) UnmarshalKey(key string, dest any) error {
 // Slices and maps are replaced when the source subtree defines them, not merged element-wise.
 //
 // An empty keys slice is a no-op. On failure, the error wraps the failing key with [fmt.Errorf] using %w.
-func (c *Config) UnmarshalMergeKeys(keys []string, dest any) error {
+// Options configure a fresh decoder for each key; ErrorUnset checks each input separately.
+func (c *Config) UnmarshalMergeKeys(keys []string, dest any, options ...func(*mapstructure.DecoderConfig)) error {
 	for _, k := range keys {
-		if err := c.unmarshalKey(k, dest); err != nil {
+		if err := c.unmarshalKey(k, dest, options...); err != nil {
 			return fmt.Errorf("config key %q: %w", k, err)
 		}
 	}
@@ -54,20 +56,25 @@ func (c *Config) Koanf() *koanf.Koanf {
 	return c.k
 }
 
-func (c *Config) unmarshalKey(key string, dest any) error {
+func (c *Config) unmarshalKey(key string, dest any, options ...func(*mapstructure.DecoderConfig)) error {
+	decoderConfig := &mapstructure.DecoderConfig{
+		TagName: "config",
+		DecodeHook: mapstructure.ComposeDecodeHookFunc(
+			mapstructure.ComposeDecodeHookFunc(c.decodeHooks...),
+			mapstructure.StringToTimeDurationHookFunc(),
+			mapstructure.StringToSliceHookFunc(","),
+		),
+		WeaklyTypedInput: true,
+		// Explicit false so overlay via [Config.UnmarshalMergeKeys] keeps fields missing from later keys.
+		ZeroFields: false,
+	}
+	for _, option := range options {
+		option(decoderConfig)
+	}
+
 	return c.k.UnmarshalWithConf(key, dest, koanf.UnmarshalConf{
-		Tag: "config",
-		DecoderConfig: &mapstructure.DecoderConfig{
-			DecodeHook: mapstructure.ComposeDecodeHookFunc(
-				mapstructure.ComposeDecodeHookFunc(c.decodeHooks...),
-				mapstructure.StringToTimeDurationHookFunc(),
-				mapstructure.StringToSliceHookFunc(","),
-			),
-			WeaklyTypedInput: true,
-			// Explicit false so overlay via [Config.UnmarshalMergeKeys] keeps fields missing from later keys.
-			ZeroFields: false,
-			Result:     dest,
-		},
+		Tag:           decoderConfig.TagName,
+		DecoderConfig: decoderConfig,
 	})
 }
 

@@ -42,6 +42,7 @@ func AsConfigSource(source config.ConfigSource) fx.Option {
 
 // AsConfig registers a config provider that extracts a config of type T from the main config at the given key.
 // This is a generic function that each module can use to declare its config.
+// Options are passed to [config.Config.UnmarshalKey].
 //
 // After a successful unmarshal, if *T implements [config.Validatable], [config.Validatable.Validate] is called.
 // Validation errors are wrapped with the config key and support [errors.Unwrap].
@@ -53,11 +54,11 @@ func AsConfigSource(source config.ConfigSource) fx.Option {
 //	fxconfig.AsConfig("logger", logger.LoggerConfig{})
 //
 // This will provide logger.LoggerConfig as a dependency that can be injected into other constructors.
-func AsConfig[T any](key string, _ T) fx.Option {
+func AsConfig[T any](key string, _ T, options ...func(*mapstructure.DecoderConfig)) fx.Option {
 	return fx.Provide(
 		func(mainConfig *config.Config) (T, error) {
 			var cfg T
-			if err := mainConfig.UnmarshalKey(key, &cfg); err != nil {
+			if err := mainConfig.UnmarshalKey(key, &cfg, options...); err != nil {
 				return cfg, err
 			}
 
@@ -72,6 +73,7 @@ func AsConfig[T any](key string, _ T) fx.Option {
 
 // AsConfigWithDefaults registers a config provider that starts with defaults, then unmarshals user config on top.
 // Only fields present in user config override defaults. Uses standard Go unmarshaling behavior.
+// Options are passed to [config.Config.UnmarshalKey]; ErrorUnset requires input even for defaulted fields.
 //
 // After a successful unmarshal, if *T implements [config.Validatable], [config.Validatable.Validate] is called.
 // Validation errors are wrapped with the config key and support [errors.Unwrap].
@@ -83,11 +85,11 @@ func AsConfig[T any](key string, _ T) fx.Option {
 //	fxconfig.AsConfigWithDefaults("httpserver", httpserver.DefaultConfig(), httpserver.Config{})
 //
 // This will provide httpserver.Config with defaults applied for missing values.
-func AsConfigWithDefaults[T any](key string, defaults T, _ T) fx.Option {
+func AsConfigWithDefaults[T any](key string, defaults T, _ T, options ...func(*mapstructure.DecoderConfig)) fx.Option {
 	return fx.Provide(
 		func(mainConfig *config.Config) (T, error) {
 			cfg := defaults
-			if err := mainConfig.UnmarshalKey(key, &cfg); err != nil {
+			if err := mainConfig.UnmarshalKey(key, &cfg, options...); err != nil {
 				return cfg, err
 			}
 
@@ -102,17 +104,18 @@ func AsConfigWithDefaults[T any](key string, defaults T, _ T) fx.Option {
 
 // AsConfigMergeKeys registers a provider that unmarshals mergeKeys in order into a new T (zero value),
 // then runs [config.Validate] when *T implements [config.Validatable].
+// Options are passed to [config.Config.UnmarshalMergeKeys] for each input key.
 //
 // validateErrorKey is used only when validation fails (wrapped as config key %q with %w).
 // It is not a koanf path and is not used by Fx for dependency resolution; types are resolved by T.
 // Unmarshal failures retain wrapping from [config.Config.UnmarshalMergeKeys] (the failing path key).
 //
 // Use struct type T, not *T. The first mergeKeys entry is usually the YAML baseline subtree; later keys overlay.
-func AsConfigMergeKeys[T any](validateErrorKey string, mergeKeys []string, _ T) fx.Option {
+func AsConfigMergeKeys[T any](validateErrorKey string, mergeKeys []string, _ T, options ...func(*mapstructure.DecoderConfig)) fx.Option {
 	return fx.Provide(
 		func(mainConfig *config.Config) (T, error) {
 			var cfg T
-			if err := mainConfig.UnmarshalMergeKeys(mergeKeys, &cfg); err != nil {
+			if err := mainConfig.UnmarshalMergeKeys(mergeKeys, &cfg, options...); err != nil {
 				return cfg, err
 			}
 

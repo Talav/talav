@@ -338,6 +338,21 @@ Keep the returned config: `WithDecodeHooks` returns a copy that shares the loade
 
 For other conversions, pass native mapstructure hooks directly to `WithDecodeHooks`. For Fx registration, see [Custom Decode Hooks](../../fx/fxconfig/README.md#custom-decode-hooks).
 
+### Decoder Configuration
+
+`UnmarshalKey` and `UnmarshalMergeKeys` accept callbacks configuring a fresh `mapstructure.DecoderConfig` for each decode. Callbacks run in argument order after Talav's defaults and registered hooks:
+
+```go
+err := cfg.UnmarshalKey("server", &server, func(dc *mapstructure.DecoderConfig) {
+    dc.ErrorUnset = true
+    dc.AllowUnsetPointer = true
+})
+```
+
+All decoder settings can be overridden except `Result`, which always comes from the destination argument. `TagName` is passed to Koanf's `Tag` option; an empty value selects its default tag, `koanf`. Assigning `DecodeHook` replaces the entire hook chain; use `mapstructure.ComposeDecodeHookFunc(dc.DecodeHook, hook)` to extend it. Calls without callbacks keep the existing behavior.
+
+`ErrorUnset` checks for fields absent from each input map, including fields with Go defaults. In `UnmarshalMergeKeys`, it checks each layer separately, so partial overlays can fail. Missing blocks and null values retain mapstructure's nil handling and may still succeed with `ErrorUnset` enabled.
+
 ## Validation
 
 Structs can implement [`Validatable`](validatable.go) with a **pointer receiver**:
@@ -491,8 +506,8 @@ See `factory_test.go` for comprehensive examples covering:
 ### Methods
 
 - `Config.WithDecodeHooks(hooks ...mapstructure.DecodeHookFunc) *Config`: Returns a copy with additional decode hooks, sharing the loaded values
-- `Config.UnmarshalKey(key string, dest any) error`: Unmarshals config into struct (includes duration and comma-slice decode hooks)
-- `Config.UnmarshalMergeKeys(keys []string, dest any) error`: Applies each key path in order into the same `dest` with `ZeroFields: false` overlay semantics; empty `keys` is a no-op
+- `Config.UnmarshalKey(key string, dest any, options ...func(*mapstructure.DecoderConfig)) error`: Unmarshals config into struct (includes duration and comma-slice decode hooks by default)
+- `Config.UnmarshalMergeKeys(keys []string, dest any, options ...func(*mapstructure.DecoderConfig)) error`: Applies each key path in order into the same `dest` with `ZeroFields: false` by default; empty `keys` is a no-op
 - `Config.Koanf() *koanf.Koanf`: Direct access to Koanf for `Keys`, `Get`, `String`, `Marshal`, `Raw`, `All`, etc.; no `UnmarshalKey` hooks on that API
 - `ConfigFactory.Create(sources ...ConfigSource) (*Config, error)`: Creates configuration; empty sources uses `DefaultConfigSources()`
 - `ConfigFactory.CreateWithDefaultSources(extra ...ConfigSource) (*Config, error)`: `Create` with `DefaultConfigSources()` followed by `extra`

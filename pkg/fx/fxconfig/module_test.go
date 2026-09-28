@@ -17,6 +17,42 @@ import (
 	"go.uber.org/fx/fxtest"
 )
 
+func TestModule_DecoderOptions(t *testing.T) {
+	t.Setenv("DECODEROPTIONS_PORT", "0")
+	type serverConfig struct {
+		Host string `config:"host"`
+		Port int    `config:"port"`
+	}
+	for _, tc := range []struct {
+		name   string
+		strict bool
+	}{
+		{name: "permissive"},
+		{name: "strict", strict: true},
+	} {
+		option := func(dc *mapstructure.DecoderConfig) { dc.ErrorUnset = tc.strict }
+		for _, provider := range []struct {
+			name   string
+			option fx.Option
+		}{
+			{"plain", AsConfig("decoderoptions", serverConfig{}, option)},
+			{"defaults", AsConfigWithDefaults("decoderoptions", serverConfig{Host: "localhost"}, serverConfig{}, option)},
+			{"merge", AsConfigMergeKeys("server", []string{"decoderoptions"}, serverConfig{}, option)},
+		} {
+			t.Run(tc.name+"/"+provider.name, func(t *testing.T) {
+				var got serverConfig
+				app := fx.New(fx.NopLogger, FxConfigModule, provider.option, fx.Populate(&got))
+				if tc.strict {
+					require.ErrorContains(t, app.Err(), "host")
+				} else {
+					require.NoError(t, app.Err())
+					assert.Zero(t, got.Port)
+				}
+			})
+		}
+	}
+}
+
 func TestModule_AsConfigParser(t *testing.T) {
 	t.Setenv("PARSER_ADDRESS", "192.0.2.1")
 	type parserConfig struct {
