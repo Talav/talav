@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jonboulle/clockwork"
 	"github.com/talav/talav/pkg/component/clock"
 	"github.com/talav/talav/pkg/fx/fxconfig"
 	"go.uber.org/fx"
@@ -12,38 +13,37 @@ import (
 // ModuleName is the module name.
 const ModuleName = "clock"
 
-// FxClockModule is the [fx] clock module.
-//
-// It provides a [clock.Clock] implementation selected by the "clock.mode" config key:
-//   - "system"  (default) — delegates to time.Now; correct for production.
-//   - "fixed"             — frozen at clock.fixed_time (RFC3339); useful for
-//     deterministic testing or simulating a specific instant (e.g. leap day).
-//   - "offset"            — shifts wall time by clock.offset; preserves elapsed
-//     time but anchors the start to a different window (e.g. market replay).
+// FxClockModule provides clockwork.Clock and clock.Clock backed by one instance.
+// The *clockwork.FakeClock controller is nil in system mode.
 var FxClockModule = fx.Module(
 	ModuleName,
 	fxconfig.AsConfigWithDefaults("clock", DefaultClockConfig(), ClockConfig{}),
-	fx.Provide(newClock),
+	fx.Provide(
+		newClock,
+		func(clk clockwork.Clock) clock.Clock { return clk },
+	),
 )
 
-// newClock constructs a [clock.Clock] from the resolved [ClockConfig].
-func newClock(cfg ClockConfig) (clock.Clock, error) {
+func newClock(cfg ClockConfig) (clockwork.Clock, *clockwork.FakeClock, error) {
 	switch cfg.Mode {
 	case ModeSystem, "":
-		return clock.SystemClock{}, nil
+		return clockwork.NewRealClock(), nil, nil
 
-	case ModeFixed:
-		t, err := time.Parse(time.RFC3339, cfg.FixedTime)
-		if err != nil {
-			return nil, fmt.Errorf("clock: invalid fixed_time %q: %w", cfg.FixedTime, err)
+	case ModeFake:
+		if cfg.InitialTime == "" {
+			fake := clockwork.NewFakeClock()
+
+			return fake, fake, nil
 		}
+		initialTime, err := time.Parse(time.RFC3339, cfg.InitialTime)
+		if err != nil {
+			return nil, nil, fmt.Errorf("clock: invalid initial_time %q: %w", cfg.InitialTime, err)
+		}
+		fake := clockwork.NewFakeClockAt(initialTime)
 
-		return clock.FixedClock{T: t}, nil
-
-	case ModeOffset:
-		return clock.OffsetClock{Base: clock.SystemClock{}, Offset: cfg.Offset}, nil
+		return fake, fake, nil
 
 	default:
-		return nil, fmt.Errorf("clock: unknown mode %q", cfg.Mode)
+		return nil, nil, fmt.Errorf("clock: unknown mode %q", cfg.Mode)
 	}
 }
