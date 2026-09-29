@@ -117,7 +117,9 @@ func (a *Application) initFX(ctx context.Context) error {
 	// Build FX options
 	opts := []fx.Option{
 		fx.WithLogger(func(logger *slog.Logger) fxevent.Logger {
-			return &fxevent.SlogLogger{Logger: logger}
+			fxLogger := &fxevent.SlogLogger{Logger: logger}
+			fxLogger.UseLogLevel(slog.LevelDebug)
+			return fxLogger
 		}),
 		fx.Supply(a.environment),
 	}

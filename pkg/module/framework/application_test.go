@@ -138,11 +138,14 @@ func TestApplication_FXLogging_UsesLoggerLevel(t *testing.T) {
 				)
 			})
 
-			if level <= slog.LevelInfo {
-				assert.Contains(t, output.String(), `"level":"INFO","msg":"provided"`)
-				assert.Contains(t, output.String(), `"msg":"application info"`)
+			if level <= slog.LevelDebug {
+				assert.Contains(t, output.String(), `"level":"DEBUG","msg":"provided"`)
 			} else {
 				assert.NotContains(t, output.String(), `"msg":"provided"`)
+			}
+			if level <= slog.LevelInfo {
+				assert.Contains(t, output.String(), `"msg":"application info"`)
+			} else {
 				assert.NotContains(t, output.String(), `"msg":"application info"`)
 			}
 			assert.Contains(t, output.String(), `"level":"ERROR","msg":"invoke failed"`)

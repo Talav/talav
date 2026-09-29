@@ -108,7 +108,8 @@ app := framework.NewApplication(
 FX and application components use the same injected `*slog.Logger`. Provide it
 with `FxLoggerModule` (and `FxConfigModule`), or `WithLogger(log)`; initialization
 fails if no logger is provided. Its handler controls the level for all consumers.
-FX uses its standard INFO and ERROR event levels.
+FX logs non-error events at DEBUG and failures at ERROR. Set the logger level to
+DEBUG to see dependency registration and lifecycle events.
 
 Cobra details (`Persistent*`, `EnableTraverseRunHooks`, multiple hooks) are in the `WithRootCommandHook` doc comment, not repeated here.
 
