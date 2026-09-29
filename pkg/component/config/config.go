@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/knadh/koanf/v2"
@@ -103,4 +104,47 @@ func StringParserHook[T any](parse func(string) (T, error)) mapstructure.DecodeH
 			return nil, fmt.Errorf("expected a string for %s, got %T", target, data)
 		}
 	}
+}
+
+// StrictDecode requires non-pointer fields and rejects null map values and slice elements.
+// Existing decode hooks are preserved; optional pointer fields must be omitted rather than null.
+func StrictDecode(dc *mapstructure.DecoderConfig) {
+	dc.ErrorUnset = true
+	dc.AllowUnsetPointer = true
+	if dc.DecodeHook == nil {
+		dc.DecodeHook = rejectNull
+
+		return
+	}
+	dc.DecodeHook = mapstructure.ComposeDecodeHookFunc(rejectNull, dc.DecodeHook)
+}
+
+func rejectNull(_ reflect.Type, to reflect.Type, data any) (any, error) {
+	//nolint:exhaustive // Null entries are checked at container boundaries.
+	switch to.Kind() {
+	case reflect.Struct, reflect.Map:
+		if values, ok := data.(map[string]any); ok {
+			var fields []string
+			for key, value := range values {
+				if value == nil {
+					fields = append(fields, key)
+				}
+			}
+			if len(fields) > 0 {
+				slices.Sort(fields)
+
+				return nil, fmt.Errorf("has null fields: %s", strings.Join(fields, ", "))
+			}
+		}
+	case reflect.Slice:
+		if values, ok := data.([]any); ok {
+			for i, value := range values {
+				if value == nil {
+					return nil, fmt.Errorf("element %d is null", i)
+				}
+			}
+		}
+	}
+
+	return data, nil
 }

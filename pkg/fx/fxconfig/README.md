@@ -254,6 +254,14 @@ fxconfig.AsConfig("server", ServerConfig{}, func(dc *mapstructure.DecoderConfig)
 
 Callbacks apply only to that registration. `ErrorUnset` still requires input for defaulted fields and checks each merge layer independently. See [Decoder Configuration](../../component/config/README.md#decoder-configuration) for override precedence and missing/null input behavior.
 
+Pass `config.StrictDecode` to require non-pointer fields and reject null map values and list elements before parsing:
+
+```go
+fxconfig.AsConfig("server", ServerConfig{}, config.StrictDecode)
+```
+
+The same option works with `AsConfigWithDefaults` and `AsConfigMergeKeys`. Existing parser hooks are preserved. Optional pointer fields must be omitted rather than set to null. Options apply per registration.
+
 ## Custom Configuration Factory
 
 Override the default factory with a custom implementation:
@@ -486,4 +494,3 @@ func TestMyComponent(t *testing.T) {
 - [Config Package Documentation](../component/config/README.md) - Detailed configuration system documentation
 - [Fx Documentation](https://uber-go.github.io/fx/) - Uber's Fx dependency injection framework
 - [Koanf Documentation](https://github.com/knadh/koanf) - Underlying configuration library
-

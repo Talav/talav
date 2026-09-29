@@ -351,7 +351,17 @@ err := cfg.UnmarshalKey("server", &server, func(dc *mapstructure.DecoderConfig) 
 
 All decoder settings can be overridden except `Result`, which always comes from the destination argument. `TagName` is passed to Koanf's `Tag` option; an empty value selects its default tag, `koanf`. Assigning `DecodeHook` replaces the entire hook chain; use `mapstructure.ComposeDecodeHookFunc(dc.DecodeHook, hook)` to extend it. Calls without callbacks keep the existing behavior.
 
-`ErrorUnset` checks for fields absent from each input map, including fields with Go defaults. In `UnmarshalMergeKeys`, it checks each layer separately, so partial overlays can fail. Missing blocks and null values retain mapstructure's nil handling and may still succeed with `ErrorUnset` enabled.
+`ErrorUnset` checks for fields absent from each input map, including fields with Go defaults. In `UnmarshalMergeKeys`, it checks each layer separately, so partial overlays can fail.
+
+Use `config.StrictDecode` to also reject null entries before individual fields are decoded:
+
+```go
+err := cfg.UnmarshalKey("server", &server, config.StrictDecode)
+```
+
+This sets `ErrorUnset` and `AllowUnsetPointer` and prepends a null-check hook to the existing hooks. It rejects null values in YAML maps decoded into structs or maps, and null elements in YAML lists decoded into slices. Optional pointer fields must be omitted rather than set to null. Valid zero values still reach the existing decoder and parsers. `DecodeNil` is not required.
+
+Decode a containing configuration block to check its fields: a missing or null selected key itself can bypass mapstructure's hooks and retain native behavior. As with other decoder options, strictness applies separately to each `UnmarshalMergeKeys` layer.
 
 ## Validation
 
@@ -511,4 +521,3 @@ See `factory_test.go` for comprehensive examples covering:
 - `Config.Koanf() *koanf.Koanf`: Direct access to Koanf for `Keys`, `Get`, `String`, `Marshal`, `Raw`, `All`, etc.; no `UnmarshalKey` hooks on that API
 - `ConfigFactory.Create(sources ...ConfigSource) (*Config, error)`: Creates configuration; empty sources uses `DefaultConfigSources()`
 - `ConfigFactory.CreateWithDefaultSources(extra ...ConfigSource) (*Config, error)`: `Create` with `DefaultConfigSources()` followed by `extra`
-

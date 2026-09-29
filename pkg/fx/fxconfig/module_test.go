@@ -17,6 +17,36 @@ import (
 	"go.uber.org/fx/fxtest"
 )
 
+func TestModule_StrictDecode(t *testing.T) {
+	type settings struct {
+		ID string `config:"id"`
+	}
+	for _, provider := range []struct {
+		name   string
+		option fx.Option
+	}{
+		{"plain", AsConfig("nullcheck", settings{}, config.StrictDecode)},
+		{"defaults", AsConfigWithDefaults("nullcheck", settings{ID: "default"}, settings{}, config.StrictDecode)},
+		{"merge", AsConfigMergeKeys("nullcheck", []string{"nullcheck"}, settings{}, config.StrictDecode)},
+	} {
+		t.Run(provider.name, func(t *testing.T) {
+			var got settings
+			app := fx.New(
+				fx.NopLogger,
+				FxConfigModule,
+				fx.Decorate(func(cfg *config.Config) *config.Config {
+					require.NoError(t, cfg.Koanf().Set("nullcheck", map[string]any{"id": nil}))
+
+					return cfg
+				}),
+				provider.option,
+				fx.Populate(&got),
+			)
+			require.ErrorContains(t, app.Err(), "has null fields: id")
+		})
+	}
+}
+
 func TestModule_DecoderOptions(t *testing.T) {
 	t.Setenv("DECODEROPTIONS_PORT", "0")
 	type serverConfig struct {
