@@ -91,7 +91,7 @@ func (u *Unmarshaler) unmarshalValue(data any, rv reflect.Value, fieldPath strin
 
 	//nolint:exhaustive // Unsupported types are handled in default case with error
 	switch kind {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return u.unmarshalPtr(data, rv, fieldPath)
 	case reflect.Slice:
 		return u.unmarshalSlice(data, rv, fieldPath)
@@ -258,7 +258,7 @@ func (u *Unmarshaler) unmarshalEmbeddedField(dataMap map[string]any, fieldValue 
 // validateResultPointer validates that result is a non-nil pointer and returns its element.
 func validateResultPointer(result any) (reflect.Value, error) {
 	rv := reflect.ValueOf(result)
-	if rv.Kind() != reflect.Ptr {
+	if rv.Kind() != reflect.Pointer {
 		return reflect.Value{}, fmt.Errorf("result must be a pointer")
 	}
 

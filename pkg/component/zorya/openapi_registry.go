@@ -215,7 +215,7 @@ func (r *mapRegistry) MarkInlineOnly(t reflect.Type, hint string) {
 }
 
 func deref(t reflect.Type) reflect.Type {
-	for t.Kind() == reflect.Ptr {
+	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 

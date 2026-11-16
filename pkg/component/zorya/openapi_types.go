@@ -93,7 +93,7 @@ func isNilValue(v any) bool {
 	vv := reflect.ValueOf(v)
 	//nolint:exhaustive // Only checking types that can be nil
 	switch vv.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
 		return vv.IsNil()
 	}
 

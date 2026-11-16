@@ -104,7 +104,7 @@ func (d *defaultDecoder) decodeURLEncodedForm(bodyBytes []byte, bodyField *Field
 
 	// Get struct type and metadata to filter unknown fields
 	structType := bodyField.Type
-	if structType.Kind() == reflect.Ptr {
+	if structType.Kind() == reflect.Pointer {
 		structType = structType.Elem()
 	}
 	metadata, err := d.metadata.GetStructMetadata(structType)
@@ -141,7 +141,7 @@ func (d *defaultDecoder) decodeMultipartBody(r *http.Request, bodyField *FieldMe
 
 	// Get the struct type
 	structType := bodyField.Type
-	if structType.Kind() == reflect.Ptr {
+	if structType.Kind() == reflect.Pointer {
 		structType = structType.Elem()
 	}
 

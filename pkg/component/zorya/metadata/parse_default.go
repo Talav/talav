@@ -33,7 +33,7 @@ func ParseDefaultTag(field reflect.StructField, index int, tagValue string) (any
 // parseDefaultValue parses a default value string based on the Go field type.
 func parseDefaultValue(fieldType reflect.Type, value string) (any, error) {
 	// Dereference pointer types
-	isPointer := fieldType.Kind() == reflect.Ptr
+	isPointer := fieldType.Kind() == reflect.Pointer
 	if isPointer {
 		fieldType = fieldType.Elem()
 	}
