@@ -1,0 +1,12 @@
+app:
+  hosts:
+    - ${LIST_HOST}
+    - static-host
+  ports:
+    - 8080
+    - 8081
+  endpoints:
+    - name: primary
+      url: https://${LIST_HOST}/api
+    - name: static
+      url: https://static-host/api

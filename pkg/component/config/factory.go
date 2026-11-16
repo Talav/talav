@@ -145,14 +145,39 @@ func (f *DefaultConfigFactory) loadFile(k *koanf.Koanf, filePath string, parser 
 	return nil
 }
 
-// expandEnvPlaceholders expands ${VAR} placeholders in string values.
+// expandEnvPlaceholders expands ${VAR} placeholders in string values, including strings nested in lists.
 func (f *DefaultConfigFactory) expandEnvPlaceholders(k *koanf.Koanf) {
-	for _, key := range k.Keys() {
-		val := k.String(key)
-		if strings.Contains(val, "${") {
-			_ = k.Set(key, os.ExpandEnv(val))
+	// All returns a deep copy, so lists can be expanded in place before being set back.
+	for key, val := range k.All() {
+		switch v := val.(type) {
+		case string:
+			if strings.Contains(v, "${") {
+				_ = k.Set(key, os.ExpandEnv(v))
+			}
+		case []any:
+			_ = k.Set(key, expandValue(v))
 		}
 	}
+}
+
+// expandValue expands ${VAR} placeholders in val, recursing into lists and maps in place.
+func expandValue(val any) any {
+	switch v := val.(type) {
+	case string:
+		if strings.Contains(v, "${") {
+			return os.ExpandEnv(v)
+		}
+	case []any:
+		for i := range v {
+			v[i] = expandValue(v[i])
+		}
+	case map[string]any:
+		for name := range v {
+			v[name] = expandValue(v[name])
+		}
+	}
+
+	return val
 }
 
 // getEnvironment returns the environment.

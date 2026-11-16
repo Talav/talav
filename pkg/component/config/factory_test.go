@@ -308,3 +308,37 @@ func TestDefaultConfigFactory_CreateWithDefaultSources_AppendsExtraSources(t *te
 	assert.Equal(t, "local-host", cfg.k.String("database.host"))
 	assert.Equal(t, int64(5432), cfg.k.Int64("database.port"))
 }
+
+func TestDefaultConfigFactory_Create_VariableExpansionInLists(t *testing.T) {
+	factory := NewDefaultConfigFactory()
+	testdataDir := filepath.Join("testdata", "scenario11_list_expansion")
+	t.Setenv("LIST_HOST", "expanded-host")
+	t.Setenv("APP_ENV", "dev")
+
+	cfg, err := factory.Create(
+		ConfigSource{
+			Path:     testdataDir,
+			Patterns: []string{"config.yaml"},
+			Parser:   yaml.Parser(),
+		},
+	)
+	require.NoError(t, err)
+
+	type endpoint struct {
+		Name string `config:"name"`
+		URL  string `config:"url"`
+	}
+	var app struct {
+		Hosts     []string   `config:"hosts"`
+		Ports     []int      `config:"ports"`
+		Endpoints []endpoint `config:"endpoints"`
+	}
+	require.NoError(t, cfg.UnmarshalKey("app", &app))
+
+	assert.Equal(t, []string{"expanded-host", "static-host"}, app.Hosts)
+	assert.Equal(t, []int{8080, 8081}, app.Ports)
+	assert.Equal(t, []endpoint{
+		{Name: "primary", URL: "https://expanded-host/api"},
+		{Name: "static", URL: "https://static-host/api"},
+	}, app.Endpoints)
+}
