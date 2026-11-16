@@ -3,6 +3,7 @@ package fxhttpserver
 import (
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,15 +39,17 @@ func setupTestAPI(t *testing.T, cfg httpserver.Config, opts ...fx.Option) zorya.
 
 	var api zorya.API
 
-	allOpts := []fx.Option{
-		fx.NopLogger,
-		fxconfig.FxConfigModule,
-		fxlogger.FxLoggerModule,
-		FxHTTPServerModule,
-		fx.Replace(cfg),
-	}
-	allOpts = append(allOpts, opts...)
-	allOpts = append(allOpts, fx.Populate(&api))
+	allOpts := slices.Concat(
+		[]fx.Option{
+			fx.NopLogger,
+			fxconfig.FxConfigModule,
+			fxlogger.FxLoggerModule,
+			FxHTTPServerModule,
+			fx.Replace(cfg),
+		},
+		opts,
+		[]fx.Option{fx.Populate(&api)},
+	)
 
 	fxtest.New(t, allOpts...).RequireStart().RequireStop()
 

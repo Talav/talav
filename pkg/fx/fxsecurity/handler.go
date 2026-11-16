@@ -178,6 +178,7 @@ func (h *LogoutHandler) Handle(ctx context.Context, input *LogoutRequest) (*Logo
 
 // SetCookie sets a cookie on the response writer.
 func SetCookie(w http.ResponseWriter, name, value string, cfg security.CookieConfig, maxAge int) {
+	//nolint:gosec // G124: Secure, HttpOnly and SameSite come from CookieConfig, which defaults to the safe values.
 	cookie := &http.Cookie{
 		Name:     name,
 		Value:    value,
@@ -204,6 +205,7 @@ func SetCookie(w http.ResponseWriter, name, value string, cfg security.CookieCon
 
 // ClearCookie clears a cookie by setting it to expire immediately.
 func ClearCookie(w http.ResponseWriter, name string, cfg security.CookieConfig) {
+	//nolint:gosec // G124: Secure and HttpOnly come from CookieConfig, which defaults to the safe values.
 	cookie := &http.Cookie{
 		Name:     name,
 		Value:    "",

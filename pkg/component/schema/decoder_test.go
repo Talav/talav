@@ -110,6 +110,7 @@ func TestDecoder_Decode(t *testing.T) {
 
 			// Add cookies
 			for name, value := range tt.cookies {
+				//nolint:gosec // G124: request cookie; the attributes only apply to Set-Cookie.
 				req.AddCookie(&http.Cookie{Name: name, Value: value})
 			}
 
@@ -474,6 +475,7 @@ func TestDecoder_DecodeCookie(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodGet, "/test", nil)
 			for name, value := range tt.cookies {
+				//nolint:gosec // G124: request cookie; the attributes only apply to Set-Cookie.
 				req.AddCookie(&http.Cookie{Name: name, Value: value})
 			}
 

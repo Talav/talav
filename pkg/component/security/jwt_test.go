@@ -162,7 +162,7 @@ func TestJWTService_ValidateAccessToken_InvalidToken(t *testing.T) {
 			tokenString: "",
 			description: "Empty token string",
 		},
-		{
+		{ //nolint:gosec // G101: malformed test token, not a credential
 			name:        "malformed_token",
 			tokenString: "not.a.valid.jwt.token",
 			description: "Malformed token format",
@@ -172,7 +172,7 @@ func TestJWTService_ValidateAccessToken_InvalidToken(t *testing.T) {
 			tokenString: "header.payload",
 			description: "Token missing signature",
 		},
-		{
+		{ //nolint:gosec // G101: malformed test token, not a credential
 			name:        "tampered_signature",
 			tokenString: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMyIsInJvbGVzIjpbInVzZXIiXX0.tampered-signature",
 			description: "Token with tampered signature",
