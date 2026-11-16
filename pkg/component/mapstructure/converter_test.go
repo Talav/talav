@@ -639,6 +639,7 @@ func TestConverter_convertBytes(t *testing.T) {
 		{name: "invalid int", input: 42, wantErr: true},
 		{name: "invalid bool", input: true, wantErr: true},
 		{name: "any slice invalid element", input: []any{1, "invalid", 3}, wantErr: true},
+		{name: "any slice element over a byte", input: []any{1, 300}, wantErr: true},
 	}
 
 	for _, tt := range tests {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math"
 	"reflect"
 )
 
@@ -49,6 +50,9 @@ func convertAnySliceToBytes(slice []any) (reflect.Value, error) {
 		b, err := convertToUint(elem, 8)
 		if err != nil {
 			return reflect.Value{}, fmt.Errorf("element [%d]: %w", i, err)
+		}
+		if b > math.MaxUint8 {
+			return reflect.Value{}, fmt.Errorf("element [%d]: %d does not fit in a byte", i, b)
 		}
 		result[i] = byte(b)
 	}
