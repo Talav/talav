@@ -1,6 +1,6 @@
 module github.com/talav/talav/pkg/component/zorya
 
-go 1.25.0
+go 1.27.0
 
 require (
 	github.com/fxamacker/cbor/v2 v2.9.0

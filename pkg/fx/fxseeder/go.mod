@@ -1,6 +1,6 @@
 module github.com/talav/talav/pkg/fx/fxseeder
 
-go 1.25.0
+go 1.27.0
 
 require (
 	github.com/talav/talav/pkg/component/seeder v0.0.0-20260110161500-7dd5db0d160d

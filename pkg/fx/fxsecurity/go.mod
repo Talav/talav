@@ -1,6 +1,6 @@
 module github.com/talav/talav/pkg/fx/fxsecurity
 
-go 1.25.0
+go 1.27.0
 
 require (
 	github.com/casbin/casbin/v2 v2.89.0

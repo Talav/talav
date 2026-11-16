@@ -1,6 +1,6 @@
 module github.com/talav/talav/pkg/component/config
 
-go 1.25.0
+go 1.27.0
 
 require (
 	github.com/go-viper/mapstructure/v2 v2.4.0

@@ -1,6 +1,6 @@
 module github.com/talav/talav/pkg/fx/fxuser
 
-go 1.25.0
+go 1.27.0
 
 require (
 	go.uber.org/fx v1.24.0

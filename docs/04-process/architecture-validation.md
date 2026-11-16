@@ -152,7 +152,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
         with:
-          go-version: '1.25'
+          go-version: '1.27'
       
       - name: Install golangci-lint
         run: |

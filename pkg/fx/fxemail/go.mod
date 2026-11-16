@@ -1,6 +1,6 @@
 module github.com/talav/talav/pkg/fx/fxemail
 
-go 1.25.0
+go 1.27.0
 
 require (
 	github.com/talav/talav/pkg/component/email v0.0.0-20260110164752-0e4fc0abdf5b

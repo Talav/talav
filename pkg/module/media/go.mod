@@ -1,6 +1,6 @@
 module github.com/talav/talav/pkg/module/media
 
-go 1.25.0
+go 1.27.0
 
 require (
 	github.com/talav/talav/pkg/component/media v0.0.0-20260113034123-9da34ad44376

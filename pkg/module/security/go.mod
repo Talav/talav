@@ -1,6 +1,6 @@
 module github.com/talav/talav/pkg/module/security
 
-go 1.25.0
+go 1.27.0
 
 require (
 	github.com/talav/talav/pkg/component/security v0.0.0-20260109044559-4cdbab846d03

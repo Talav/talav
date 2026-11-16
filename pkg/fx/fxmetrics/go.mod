@@ -1,6 +1,6 @@
 module github.com/talav/talav/pkg/fx/fxmetrics
 
-go 1.25.0
+go 1.27.0
 
 require (
 	github.com/knadh/koanf/parsers/yaml v1.1.0

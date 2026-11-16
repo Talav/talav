@@ -1,6 +1,6 @@
 module github.com/talav/talav/pkg/component/email
 
-go 1.25.0
+go 1.27.0
 
 require github.com/wneessen/go-mail v0.5.2
 

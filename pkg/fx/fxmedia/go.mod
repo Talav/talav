@@ -1,6 +1,6 @@
 module github.com/talav/talav/pkg/fx/fxmedia
 
-go 1.25.0
+go 1.27.0
 
 require (
 	github.com/talav/talav/pkg/component/blob v0.0.0-20260113034123-9da34ad44376

@@ -1,6 +1,6 @@
 module github.com/talav/talav/pkg/component/user
 
-go 1.25.0
+go 1.27.0
 
 require (
 	github.com/go-playground/universal-translator v0.18.1

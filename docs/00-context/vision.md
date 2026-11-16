@@ -34,7 +34,7 @@ A component defines its own Cobra command and manages its own start/stop via `cm
 
 ## Constraints
 
-- **Go 1.25+** — uses range-over-func and newer stdlib patterns
+- **Go 1.27+** — uses range-over-func and newer stdlib patterns
 - **Uber FX** — not pluggable; the DI model is load-bearing
 - **Chi v5 or Fiber v2** — other routers via adapter, but these are the tested paths
 - **MIT license**

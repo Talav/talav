@@ -1,6 +1,6 @@
 module github.com/talav/talav/pkg/component/httpserver
 
-go 1.25.0
+go 1.27.0
 
 require (
 	github.com/go-chi/httplog/v3 v3.3.0
