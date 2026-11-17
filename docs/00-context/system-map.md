@@ -40,7 +40,7 @@ Import direction is enforced by `golangci-lint` (`depguard`). Violations fail th
 | `mapstructure` | Map-to-struct decoding with type conversion (standalone module) | [github.com/talav/mapstructure](https://github.com/talav/mapstructure) |
 | `media` | Media upload, CDN routing, image presets *(prototype)* | [README](../../pkg/component/media/README.md) |
 | `metrics` | Isolated Prometheus registry factory | [README](../../pkg/component/metrics/README.md) |
-| `negotiation` | HTTP content negotiation | [README](../../pkg/component/negotiation/README.md) |
+| `negotiation` | HTTP content negotiation (standalone module) | [github.com/talav/negotiation](https://github.com/talav/negotiation) |
 | `orm` | GORM + golang-migrate for PostgreSQL | [README](../../pkg/component/orm/README.md) |
 | `schema` | HTTP request parameter decoding; struct tags `schema`, `body`, `header` | [README](../../pkg/component/schema/README.md) |
 | `security` | Auth enforcement — roles, permissions, Casbin adapter | [README](../../pkg/component/security/README.md) |

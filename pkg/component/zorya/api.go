@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/talav/mapstructure"
-	"github.com/talav/talav/pkg/component/negotiation"
+	"github.com/talav/negotiation"
 	"github.com/talav/talav/pkg/component/schema"
 )
 

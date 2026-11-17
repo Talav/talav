@@ -9,8 +9,8 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.10
 	github.com/stretchr/testify v1.11.1
 	github.com/talav/mapstructure v0.1.1
+	github.com/talav/negotiation v0.1.0
 	github.com/talav/tagparser v1.0.1
-	github.com/talav/talav/pkg/component/negotiation v0.0.0-20251213015208-199315015cbe
 	github.com/talav/talav/pkg/component/schema v0.0.0-20251213015208-199315015cbe
 )
 
