@@ -210,12 +210,12 @@ The module uses `httpserver.Config` for configuration. See [httpserver component
 
 - `github.com/go-chi/chi/v5` - HTTP router
 - `github.com/go-chi/httplog/v3` - HTTP request logging
-- `github.com/talav/talav/pkg/component/zorya` - API framework
+- `github.com/talav/zorya` - API framework
 - `go.uber.org/fx` - Dependency injection
 
 ## See Also
 
-- [Zorya API Framework](../../component/zorya/README.md) - Type-safe API framework
+- [Zorya API Framework](https://github.com/talav/zorya) - Type-safe API framework
 - [HTTPServer Component](../../component/httpserver/README.md) - HTTP server component
 - [Fx Config Module](../fxconfig/README.md) - Configuration management
 

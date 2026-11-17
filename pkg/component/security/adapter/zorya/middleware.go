@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/talav/talav/pkg/component/security"
-	zoryapkg "github.com/talav/talav/pkg/component/zorya"
+	zoryapkg "github.com/talav/zorya"
 )
 
 // Option configures the enforcement middleware.

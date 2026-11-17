@@ -228,7 +228,7 @@ Use the [Zorya adapter](./adapter/zorya/) for type-safe HTTP routing:
 import (
     "github.com/talav/talav/pkg/component/security"
     securityzorya "github.com/talav/talav/pkg/component/security/adapter/zorya"
-    "github.com/talav/talav/pkg/component/zorya"
+    "github.com/talav/zorya"
 )
 
 // Setup

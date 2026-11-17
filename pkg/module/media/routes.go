@@ -1,8 +1,8 @@
 package media
 
 import (
-	"github.com/talav/talav/pkg/component/zorya"
 	"github.com/talav/talav/pkg/module/media/handler"
+	"github.com/talav/zorya"
 )
 
 // tagMedia groups the media routes in the OpenAPI document.

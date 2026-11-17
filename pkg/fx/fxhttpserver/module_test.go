@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/talav/talav/pkg/component/httpserver"
-	"github.com/talav/talav/pkg/component/zorya"
 	"github.com/talav/talav/pkg/fx/fxconfig"
 	"github.com/talav/talav/pkg/fx/fxlogger"
+	"github.com/talav/zorya"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxtest"
 )

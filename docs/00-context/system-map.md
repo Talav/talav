@@ -42,13 +42,13 @@ Import direction is enforced by `golangci-lint` (`depguard`). Violations fail th
 | `metrics` | Isolated Prometheus registry factory | [README](../../pkg/component/metrics/README.md) |
 | `negotiation` | HTTP content negotiation (standalone module) | [github.com/talav/negotiation](https://github.com/talav/negotiation) |
 | `orm` | GORM + golang-migrate for PostgreSQL | [README](../../pkg/component/orm/README.md) |
-| `schema` | HTTP request parameter decoding; struct tags `schema`, `body`, `header` | [README](../../pkg/component/schema/README.md) |
+| `schema` | HTTP request parameter decoding; struct tags `schema`, `body`, `header` (standalone module) | [github.com/talav/schema](https://github.com/talav/schema) |
 | `security` | Auth enforcement — roles, permissions, Casbin adapter | [README](../../pkg/component/security/README.md) |
 | `seeder` | Database seeding for development and test fixtures | [README](../../pkg/component/seeder/README.md) |
 | `tagparser` | Struct tag parsing utilities (standalone module) | [github.com/talav/tagparser](https://github.com/talav/tagparser) |
 | `user` | User + role management, CQRS handlers, password reset | [README](../../pkg/component/user/README.md) |
 | `validator` | go-playground/validator wrapper with custom validators and i18n | [README](../../pkg/component/validator/README.md) |
-| `zorya` | Type-safe HTTP API framework — generics, OpenAPI generation, RFC 9457 errors | [README](../../pkg/component/zorya/README.md) |
+| `zorya` | Type-safe HTTP API framework — generics, OpenAPI generation, RFC 9457 errors (standalone module) | [github.com/talav/zorya](https://github.com/talav/zorya) |
 
 ---
 

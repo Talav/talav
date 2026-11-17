@@ -49,7 +49,7 @@ package main
 
 import (
     "github.com/talav/talav/pkg/component/security"
-    "github.com/talav/talav/pkg/component/zorya"
+    "github.com/talav/zorya"
     "github.com/talav/talav/pkg/module/securityhttp"
     "github.com/talav/talav/pkg/module/securityhttp/handler"
 )
@@ -119,7 +119,7 @@ Authorization: Bearer <token>
 
 Requires:
 - `pkg/component/security` - Authentication primitives
-- `pkg/component/zorya` - HTTP routing framework
+- `github.com/talav/zorya` - HTTP routing framework
 - `pkg/fx/fxsecurity` - Security FX module (if using FX)
 
 ## Architecture
@@ -208,5 +208,5 @@ func TestLoginHandler(t *testing.T) {
 ## See Also
 
 - [security component](../../component/security/README.md) - Core authentication primitives
-- [zorya component](../../component/zorya/README.md) - HTTP routing framework
+- [zorya component](https://github.com/talav/zorya) - HTTP routing framework
 - [fxsecurity module](../../fx/fxsecurity/README.md) - Security FX wiring

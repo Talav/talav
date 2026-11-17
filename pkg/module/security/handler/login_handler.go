@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/talav/talav/pkg/component/security"
-	"github.com/talav/talav/pkg/component/zorya"
 	"github.com/talav/talav/pkg/module/security/dto"
+	"github.com/talav/zorya"
 )
 
 // LoginHandler handles HTTP requests for authentication.

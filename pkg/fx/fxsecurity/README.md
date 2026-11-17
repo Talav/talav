@@ -179,4 +179,4 @@ The middleware automatically:
 - Enforces permissions (`WithPermissions()`)
 - Performs resource-based policy checks (`WithResource()`)
 
-See the [Zorya README](../../component/zorya/README.md#route-security-and-authorization) for details on declarative route security.
+See the [Zorya README](https://github.com/talav/zorya) for details on declarative route security.

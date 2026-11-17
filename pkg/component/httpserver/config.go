@@ -1,6 +1,6 @@
 package httpserver
 
-import "github.com/talav/talav/pkg/component/zorya"
+import "github.com/talav/zorya"
 
 // Config represents the HTTP server configuration.
 type Config struct {

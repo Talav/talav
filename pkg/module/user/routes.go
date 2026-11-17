@@ -1,8 +1,8 @@
 package user
 
 import (
-	"github.com/talav/talav/pkg/component/zorya"
 	"github.com/talav/talav/pkg/module/user/handler"
+	"github.com/talav/zorya"
 )
 
 const (

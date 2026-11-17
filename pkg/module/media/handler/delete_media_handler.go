@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"github.com/talav/talav/pkg/component/media/app/command"
-	"github.com/talav/talav/pkg/component/zorya"
 	"github.com/talav/talav/pkg/module/media/dto"
+	"github.com/talav/zorya"
 	"gorm.io/gorm"
 )
 

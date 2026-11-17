@@ -8,10 +8,10 @@ import (
 	"github.com/go-chi/httplog/v3"
 	"github.com/talav/talav/pkg/component/httpserver"
 	"github.com/talav/talav/pkg/component/httpserver/cmd"
-	"github.com/talav/talav/pkg/component/zorya"
-	"github.com/talav/talav/pkg/component/zorya/adapters"
 	"github.com/talav/talav/pkg/fx/fxconfig"
 	"github.com/talav/talav/pkg/fx/fxcore"
+	"github.com/talav/zorya"
+	"github.com/talav/zorya/adapters"
 	"go.uber.org/fx"
 )
 

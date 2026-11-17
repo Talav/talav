@@ -6,8 +6,8 @@ import (
 
 	"github.com/talav/talav/pkg/component/security"
 	"github.com/talav/talav/pkg/component/user/app/command"
-	"github.com/talav/talav/pkg/component/zorya"
 	"github.com/talav/talav/pkg/module/user/dto"
+	"github.com/talav/zorya"
 	"gorm.io/gorm"
 )
 

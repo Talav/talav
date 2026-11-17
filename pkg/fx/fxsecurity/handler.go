@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/talav/talav/pkg/component/security"
-	"github.com/talav/talav/pkg/component/zorya"
+	"github.com/talav/zorya"
 )
 
 // LoginRequest represents the HTTP request to authenticate a user.

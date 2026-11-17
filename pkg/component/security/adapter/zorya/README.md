@@ -6,7 +6,7 @@ This package provides middleware for enforcing security requirements on [Zorya](
 
 The adapter connects two independent components:
 - **Security Component** (`pkg/component/security`): Generic authentication and authorization primitives
-- **Zorya Framework** (`pkg/component/zorya`): Type-safe HTTP routing framework
+- **Zorya Framework** (`github.com/talav/zorya`): Type-safe HTTP routing framework
 
 This follows the principle of separation of concerns - neither component depends on the other, and the adapter acts as glue code.
 
@@ -50,8 +50,8 @@ go get github.com/talav/talav/pkg/component/security/adapter/zorya
 import (
     "github.com/talav/talav/pkg/component/security"
     securityzorya "github.com/talav/talav/pkg/component/security/adapter/zorya"
-    "github.com/talav/talav/pkg/component/zorya"
-    "github.com/talav/talav/pkg/component/zorya/adapters"
+    "github.com/talav/zorya"
+    "github.com/talav/zorya/adapters"
 )
 
 // Create API

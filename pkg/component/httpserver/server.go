@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/talav/talav/pkg/component/zorya"
+	"github.com/talav/zorya"
 )
 
 // Server represents an HTTP server that wraps Zorya API for lifecycle management.

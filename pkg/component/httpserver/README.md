@@ -60,8 +60,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/talav/talav/pkg/component/httpserver"
 	"github.com/talav/talav/pkg/component/logger"
-	"github.com/talav/talav/pkg/component/zorya"
-	"github.com/talav/talav/pkg/component/zorya/adapters"
+	"github.com/talav/zorya"
+	"github.com/talav/zorya/adapters"
 )
 
 func main() {
@@ -367,7 +367,7 @@ func (c *Config) ToZoryaConfig() *zorya.Config
 
 - `github.com/go-chi/chi/v5` - HTTP router
 - `github.com/go-chi/httplog/v3` - HTTP request logging
-- `github.com/talav/talav/pkg/component/zorya` - API framework
+- `github.com/talav/zorya` - API framework
 
 ## See Also
 
