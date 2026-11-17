@@ -135,7 +135,7 @@ func TestSquareResizer_Resize_WidthGreaterThanHeight(t *testing.T) {
 	resizer := setupResizer(t)
 	testSquareResize(t, resizer, "width-greater-than-height",
 		200, 100,
-		ResizeOptions{Width: 200, Height: 100, Format: "jpg"},
+		ResizeOptions{Width: 200, Height: 100, Format: formatJPG},
 		200,
 	)
 }
@@ -144,7 +144,7 @@ func TestSquareResizer_Resize_HeightGreaterThanWidth(t *testing.T) {
 	resizer := setupResizer(t)
 	testSquareResize(t, resizer, "height-greater-than-width",
 		100, 200,
-		ResizeOptions{Width: 100, Height: 200, Format: "jpg"},
+		ResizeOptions{Width: 100, Height: 200, Format: formatJPG},
 		200,
 	)
 }
@@ -156,7 +156,7 @@ func TestSquareResizer_Resize_DifferentFormats(t *testing.T) {
 		name   string
 		format string
 	}{
-		{"JPEG", "jpg"},
+		{"JPEG", formatJPG},
 		{"PNG", "png"},
 		{"GIF", "gif"},
 	}
@@ -211,9 +211,9 @@ func TestSquareResizer_Resize_WithEncodingOptions(t *testing.T) {
 	optsHigh := ResizeOptions{
 		Width:  200,
 		Height: 100,
-		Format: "jpg",
+		Format: formatJPG,
 		Options: map[string]any{
-			"jpeg_quality": 95,
+			optionJPEGQuality: 95,
 		},
 	}
 
@@ -228,9 +228,9 @@ func TestSquareResizer_Resize_WithEncodingOptions(t *testing.T) {
 	optsLow := ResizeOptions{
 		Width:  200,
 		Height: 100,
-		Format: "jpg",
+		Format: formatJPG,
 		Options: map[string]any{
-			"jpeg_quality": 50,
+			optionJPEGQuality: 50,
 		},
 	}
 
@@ -280,7 +280,7 @@ func TestSquareResizer_Resize_DecodeError(t *testing.T) {
 	opts := ResizeOptions{
 		Width:  200,
 		Height: 100,
-		Format: "jpg",
+		Format: formatJPG,
 	}
 
 	var outputBuf bytes.Buffer
@@ -302,7 +302,7 @@ func TestSquareResizer_Resize_EncodeError(t *testing.T) {
 	opts := ResizeOptions{
 		Width:  200,
 		Height: 100,
-		Format: "invalid",
+		Format: valueInvalid,
 	}
 
 	var outputBuf bytes.Buffer
@@ -321,7 +321,7 @@ func TestSquareResizer_Resize_InvalidImageData(t *testing.T) {
 	opts := ResizeOptions{
 		Width:  200,
 		Height: 100,
-		Format: "jpg",
+		Format: formatJPG,
 	}
 
 	var outputBuf bytes.Buffer
@@ -361,7 +361,7 @@ func TestSquareResizer_Resize_WithRealImageFile(t *testing.T) {
 	opts := ResizeOptions{
 		Width:  originalWidth,
 		Height: originalHeight,
-		Format: "jpg",
+		Format: formatJPG,
 	}
 
 	var outputBuf bytes.Buffer
@@ -420,7 +420,7 @@ func TestSquareResizer_Resize_SmallerImageThanRequested(t *testing.T) {
 	// This will make it obvious when upscaled
 	testSquareResize(t, resizer, "smaller-image-than-requested",
 		50, 50,
-		ResizeOptions{Width: 200, Height: 200, Format: "jpg"},
+		ResizeOptions{Width: 200, Height: 200, Format: formatJPG},
 		200,
 	)
 }
@@ -430,7 +430,7 @@ func TestSquareResizer_Resize_SmallerNonSquareImage(t *testing.T) {
 	// Create small non-square test image 50x30 with checkerboard pattern
 	testSquareResize(t, resizer, "smaller-nonsquare",
 		50, 30,
-		ResizeOptions{Width: 200, Height: 200, Format: "jpg"},
+		ResizeOptions{Width: 200, Height: 200, Format: formatJPG},
 		200,
 	)
 }
@@ -446,7 +446,7 @@ func TestSquareResizer_Resize_ValidImageRoundTrip(t *testing.T) {
 	opts := ResizeOptions{
 		Width:  200,
 		Height: 100,
-		Format: "jpg",
+		Format: formatJPG,
 	}
 
 	var outputBuf bytes.Buffer

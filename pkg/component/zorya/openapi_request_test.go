@@ -9,6 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	valueJohnDoe = "John Doe"
+	roleAdmin    = "admin"
+)
+
 // ComplexRequestInput is a comprehensive test struct covering all parameter types and scenarios.
 type ComplexRequestInput struct {
 	// Path parameters (required)
@@ -413,7 +418,7 @@ func TestExtractSecurity_WithRoles(t *testing.T) {
 	// Extract security from route with roles
 	route := &BaseRoute{
 		Security: &RouteSecurity{
-			Roles: []string{"admin", "editor"},
+			Roles: []string{roleAdmin, "editor"},
 		},
 	}
 	extractor.ExtractSecurity(route, op)
@@ -477,7 +482,7 @@ func TestExtractSecurity_WithRolesAndPermissions(t *testing.T) {
 	// Extract security from route with roles and permissions
 	route := &BaseRoute{
 		Security: &RouteSecurity{
-			Roles:       []string{"admin"},
+			Roles:       []string{roleAdmin},
 			Permissions: []string{"posts:delete"},
 		},
 	}
@@ -513,7 +518,7 @@ func TestExtractSecurity_DoesNotOverrideExisting(t *testing.T) {
 	// Extract security from route - should not override existing
 	route := &BaseRoute{
 		Security: &RouteSecurity{
-			Roles: []string{"admin"},
+			Roles: []string{roleAdmin},
 		},
 	}
 	extractor.ExtractSecurity(route, op)

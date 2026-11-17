@@ -54,7 +54,7 @@ func TestSimpleResizer_Resize_BasicCases(t *testing.T) {
 			name:           "exact-dimensions",
 			inputWidth:     200,
 			inputHeight:    100,
-			opts:           ResizeOptions{Width: 150, Height: 75, Format: "jpg"},
+			opts:           ResizeOptions{Width: 150, Height: 75, Format: formatJPG},
 			expectedWidth:  150,
 			expectedHeight: 75,
 		},
@@ -62,7 +62,7 @@ func TestSimpleResizer_Resize_BasicCases(t *testing.T) {
 			name:           "downscale",
 			inputWidth:     400,
 			inputHeight:    300,
-			opts:           ResizeOptions{Width: 200, Height: 150, Format: "jpg"},
+			opts:           ResizeOptions{Width: 200, Height: 150, Format: formatJPG},
 			expectedWidth:  200,
 			expectedHeight: 150,
 		},
@@ -70,7 +70,7 @@ func TestSimpleResizer_Resize_BasicCases(t *testing.T) {
 			name:           "upscale",
 			inputWidth:     100,
 			inputHeight:    75,
-			opts:           ResizeOptions{Width: 300, Height: 225, Format: "jpg"},
+			opts:           ResizeOptions{Width: 300, Height: 225, Format: formatJPG},
 			expectedWidth:  300,
 			expectedHeight: 225,
 		},
@@ -78,7 +78,7 @@ func TestSimpleResizer_Resize_BasicCases(t *testing.T) {
 			name:           "square-input",
 			inputWidth:     200,
 			inputHeight:    200,
-			opts:           ResizeOptions{Width: 300, Height: 150, Format: "jpg"},
+			opts:           ResizeOptions{Width: 300, Height: 150, Format: formatJPG},
 			expectedWidth:  300,
 			expectedHeight: 150,
 		},
@@ -101,7 +101,7 @@ func TestSimpleResizer_Resize_PreserveAspectRatio_WidthZero(t *testing.T) {
 	// Expected width: 150 * (200/100) = 300
 	testResize(t, resizer, "preserve-aspect-ratio-width-zero", "simple",
 		200, 100,
-		ResizeOptions{Width: 0, Height: 150, Format: "jpg"},
+		ResizeOptions{Width: 0, Height: 150, Format: formatJPG},
 		300, 150,
 	)
 }
@@ -112,7 +112,7 @@ func TestSimpleResizer_Resize_PreserveAspectRatio_HeightZero(t *testing.T) {
 	// Expected height: 400 * (100/200) = 200
 	testResize(t, resizer, "preserve-aspect-ratio-height-zero", "simple",
 		200, 100,
-		ResizeOptions{Width: 400, Height: 0, Format: "jpg"},
+		ResizeOptions{Width: 400, Height: 0, Format: formatJPG},
 		400, 200,
 	)
 }
@@ -135,7 +135,7 @@ func TestSimpleResizer_Resize_DecodeError(t *testing.T) {
 	opts := ResizeOptions{
 		Width:  150,
 		Height: 75,
-		Format: "jpg",
+		Format: formatJPG,
 	}
 
 	var outputBuf bytes.Buffer
@@ -157,7 +157,7 @@ func TestSimpleResizer_Resize_EncodeError(t *testing.T) {
 	opts := ResizeOptions{
 		Width:  150,
 		Height: 75,
-		Format: "invalid",
+		Format: valueInvalid,
 	}
 
 	var outputBuf bytes.Buffer
@@ -176,7 +176,7 @@ func TestSimpleResizer_Resize_InvalidImageData(t *testing.T) {
 	opts := ResizeOptions{
 		Width:  150,
 		Height: 75,
-		Format: "jpg",
+		Format: formatJPG,
 	}
 
 	var outputBuf bytes.Buffer
@@ -196,7 +196,7 @@ func TestSimpleResizer_Resize_ValidImageRoundTrip(t *testing.T) {
 	resizer := setupSimpleResizer(t)
 	testResizeValidImageRoundTrip(t, resizer, "simple",
 		200, 100,
-		ResizeOptions{Width: 150, Height: 75, Format: "jpg"},
+		ResizeOptions{Width: 150, Height: 75, Format: formatJPG},
 		150, 75,
 	)
 }

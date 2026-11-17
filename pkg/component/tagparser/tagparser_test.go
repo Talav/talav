@@ -8,6 +8,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	wordAlfa      = "alfa"
+	pairAlfaBravo = "alfa=bravo"
+	wordBar       = "bar"
+	wordBaz       = "baz"
+	wordBravo     = "bravo"
+	wordCharlie   = "charlie"
+	wordDelta     = "delta"
+	wordFoo       = "foo"
+)
+
 type M = map[string]string
 
 var errSimulated = errors.New("simulated error")
@@ -25,13 +36,13 @@ func TestParse_OptionsMode(t *testing.T) {
 	tag, err := Parse(`foo,bar=baz`)
 	require.NoError(t, err)
 	assert.Equal(t, "", tag.Name)
-	assert.Equal(t, M{"foo": "", "bar": "baz"}, tag.Options)
+	assert.Equal(t, M{wordFoo: "", wordBar: wordBaz}, tag.Options)
 
 	// First item with equals is also an option
 	tag2, err := Parse(`foo=bar,baz`)
 	require.NoError(t, err)
 	assert.Equal(t, "", tag2.Name)
-	assert.Equal(t, M{"foo": "bar", "baz": ""}, tag2.Options)
+	assert.Equal(t, M{wordFoo: wordBar, wordBaz: ""}, tag2.Options)
 
 	// All items treated as options
 	tag3, err := Parse(`required,email,min=5`)
@@ -49,7 +60,7 @@ func TestParseFunc_OptionsMode(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
-	assert.Equal(t, M{"foo": "", "bar": "baz"}, opts)
+	assert.Equal(t, M{wordFoo: "", wordBar: wordBaz}, opts)
 }
 
 func TestParseWithName(t *testing.T) {
@@ -62,54 +73,54 @@ func TestParseWithName(t *testing.T) {
 	}{
 		{`empty`, ``, "", nil, ``},
 
-		{`simple 1`, `alfa`, `alfa`, nil, ``},
-		{`simple 2`, `alfa,bravo`, `alfa`, M{"bravo": ""}, ``},
+		{`simple 1`, wordAlfa, wordAlfa, nil, ``},
+		{`simple 2`, `alfa,bravo`, wordAlfa, M{wordBravo: ""}, ``},
 
 		{`quoted key 1`, `'alfa,bravo'`, `alfa,bravo`, nil, ``},
-		{`quoted key 2`, `'alfa=bravo'`, `alfa=bravo`, nil, ``},
-		{`quoted key 3`, `'alfa\=bravo'`, `alfa=bravo`, nil, ``},
-		{`quoted key 4`, "'alfa=bravo'", `alfa=bravo`, nil, ``},
+		{`quoted key 2`, `'alfa=bravo'`, pairAlfaBravo, nil, ``},
+		{`quoted key 3`, `'alfa\=bravo'`, pairAlfaBravo, nil, ``},
+		{`quoted key 4`, "'alfa=bravo'", pairAlfaBravo, nil, ``},
 
-		{`escaped key 1`, `\ =alfa`, "", M{" ": "alfa"}, ""},
-		{`escaped key 2`, `' '=alfa`, "", M{" ": "alfa"}, ""},
+		{`escaped key 1`, `\ =alfa`, "", M{" ": wordAlfa}, ""},
+		{`escaped key 2`, `' '=alfa`, "", M{" ": wordAlfa}, ""},
 
-		{`no name 1`, `,alfa`, "", M{"alfa": ""}, ``},
-		{`no name 2`, `,alfa,bravo`, "", M{"alfa": "", "bravo": ""}, ``},
-		{`key with empty value`, `alfa=`, "", M{"alfa": ""}, ``},
-		{`key with empty quoted value`, `alfa=''`, "", M{"alfa": ""}, ``},
-		{`key-value 1`, `alfa=bravo`, "", M{"alfa": "bravo"}, ``},
-		{`key-value 2`, `alfa=bravo,charlie`, "", M{"alfa": "bravo", "charlie": ""}, ``},
-		{`key-value 3`, `alfa=bravo,charlie=delta`, "", M{"alfa": "bravo", "charlie": "delta"}, ``},
+		{`no name 1`, `,alfa`, "", M{wordAlfa: ""}, ``},
+		{`no name 2`, `,alfa,bravo`, "", M{wordAlfa: "", wordBravo: ""}, ``},
+		{`key with empty value`, `alfa=`, "", M{wordAlfa: ""}, ``},
+		{`key with empty quoted value`, `alfa=''`, "", M{wordAlfa: ""}, ``},
+		{`key-value 1`, pairAlfaBravo, "", M{wordAlfa: wordBravo}, ``},
+		{`key-value 2`, `alfa=bravo,charlie`, "", M{wordAlfa: wordBravo, wordCharlie: ""}, ``},
+		{`key-value 3`, `alfa=bravo,charlie=delta`, "", M{wordAlfa: wordBravo, wordCharlie: wordDelta}, ``},
 
-		{`whitespace 1`, `  alfa  `, "alfa", nil, ``},
-		{`whitespace 2`, ` alfa ,  bravo  `, "alfa", M{"bravo": ""}, ``},
-		{`whitespace 3`, ` alfa, charlie= delta `, "alfa", M{"charlie": "delta"}, ``},
+		{`whitespace 1`, `  alfa  `, wordAlfa, nil, ``},
+		{`whitespace 2`, ` alfa ,  bravo  `, wordAlfa, M{wordBravo: ""}, ``},
+		{`whitespace 3`, ` alfa, charlie= delta `, wordAlfa, M{wordCharlie: wordDelta}, ``},
 
-		{`skipped key`, `alfa,,charlie`, "alfa", M{"charlie": ""}, ``},
+		{`skipped key`, `alfa,,charlie`, wordAlfa, M{wordCharlie: ""}, ``},
 
-		{`quoted value 1`, `alfa='bravo,charlie'`, "", M{"alfa": "bravo,charlie"}, ``},
-		{`quoted value 2`, `alfa='bravo,charlie',delta`, "", M{"alfa": "bravo,charlie", "delta": ""}, ``},
-		{`quoted value 3`, `alfa='bravo=charlie',delta`, "", M{"alfa": "bravo=charlie", "delta": ""}, ``},
-		{`quoted value 4`, `alfa='d\'Elta', bravo=charlie`, "", M{"alfa": "d'Elta", "bravo": "charlie"}, ``},
+		{`quoted value 1`, `alfa='bravo,charlie'`, "", M{wordAlfa: "bravo,charlie"}, ``},
+		{`quoted value 2`, `alfa='bravo,charlie',delta`, "", M{wordAlfa: "bravo,charlie", wordDelta: ""}, ``},
+		{`quoted value 3`, `alfa='bravo=charlie',delta`, "", M{wordAlfa: "bravo=charlie", wordDelta: ""}, ``},
+		{`quoted value 4`, `alfa='d\'Elta', bravo=charlie`, "", M{wordAlfa: "d'Elta", wordBravo: wordCharlie}, ``},
 
 		{`disallowed quote in the middle 1`, `alfa=bravo', charlie 'delta`, "", nil, `quotes must enclose the entire value (at 11)`},
 		{`disallowed quote in the middle 2`, `alfa='bravo 'charlie' delta'`, "", nil, `quotes must enclose the entire value (at 13)`},
 		{`disallowed quote in the middle of name`, `bravo' charlie'`, "", nil, `quotes must enclose the entire value (at 6)`},
-		{`disallowed quote in the middle of name with options`, `alfa,bravo' charlie'`, "alfa", nil, `quotes must enclose the entire value (at 11)`},
+		{`disallowed quote in the middle of name with options`, `alfa,bravo' charlie'`, wordAlfa, nil, `quotes must enclose the entire value (at 11)`},
 		{`disallowed quote in the middle of key`, `bravo' charlie'= delta`, "", nil, `quotes must enclose the entire value (at 6)`},
 
 		{`disallowed vmihailenco-style parenthesized value`, `alfa=bravo('charlie', 'delta')`, "", nil, `quotes must enclose the entire value (at 12)`},
 
-		{`malformed empty key 1`, `alfa,=bravo`, "alfa", nil, `empty key (at 6)`},
+		{`malformed empty key 1`, `alfa,=bravo`, wordAlfa, nil, `empty key (at 6)`},
 		{`malformed empty key 2`, `,=alfa`, "", nil, `empty key (at 2)`},
 		{`malformed empty key 3`, `''=alfa`, "", nil, `empty key (at 1)`},
 		{`malformed empty key 4`, ` '' =alfa`, "", nil, `empty key (at 1)`},
-		{`duplicate key last wins`, `alfa,bravo=charlie,bravo=delta`, "alfa", M{"bravo": "delta"}, ``},
-		{`duplicate key first item last wins`, `foo=bar,foo=boz`, "", M{"foo": "boz"}, ``},
-		{`malformed unterminated quote 1`, `alfa,'bravo=charlie`, "alfa", M{"bravo=charlie": ""}, `unterminated quote (at 6)`},
-		{`malformed unterminated quote 2`, `alfa,bravo='charlie`, "alfa", M{"bravo": "charlie"}, `unterminated quote (at 12)`},
-		{`malformed unterminated quote 3`, `'alfa`, "alfa", nil, `unterminated quote (at 1)`},
-		{`malformed escape 1`, `a\lfa`, "alfa", nil, `invalid escape character (at 3)`},
+		{`duplicate key last wins`, `alfa,bravo=charlie,bravo=delta`, wordAlfa, M{wordBravo: wordDelta}, ``},
+		{`duplicate key first item last wins`, `foo=bar,foo=boz`, "", M{wordFoo: "boz"}, ``},
+		{`malformed unterminated quote 1`, `alfa,'bravo=charlie`, wordAlfa, M{"bravo=charlie": ""}, `unterminated quote (at 6)`},
+		{`malformed unterminated quote 2`, `alfa,bravo='charlie`, wordAlfa, M{wordBravo: wordCharlie}, `unterminated quote (at 12)`},
+		{`malformed unterminated quote 3`, `'alfa`, wordAlfa, nil, `unterminated quote (at 1)`},
+		{`malformed escape 1`, `a\lfa`, wordAlfa, nil, `invalid escape character (at 3)`},
 		{`malformed escape 2`, `al\`, "al", nil, `unterminated escape sequence (at 3)`},
 	}
 
@@ -137,7 +148,7 @@ func TestParseWithName_Duplicate(t *testing.T) {
 	tag, err := ParseWithName(`foo=bar,foo=boz`)
 	require.NoError(t, err)
 	assert.Equal(t, "", tag.Name)
-	assert.Equal(t, M{"foo": "boz"}, tag.Options) // last value wins
+	assert.Equal(t, M{wordFoo: "boz"}, tag.Options) // last value wins
 }
 
 func TestParseWithName_Unquoting(t *testing.T) {
@@ -158,14 +169,14 @@ func TestParseWithName_NameMode(t *testing.T) {
 	// Test ParseWithName (name mode) - first item without equals is name
 	tag, err := ParseWithName(`foo,bar=baz`)
 	require.NoError(t, err)
-	assert.Equal(t, "foo", tag.Name)
-	assert.Equal(t, M{"bar": "baz"}, tag.Options)
+	assert.Equal(t, wordFoo, tag.Name)
+	assert.Equal(t, M{wordBar: wordBaz}, tag.Options)
 
 	// First item with equals is treated as option
 	tag2, err := ParseWithName(`foo=bar,baz`)
 	require.NoError(t, err)
 	assert.Equal(t, "", tag2.Name)
-	assert.Equal(t, M{"foo": "bar", "baz": ""}, tag2.Options)
+	assert.Equal(t, M{wordFoo: wordBar, wordBaz: ""}, tag2.Options)
 }
 
 func TestParseFuncWithName_CustomErrorInName(t *testing.T) {
@@ -190,7 +201,7 @@ func TestParseFuncWithName_CustomErrorInKey(t *testing.T) {
 	const tag = `foo,bar=boz`
 	const expErr = `bar: simulated error (at 5)`
 	err := ParseFuncWithName(tag, func(key, value string) error {
-		if key == "bar" {
+		if key == wordBar {
 			return errSimulated
 		}
 

@@ -7,6 +7,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	mimeAny         = "*/*"
+	charsetUTF8     = "UTF-8"
+	mimeJSON        = "application/json"
+	mimePDF         = "application/pdf"
+	paramCharset    = "charset"
+	caseSimple      = "simple"
+	mimeTextAny     = "text/*"
+	mimeHTML        = "text/html"
+	caseWithQuality = "with quality"
+	caseWithSpaces  = "with spaces"
+)
+
 func TestParseAcceptValue(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -24,40 +37,40 @@ func TestParseAcceptValue(t *testing.T) {
 		},
 		{
 			name:         "simple type",
-			value:        "text/html",
-			expectedType: "text/html",
+			value:        mimeHTML,
+			expectedType: mimeHTML,
 			expectedQ:    1.0,
 		},
 		{
-			name:         "with quality",
+			name:         caseWithQuality,
 			value:        "text/html;q=0.8",
-			expectedType: "text/html",
+			expectedType: mimeHTML,
 			expectedQ:    0.8,
 		},
 		{
 			name:         "with parameters",
 			value:        "text/html; charset=UTF-8; level=2",
-			expectedType: "text/html",
+			expectedType: mimeHTML,
 			expectedParams: map[string]string{
-				"charset": "UTF-8",
-				"level":   "2",
+				paramCharset: charsetUTF8,
+				"level":      "2",
 			},
 			expectedQ: 1.0,
 		},
 		{
 			name:         "with quality and parameters",
 			value:        "text/html; charset=UTF-8; q=0.7; level=2",
-			expectedType: "text/html",
+			expectedType: mimeHTML,
 			expectedParams: map[string]string{
-				"charset": "UTF-8",
-				"level":   "2",
+				paramCharset: charsetUTF8,
+				"level":      "2",
 			},
 			expectedQ: 0.7,
 		},
 		{
 			name:         "quoted parameter",
 			value:        "text/html; foo=\"bar\"",
-			expectedType: "text/html",
+			expectedType: mimeHTML,
 			expectedParams: map[string]string{
 				"foo": "bar",
 			},
@@ -69,11 +82,11 @@ func TestParseAcceptValue(t *testing.T) {
 			expectErr: true,
 		},
 		{
-			name:         "with spaces",
+			name:         caseWithSpaces,
 			value:        "text/html ; q = 0.8 ; charset = UTF-8",
-			expectedType: "text/html",
+			expectedType: mimeHTML,
 			expectedParams: map[string]string{
-				"charset": "UTF-8",
+				paramCharset: charsetUTF8,
 			},
 			expectedQ: 0.8,
 		},
@@ -140,20 +153,20 @@ func TestBuildNormalizedValue(t *testing.T) {
 	}{
 		{
 			name:     "no parameters",
-			typ:      "text/html",
+			typ:      mimeHTML,
 			params:   nil,
-			expected: "text/html",
+			expected: mimeHTML,
 		},
 		{
 			name:     "sorted parameters",
-			typ:      "text/html",
+			typ:      mimeHTML,
 			params:   map[string]string{"z": "y", "a": "b", "c": "d"},
 			expected: "text/html; a=b; c=d; z=y",
 		},
 		{
 			name:     "single parameter",
-			typ:      "text/html",
-			params:   map[string]string{"charset": "UTF-8"},
+			typ:      mimeHTML,
+			params:   map[string]string{paramCharset: charsetUTF8},
 			expected: "text/html; charset=UTF-8",
 		},
 	}
@@ -174,39 +187,39 @@ func TestParseHeader(t *testing.T) {
 		expectErr bool
 	}{
 		{
-			name:     "simple",
-			header:   "text/html",
-			expected: []string{"text/html"},
+			name:     caseSimple,
+			header:   mimeHTML,
+			expected: []string{mimeHTML},
 		},
 		{
 			name:     "multiple",
 			header:   "text/html, application/json",
-			expected: []string{"text/html", "application/json"},
+			expected: []string{mimeHTML, mimeJSON},
 		},
 		{
-			name:     "with quality",
+			name:     caseWithQuality,
 			header:   "text/html;q=0.8, application/json;q=0.9",
 			expected: []string{"text/html;q=0.8", "application/json;q=0.9"},
 		},
 		{
 			name:     "with quoted strings",
 			header:   "text/html; foo=\"bar\", application/json",
-			expected: []string{"text/html; foo=\"bar\"", "application/json"},
+			expected: []string{"text/html; foo=\"bar\"", mimeJSON},
 		},
 		{
-			name:     "with spaces",
+			name:     caseWithSpaces,
 			header:   "text/html , application/json , text/xml",
-			expected: []string{"text/html", "application/json", "text/xml"},
+			expected: []string{mimeHTML, mimeJSON, "text/xml"},
 		},
 		{
 			name:     "comma inside quotes",
 			header:   "text/html; foo=\"bar,baz\", application/json",
-			expected: []string{"text/html; foo=\"bar,baz\"", "application/json"},
+			expected: []string{"text/html; foo=\"bar,baz\"", mimeJSON},
 		},
 		{
 			name:     "escaped quotes",
 			header:   "text/html; profile=\"\\\"http://example.com/profile\\\"\", application/json",
-			expected: []string{"text/html; profile=\"\\\"http://example.com/profile\\\"\"", "application/json"},
+			expected: []string{"text/html; profile=\"\\\"http://example.com/profile\\\"\"", mimeJSON},
 		},
 		{
 			name:      "empty",

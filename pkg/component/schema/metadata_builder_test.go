@@ -10,12 +10,12 @@ import (
 
 // builderMockParser returns a simple metadata map for testing.
 func builderMockParser(field reflect.StructField, index int, tagValue string) (any, error) {
-	return map[string]string{"tag": tagValue, "field": field.Name}, nil
+	return map[string]string{keyTag: tagValue, "field": field.Name}, nil
 }
 
 // builderMockDefault returns a simple default metadata map for testing.
 func builderMockDefault(field reflect.StructField, index int) any {
-	return map[string]string{"default": "value", "field": field.Name}
+	return map[string]string{"default": valuePlain, "field": field.Name}
 }
 
 // builderMockErrorParser always returns an error for testing error handling.
@@ -44,17 +44,17 @@ func TestMetadataBuilder_BuildStructMetadata_WithTags(t *testing.T) {
 	require.Len(t, result.Fields, 2)
 
 	// Verify Name field
-	nameField, ok := result.Field("Name")
+	nameField, ok := result.Field(goFieldName)
 	require.True(t, ok)
-	assert.Equal(t, "Name", nameField.StructFieldName)
+	assert.Equal(t, goFieldName, nameField.StructFieldName)
 	assert.Equal(t, 0, nameField.Index)
 	assert.True(t, nameField.HasTag("custom"))
 	assert.Len(t, nameField.TagMetadata, 1)
 
 	// Verify Age field
-	ageField, ok := result.Field("Age")
+	ageField, ok := result.Field(goFieldAge)
 	require.True(t, ok)
-	assert.Equal(t, "Age", ageField.StructFieldName)
+	assert.Equal(t, goFieldAge, ageField.StructFieldName)
 	assert.Equal(t, 1, ageField.Index)
 	assert.True(t, ageField.HasTag("custom"))
 	assert.Len(t, ageField.TagMetadata, 1)

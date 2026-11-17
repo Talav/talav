@@ -16,6 +16,10 @@ import (
 	"go.uber.org/fx/fxtest"
 )
 
+const (
+	configPattern = "config.yaml"
+)
+
 func TestModule_FxMetricsModule_ProvidesRegistry(t *testing.T) {
 	testdataDir := filepath.Join("testdata", "testmodule_fxmetricsmodule_providesregistry")
 	t.Setenv("APP_ENV", "dev")
@@ -28,7 +32,7 @@ func TestModule_FxMetricsModule_ProvidesRegistry(t *testing.T) {
 		fxconfig.FxConfigModule,
 		fxconfig.AsConfigSource(config.ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml"},
+			Patterns: []string{configPattern},
 			Parser:   yaml.Parser(),
 		}),
 		FxMetricsModule,
@@ -55,7 +59,7 @@ func TestModule_FxMetricsModule_WithCollector(t *testing.T) {
 		fxconfig.FxConfigModule,
 		fxconfig.AsConfigSource(config.ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml"},
+			Patterns: []string{configPattern},
 			Parser:   yaml.Parser(),
 		}),
 		FxMetricsModule,
@@ -99,7 +103,7 @@ func TestModule_FxMetricsModule_WithMultipleCollectors(t *testing.T) {
 		fxconfig.FxConfigModule,
 		fxconfig.AsConfigSource(config.ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml"},
+			Patterns: []string{configPattern},
 			Parser:   yaml.Parser(),
 		}),
 		FxMetricsModule,

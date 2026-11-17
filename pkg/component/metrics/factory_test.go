@@ -8,6 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	conflictingMetricHelp = "conflicting metric to trigger registration error"
+)
+
 func TestDefaultMetricsConfig(t *testing.T) {
 	cfg := DefaultMetricsConfig()
 
@@ -104,7 +108,7 @@ func TestDefaultMetricsRegistryFactory_Create_BuildCollectorRegistrationError(t 
 	prePopulated := prometheus.NewRegistry()
 	prePopulated.MustRegister(prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "go_build_info",
-		Help: "conflicting metric to trigger registration error",
+		Help: conflictingMetricHelp,
 	}))
 
 	factory := &DefaultMetricsRegistryFactory{
@@ -119,7 +123,7 @@ func TestDefaultMetricsRegistryFactory_Create_GoCollectorRegistrationError(t *te
 	prePopulated := prometheus.NewRegistry()
 	prePopulated.MustRegister(prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "go_goroutines",
-		Help: "conflicting metric to trigger registration error",
+		Help: conflictingMetricHelp,
 	}))
 
 	factory := &DefaultMetricsRegistryFactory{
@@ -134,7 +138,7 @@ func TestDefaultMetricsRegistryFactory_Create_ProcessCollectorRegistrationError(
 	prePopulated := prometheus.NewRegistry()
 	prePopulated.MustRegister(prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "process_cpu_seconds_total",
-		Help: "conflicting metric to trigger registration error",
+		Help: conflictingMetricHelp,
 	}))
 
 	factory := &DefaultMetricsRegistryFactory{

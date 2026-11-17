@@ -17,6 +17,11 @@ import (
 	"go.uber.org/fx/fxtest"
 )
 
+const (
+	configPattern = "config.yaml"
+	hostLocalhost = "localhost"
+)
+
 func TestModule_StrictDecode(t *testing.T) {
 	type settings struct {
 		ID string `config:"id"`
@@ -66,7 +71,7 @@ func TestModule_DecoderOptions(t *testing.T) {
 			option fx.Option
 		}{
 			{"plain", AsConfig("decoderoptions", serverConfig{}, option)},
-			{"defaults", AsConfigWithDefaults("decoderoptions", serverConfig{Host: "localhost"}, serverConfig{}, option)},
+			{"defaults", AsConfigWithDefaults("decoderoptions", serverConfig{Host: hostLocalhost}, serverConfig{}, option)},
 			{"merge", AsConfigMergeKeys("server", []string{"decoderoptions"}, serverConfig{}, option)},
 		} {
 			t.Run(tc.name+"/"+provider.name, func(t *testing.T) {
@@ -213,7 +218,7 @@ func TestModule_NewFxConfig_WithEnvironment(t *testing.T) {
 		FxConfigModule,
 		AsConfigSource(config.ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml", "config_{env}.yaml"},
+			Patterns: []string{configPattern, "config_{env}.yaml"},
 			Parser:   yaml.Parser(),
 		}),
 		fx.Populate(&cfg),
@@ -254,7 +259,7 @@ func TestModule_AsConfig_Provider(t *testing.T) {
 		FxConfigModule,
 		AsConfigSource(config.ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml"},
+			Patterns: []string{configPattern},
 			Parser:   yaml.Parser(),
 		}),
 		AsConfig("app", AppConfig{}),
@@ -264,7 +269,7 @@ func TestModule_AsConfig_Provider(t *testing.T) {
 
 	assert.Equal(t, "test-app", appCfg.Name)
 	assert.Equal(t, "1.0.0", appCfg.Version)
-	assert.Equal(t, "localhost", dbCfg.Host)
+	assert.Equal(t, hostLocalhost, dbCfg.Host)
 	assert.Equal(t, 5432, dbCfg.Port)
 }
 
@@ -279,7 +284,7 @@ func TestModule_AsConfigWithDefaults_Provider(t *testing.T) {
 
 	// Default config with all fields set
 	defaultConfig := ServerConfig{
-		Host: "localhost",
+		Host: hostLocalhost,
 		Port: 8080,
 	}
 
@@ -291,7 +296,7 @@ func TestModule_AsConfigWithDefaults_Provider(t *testing.T) {
 		FxConfigModule,
 		AsConfigSource(config.ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml"},
+			Patterns: []string{configPattern},
 			Parser:   yaml.Parser(),
 		}),
 		AsConfigWithDefaults("server", defaultConfig, ServerConfig{}),
@@ -299,8 +304,8 @@ func TestModule_AsConfigWithDefaults_Provider(t *testing.T) {
 	).RequireStart().RequireStop()
 
 	// User config only sets port, host should use default
-	assert.Equal(t, "localhost", serverCfg.Host) // default value
-	assert.Equal(t, 9000, serverCfg.Port)        // user config overrides default
+	assert.Equal(t, hostLocalhost, serverCfg.Host) // default value
+	assert.Equal(t, 9000, serverCfg.Port)          // user config overrides default
 }
 
 func TestModule_AsConfig_Validatable_OK(t *testing.T) {
@@ -315,7 +320,7 @@ func TestModule_AsConfig_Validatable_OK(t *testing.T) {
 		FxConfigModule,
 		AsConfigSource(config.ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml"},
+			Patterns: []string{configPattern},
 			Parser:   yaml.Parser(),
 		}),
 		AsConfig("widget", widgetConfig{}),
@@ -336,7 +341,7 @@ func TestModule_AsConfig_Validatable_Error(t *testing.T) {
 		FxConfigModule,
 		AsConfigSource(config.ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml"},
+			Patterns: []string{configPattern},
 			Parser:   yaml.Parser(),
 		}),
 		AsConfig("widget", widgetConfig{}),
@@ -354,7 +359,7 @@ func TestModule_AsConfigWithDefaults_Validatable_Error(t *testing.T) {
 	t.Setenv("APP_ENV", "dev")
 
 	defaults := serverConfigWithValidate{
-		Host: "localhost",
+		Host: hostLocalhost,
 		Port: 8080,
 	}
 
@@ -365,7 +370,7 @@ func TestModule_AsConfigWithDefaults_Validatable_Error(t *testing.T) {
 		FxConfigModule,
 		AsConfigSource(config.ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml"},
+			Patterns: []string{configPattern},
 			Parser:   yaml.Parser(),
 		}),
 		AsConfigWithDefaults("server", defaults, serverConfigWithValidate{}),
@@ -390,7 +395,7 @@ func TestModule_AsConfigMergeKeys_OK(t *testing.T) {
 		FxConfigModule,
 		AsConfigSource(config.ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml"},
+			Patterns: []string{configPattern},
 			Parser:   yaml.Parser(),
 		}),
 		AsConfigMergeKeys("merged_cfg", []string{"mergekeys_base", "mergekeys_overlay"}, mergeKeysFlatConfig{}),
@@ -412,7 +417,7 @@ func TestModule_AsConfigMergeKeys_Validate_Error(t *testing.T) {
 		FxConfigModule,
 		AsConfigSource(config.ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml"},
+			Patterns: []string{configPattern},
 			Parser:   yaml.Parser(),
 		}),
 		AsConfigMergeKeys("mergekeysValidateLabel", []string{"mergekeys_v_base", "mergekeys_v_overlay"}, widgetConfig{}),
@@ -436,7 +441,7 @@ func TestModule_AsConfigMergeKeys_Unmarshal_ErrorWrapsFailingPath(t *testing.T) 
 		FxConfigModule,
 		AsConfigSource(config.ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml"},
+			Patterns: []string{configPattern},
 			Parser:   yaml.Parser(),
 		}),
 		AsConfigMergeKeys("service", []string{"mergekeys_u_base", "mergekeys_u_bad"}, mergeKeysPortConfig{}),

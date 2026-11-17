@@ -13,18 +13,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	testSigningKey = "test-secret-key-12345"
+	roleUser       = "user"
+)
+
 func TestJWTService_RoundTrip_HS256(t *testing.T) {
 	// Setup
 	jwtService, err := NewJWTService(JWTConfig{
-		Algorithm:          "HS256",
-		Secret:             "test-secret-key-12345",
+		Algorithm:          algorithmHS256,
+		Secret:             testSigningKey,
 		AccessTokenExpiry:  15 * time.Minute,
 		RefreshTokenExpiry: 168 * time.Hour,
 	})
 	require.NoError(t, err, "NewJWTService should not return an error")
 
 	userID := "user-123"
-	roles := []string{"admin", "user"}
+	roles := []string{"admin", roleUser}
 
 	// Action - Create access token
 	accessToken, err := jwtService.CreateAccessToken(userID, roles)
@@ -113,14 +118,14 @@ func TestJWTService_RoundTrip_RS256(t *testing.T) {
 func TestJWTService_ValidateAccessToken_Expired(t *testing.T) {
 	// Setup
 	jwtService, err := NewJWTService(JWTConfig{
-		Algorithm:         "HS256",
-		Secret:            "test-secret-key-12345",
+		Algorithm:         algorithmHS256,
+		Secret:            testSigningKey,
 		AccessTokenExpiry: 100 * time.Millisecond, // Very short expiry
 	})
 	require.NoError(t, err, "NewJWTService should not return an error")
 
 	userID := "user-789"
-	roles := []string{"user"}
+	roles := []string{roleUser}
 
 	// Action - Create access token
 	accessToken, err := jwtService.CreateAccessToken(userID, roles)
@@ -141,8 +146,8 @@ func TestJWTService_ValidateAccessToken_Expired(t *testing.T) {
 func TestJWTService_ValidateAccessToken_InvalidToken(t *testing.T) {
 	// Setup
 	jwtService, err := NewJWTService(JWTConfig{
-		Algorithm:         "HS256",
-		Secret:            "test-secret-key-12345",
+		Algorithm:         algorithmHS256,
+		Secret:            testSigningKey,
 		AccessTokenExpiry: 15 * time.Minute,
 	})
 	require.NoError(t, err, "NewJWTService should not return an error")
@@ -242,14 +247,14 @@ func createTokenWithWrongAlgorithm(t *testing.T) string {
 
 	// Create a service with different secret
 	wrongService, err := NewJWTService(JWTConfig{
-		Algorithm:         "HS256",
+		Algorithm:         algorithmHS256,
 		Secret:            "different-secret-key",
 		AccessTokenExpiry: 15 * time.Minute,
 	})
 	require.NoError(t, err, "Failed to create JWT service with different secret")
 
 	// Create token with wrong secret
-	token, err := wrongService.CreateAccessToken("user-123", []string{"user"})
+	token, err := wrongService.CreateAccessToken("user-123", []string{roleUser})
 	require.NoError(t, err, "Failed to create token with wrong secret")
 
 	return token

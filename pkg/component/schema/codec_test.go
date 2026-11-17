@@ -47,13 +47,13 @@ func TestCodec_DecodeRequest(t *testing.T) {
 			method: "GET",
 			url:    "/test?name=John&age=30",
 			result: &queryStruct{},
-			want:   &queryStruct{Name: "John", Age: 30},
+			want:   &queryStruct{Name: valueJohn, Age: 30},
 		},
 		{
 			name:        "JSON body",
 			method:      "POST",
 			url:         "/test",
-			contentType: "application/json",
+			contentType: mimeJSON,
 			body:        `{"title": "Hello", "content": "World"}`,
 			result:      &requestWithBody{},
 			want:        &requestWithBody{Body: bodyStruct{Title: "Hello", Content: "World"}},
@@ -62,10 +62,10 @@ func TestCodec_DecodeRequest(t *testing.T) {
 			name:        "mixed query and body",
 			method:      "POST",
 			url:         "/test?name=John",
-			contentType: "application/json",
+			contentType: mimeJSON,
 			body:        `{"title": "Post", "content": "Content"}`,
 			result:      &mixedStruct{},
-			want:        &mixedStruct{Name: "John", Body: bodyStruct{Title: "Post", Content: "Content"}},
+			want:        &mixedStruct{Name: valueJohn, Body: bodyStruct{Title: "Post", Content: "Content"}},
 		},
 	}
 
@@ -112,7 +112,7 @@ func TestCodec_DecodeRequest_Integration(t *testing.T) {
 
 	body := `{"name": "John Doe", "email": "john@example.com"}`
 	req := httptest.NewRequest(http.MethodPost, "/users/123?filter=active", bytes.NewReader([]byte(body)))
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", mimeJSON)
 	req.Header.Set("X-Api-Key", "secret-key-123")
 
 	routerParams := map[string]string{"id": "123"}
@@ -125,7 +125,7 @@ func TestCodec_DecodeRequest_Integration(t *testing.T) {
 	assert.Equal(t, "123", result.ID)
 	assert.Equal(t, "secret-key-123", result.APIKey)
 	assert.Equal(t, "John Doe", result.Body.Name)
-	assert.Equal(t, "john@example.com", result.Body.Email)
+	assert.Equal(t, valueEmailJohn, result.Body.Email)
 }
 
 func TestCodec_DecodeRequest_Multipart(t *testing.T) {
@@ -143,8 +143,8 @@ func TestCodec_DecodeRequest_Multipart(t *testing.T) {
 	// Create multipart form
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	_ = writer.WriteField("name", "John Doe")
-	_ = writer.WriteField("email", "john@example.com")
+	_ = writer.WriteField(keyName, "John Doe")
+	_ = writer.WriteField(keyEmail, valueEmailJohn)
 	_ = writer.Close()
 
 	req := httptest.NewRequest(http.MethodPost, "/upload", body)
@@ -155,7 +155,7 @@ func TestCodec_DecodeRequest_Multipart(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "John Doe", result.Body.Name)
-	assert.Equal(t, "john@example.com", result.Body.Email)
+	assert.Equal(t, valueEmailJohn, result.Body.Email)
 }
 
 func TestCodec_DecodeRequest_FileUpload(t *testing.T) {
@@ -167,7 +167,7 @@ func TestCodec_DecodeRequest_FileUpload(t *testing.T) {
 
 	fileContent := []byte("file content here")
 	req := httptest.NewRequest(http.MethodPost, "/upload", bytes.NewReader(fileContent))
-	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("Content-Type", mimeOctetStream)
 
 	var result fileRequest
 	err := codec.DecodeRequest(req, nil, &result)
@@ -185,7 +185,7 @@ func TestCodec_DecodeRequest_FileUploadAsReader(t *testing.T) {
 
 	fileContent := []byte("file content for reader")
 	req := httptest.NewRequest(http.MethodPost, "/upload", bytes.NewReader(fileContent))
-	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("Content-Type", mimeOctetStream)
 
 	var result fileReaderRequest
 	err := codec.DecodeRequest(req, nil, &result)
@@ -246,7 +246,7 @@ func TestCodec_DecodeRequest_QueryWithFileUpload(t *testing.T) {
 
 	fileContent := []byte("binary data")
 	req := httptest.NewRequest(http.MethodPost, "/upload?version=1.0", bytes.NewReader(fileContent))
-	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("Content-Type", mimeOctetStream)
 
 	var result mixedRequest
 	err := codec.DecodeRequest(req, nil, &result)

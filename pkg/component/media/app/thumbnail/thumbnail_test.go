@@ -11,6 +11,12 @@ import (
 	"github.com/talav/talav/pkg/component/media/infra/resizer"
 )
 
+const (
+	extJPG        = ".jpg"
+	resizerSimple = "simple"
+	nameThumb     = "thumb"
+)
+
 // mockResizer is a mock implementation of resizer.Resizer.
 type mockResizer struct {
 	resizeFunc func(ctx context.Context, reader io.Reader, opts resizer.ResizeOptions, writer io.Writer) (resizer.ResizeResult, error)
@@ -75,7 +81,7 @@ func createMockWriterFactory(writers map[string]io.WriteCloser, err error) Write
 func TestNewThumbnail(t *testing.T) {
 	t.Run("ValidResizers", func(t *testing.T) {
 		resizers := map[string]resizer.Resizer{
-			"simple": createMockResizer(resizer.ResizeResult{}, nil),
+			resizerSimple: createMockResizer(resizer.ResizeResult{}, nil),
 		}
 		thumb := NewThumbnail(resizers)
 
@@ -104,23 +110,23 @@ func TestThumbnail_GenerateThumbnails(t *testing.T) {
 
 		mockResizer := createMockResizer(expectedResult, nil)
 		resizers := map[string]resizer.Resizer{
-			"simple": mockResizer,
+			resizerSimple: mockResizer,
 		}
 		thumb := setupThumbnail(resizers)
 
 		mockWriter := newMockWriteCloser()
 		writers := map[string]io.WriteCloser{
-			"thumb": mockWriter,
+			nameThumb: mockWriter,
 		}
 		writerFactory := createMockWriterFactory(writers, nil)
 
 		formats := map[string]ThumbnailInput{
-			"thumb": {
-				Resizer: "simple",
+			nameThumb: {
+				Resizer: resizerSimple,
 				ResizeOptions: resizer.ResizeOptions{
 					Width:  100,
 					Height: 100,
-					Format: ".jpg",
+					Format: extJPG,
 				},
 			},
 		}
@@ -131,7 +137,7 @@ func TestThumbnail_GenerateThumbnails(t *testing.T) {
 		require.NotNil(t, results)
 		assert.Len(t, results, 1)
 
-		metadata, ok := results["thumb"]
+		metadata, ok := results[nameThumb]
 		require.True(t, ok)
 		assert.Equal(t, expectedResult.Width, metadata.Width)
 		assert.Equal(t, expectedResult.Height, metadata.Height)
@@ -149,33 +155,33 @@ func TestThumbnail_GenerateThumbnails(t *testing.T) {
 			FileSize: 1024,
 		}, nil)
 		resizers := map[string]resizer.Resizer{
-			"simple": mockResizer,
+			resizerSimple: mockResizer,
 		}
 		thumb := setupThumbnail(resizers)
 
 		mockWriter1 := newMockWriteCloser()
 		mockWriter2 := newMockWriteCloser()
 		writers := map[string]io.WriteCloser{
-			"thumb":   mockWriter1,
+			nameThumb: mockWriter1,
 			"preview": mockWriter2,
 		}
 		writerFactory := createMockWriterFactory(writers, nil)
 
 		formats := map[string]ThumbnailInput{
-			"thumb": {
-				Resizer: "simple",
+			nameThumb: {
+				Resizer: resizerSimple,
 				ResizeOptions: resizer.ResizeOptions{
 					Width:  100,
 					Height: 100,
-					Format: ".jpg",
+					Format: extJPG,
 				},
 			},
 			"preview": {
-				Resizer: "simple",
+				Resizer: resizerSimple,
 				ResizeOptions: resizer.ResizeOptions{
 					Width:  200,
 					Height: 150,
-					Format: ".jpg",
+					Format: extJPG,
 				},
 			},
 		}
@@ -185,7 +191,7 @@ func TestThumbnail_GenerateThumbnails(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, results)
 		assert.Len(t, results, 2)
-		assert.Contains(t, results, "thumb")
+		assert.Contains(t, results, nameThumb)
 		assert.Contains(t, results, "preview")
 		assert.True(t, mockWriter1.closed, "First writer should be closed")
 		assert.True(t, mockWriter2.closed, "Second writer should be closed")
@@ -197,7 +203,7 @@ func TestThumbnail_GenerateThumbnails(t *testing.T) {
 
 		mockResizer := createMockResizer(resizer.ResizeResult{}, nil)
 		resizers := map[string]resizer.Resizer{
-			"simple": mockResizer,
+			resizerSimple: mockResizer,
 		}
 		thumb := setupThumbnail(resizers)
 
@@ -205,12 +211,12 @@ func TestThumbnail_GenerateThumbnails(t *testing.T) {
 		writerFactory := createMockWriterFactory(nil, factoryErr)
 
 		formats := map[string]ThumbnailInput{
-			"thumb": {
-				Resizer: "simple",
+			nameThumb: {
+				Resizer: resizerSimple,
 				ResizeOptions: resizer.ResizeOptions{
 					Width:  100,
 					Height: 100,
-					Format: ".jpg",
+					Format: extJPG,
 				},
 			},
 		}
@@ -220,7 +226,7 @@ func TestThumbnail_GenerateThumbnails(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, results)
 		assert.Contains(t, err.Error(), "failed to create writer for format")
-		assert.Contains(t, err.Error(), "thumb")
+		assert.Contains(t, err.Error(), nameThumb)
 	})
 
 	t.Run("ResizerNotFound", func(t *testing.T) {
@@ -232,17 +238,17 @@ func TestThumbnail_GenerateThumbnails(t *testing.T) {
 
 		mockWriter := newMockWriteCloser()
 		writers := map[string]io.WriteCloser{
-			"thumb": mockWriter,
+			nameThumb: mockWriter,
 		}
 		writerFactory := createMockWriterFactory(writers, nil)
 
 		formats := map[string]ThumbnailInput{
-			"thumb": {
+			nameThumb: {
 				Resizer: "nonexistent",
 				ResizeOptions: resizer.ResizeOptions{
 					Width:  100,
 					Height: 100,
-					Format: ".jpg",
+					Format: extJPG,
 				},
 			},
 		}
@@ -252,7 +258,7 @@ func TestThumbnail_GenerateThumbnails(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, results)
 		assert.Contains(t, err.Error(), "failed to generate thumbnail for format")
-		assert.Contains(t, err.Error(), "thumb")
+		assert.Contains(t, err.Error(), nameThumb)
 		assert.Contains(t, err.Error(), "resizer")
 		assert.Contains(t, err.Error(), "not found")
 		assert.True(t, mockWriter.closed, "Writer should be closed on error")
@@ -265,23 +271,23 @@ func TestThumbnail_GenerateThumbnails(t *testing.T) {
 		resizeErr := errors.New("resize error")
 		mockResizer := createMockResizer(resizer.ResizeResult{}, resizeErr)
 		resizers := map[string]resizer.Resizer{
-			"simple": mockResizer,
+			resizerSimple: mockResizer,
 		}
 		thumb := setupThumbnail(resizers)
 
 		mockWriter := newMockWriteCloser()
 		writers := map[string]io.WriteCloser{
-			"thumb": mockWriter,
+			nameThumb: mockWriter,
 		}
 		writerFactory := createMockWriterFactory(writers, nil)
 
 		formats := map[string]ThumbnailInput{
-			"thumb": {
-				Resizer: "simple",
+			nameThumb: {
+				Resizer: resizerSimple,
 				ResizeOptions: resizer.ResizeOptions{
 					Width:  100,
 					Height: 100,
-					Format: ".jpg",
+					Format: extJPG,
 				},
 			},
 		}
@@ -291,7 +297,7 @@ func TestThumbnail_GenerateThumbnails(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, results)
 		assert.Contains(t, err.Error(), "failed to generate thumbnail for format")
-		assert.Contains(t, err.Error(), "thumb")
+		assert.Contains(t, err.Error(), nameThumb)
 		assert.True(t, mockWriter.closed, "Writer should be closed on error")
 	})
 
@@ -300,7 +306,7 @@ func TestThumbnail_GenerateThumbnails(t *testing.T) {
 		data := []byte("test image data")
 
 		resizers := map[string]resizer.Resizer{
-			"simple": createMockResizer(resizer.ResizeResult{}, nil),
+			resizerSimple: createMockResizer(resizer.ResizeResult{}, nil),
 		}
 		thumb := setupThumbnail(resizers)
 
@@ -325,23 +331,23 @@ func TestThumbnail_GenerateThumbnails(t *testing.T) {
 		}
 		mockResizer := createMockResizer(expectedResult, nil)
 		resizers := map[string]resizer.Resizer{
-			"simple": mockResizer,
+			resizerSimple: mockResizer,
 		}
 		thumb := setupThumbnail(resizers)
 
 		mockWriter := newMockWriteCloser()
 		writers := map[string]io.WriteCloser{
-			"thumb": mockWriter,
+			nameThumb: mockWriter,
 		}
 		writerFactory := createMockWriterFactory(writers, nil)
 
 		formats := map[string]ThumbnailInput{
-			"thumb": {
-				Resizer: "simple",
+			nameThumb: {
+				Resizer: resizerSimple,
 				ResizeOptions: resizer.ResizeOptions{
 					Width:  100,
 					Height: 100,
-					Format: ".jpg",
+					Format: extJPG,
 				},
 			},
 		}

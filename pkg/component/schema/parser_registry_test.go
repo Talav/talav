@@ -10,19 +10,19 @@ import (
 
 // mockParser is a test parser function.
 func mockParser(field reflect.StructField, index int, tagValue string) (any, error) {
-	return map[string]string{"tag": tagValue}, nil
+	return map[string]string{keyTag: tagValue}, nil
 }
 
 // mockDefault is a test default metadata function.
 func mockDefault(field reflect.StructField, index int) any {
-	return map[string]string{"default": "value"}
+	return map[string]string{"default": valuePlain}
 }
 
 func TestNewTagParserRegistry_Empty(t *testing.T) {
 	registry := NewTagParserRegistry()
 
 	assert.NotNil(t, registry)
-	assert.Nil(t, registry.Get("schema"))
+	assert.Nil(t, registry.Get(defaultSchemaTag))
 	assert.Nil(t, registry.Get("body"))
 	assert.Empty(t, registry.All())
 }
@@ -39,15 +39,15 @@ func TestNewTagParserRegistry_SingleParser(t *testing.T) {
 
 func TestNewTagParserRegistry_MultipleParsers(t *testing.T) {
 	registry := NewTagParserRegistry(
-		WithTagParser("json", mockParser),
+		WithTagParser(tagJSON, mockParser),
 		WithTagParser("xml", mockParser),
 		WithTagParser("yaml", mockParser),
 	)
 
-	assert.NotNil(t, registry.Get("json"))
+	assert.NotNil(t, registry.Get(tagJSON))
 	assert.NotNil(t, registry.Get("xml"))
 	assert.NotNil(t, registry.Get("yaml"))
-	assert.Nil(t, registry.Get("unknown"))
+	assert.Nil(t, registry.Get(valueUnknown))
 }
 
 func TestNewTagParserRegistry_ParserWithDefault(t *testing.T) {
@@ -94,7 +94,7 @@ func TestNewDefaultTagParserRegistry(t *testing.T) {
 	registry := NewDefaultTagParserRegistry()
 
 	// Verify schema parser is registered
-	schemaParser := registry.Get("schema")
+	schemaParser := registry.Get(defaultSchemaTag)
 	assert.NotNil(t, schemaParser)
 	assert.Equal(t, reflect.ValueOf(ParseSchemaTag).Pointer(), reflect.ValueOf(schemaParser).Pointer())
 
@@ -104,7 +104,7 @@ func TestNewDefaultTagParserRegistry(t *testing.T) {
 	assert.Equal(t, reflect.ValueOf(ParseBodyTag).Pointer(), reflect.ValueOf(bodyParser).Pointer())
 
 	// Verify schema has default function
-	schemaDefault := registry.GetDefault("schema")
+	schemaDefault := registry.GetDefault(defaultSchemaTag)
 	assert.NotNil(t, schemaDefault)
 	assert.Equal(t, reflect.ValueOf(DefaultSchemaMetadata).Pointer(), reflect.ValueOf(schemaDefault).Pointer())
 
@@ -115,10 +115,10 @@ func TestNewDefaultTagParserRegistry(t *testing.T) {
 
 func TestTagParserRegistry_Get_ExistingParser(t *testing.T) {
 	registry := NewTagParserRegistry(
-		WithTagParser("test", mockParser),
+		WithTagParser(valueTest, mockParser),
 	)
 
-	parser := registry.Get("test")
+	parser := registry.Get(valueTest)
 	assert.NotNil(t, parser)
 	assert.Equal(t, reflect.ValueOf(mockParser).Pointer(), reflect.ValueOf(parser).Pointer())
 }
@@ -132,31 +132,31 @@ func TestTagParserRegistry_Get_NonExistentParser(t *testing.T) {
 
 func TestTagParserRegistry_Get_MultipleRetrievals(t *testing.T) {
 	registry := NewTagParserRegistry(
-		WithTagParser("test", mockParser),
+		WithTagParser(valueTest, mockParser),
 	)
 
-	parser1 := registry.Get("test")
-	parser2 := registry.Get("test")
+	parser1 := registry.Get(valueTest)
+	parser2 := registry.Get(valueTest)
 
 	assert.Equal(t, reflect.ValueOf(parser1).Pointer(), reflect.ValueOf(parser2).Pointer())
 }
 
 func TestTagParserRegistry_GetDefault_ExistingDefault(t *testing.T) {
 	registry := NewTagParserRegistry(
-		WithTagParser("test", mockParser, mockDefault),
+		WithTagParser(valueTest, mockParser, mockDefault),
 	)
 
-	defaultFunc := registry.GetDefault("test")
+	defaultFunc := registry.GetDefault(valueTest)
 	assert.NotNil(t, defaultFunc)
 	assert.Equal(t, reflect.ValueOf(mockDefault).Pointer(), reflect.ValueOf(defaultFunc).Pointer())
 }
 
 func TestTagParserRegistry_GetDefault_NoDefault(t *testing.T) {
 	registry := NewTagParserRegistry(
-		WithTagParser("test", mockParser),
+		WithTagParser(valueTest, mockParser),
 	)
 
-	defaultFunc := registry.GetDefault("test")
+	defaultFunc := registry.GetDefault(valueTest)
 	assert.Nil(t, defaultFunc)
 }
 
@@ -177,13 +177,13 @@ func TestTagParserRegistry_All_EmptyRegistry(t *testing.T) {
 
 func TestTagParserRegistry_All_SingleParser(t *testing.T) {
 	registry := NewTagParserRegistry(
-		WithTagParser("test", mockParser),
+		WithTagParser(valueTest, mockParser),
 	)
 
 	all := registry.All()
 	require.Len(t, all, 1)
-	assert.NotNil(t, all["test"])
-	assert.Equal(t, reflect.ValueOf(mockParser).Pointer(), reflect.ValueOf(all["test"]).Pointer())
+	assert.NotNil(t, all[valueTest])
+	assert.Equal(t, reflect.ValueOf(mockParser).Pointer(), reflect.ValueOf(all[valueTest]).Pointer())
 }
 
 func TestTagParserRegistry_All_MultipleParsers(t *testing.T) {
@@ -202,7 +202,7 @@ func TestTagParserRegistry_All_MultipleParsers(t *testing.T) {
 
 func TestTagParserRegistry_All_Independence(t *testing.T) {
 	registry := NewTagParserRegistry(
-		WithTagParser("test", mockParser),
+		WithTagParser(valueTest, mockParser),
 	)
 
 	all := registry.All()
@@ -215,25 +215,25 @@ func TestTagParserRegistry_All_Independence(t *testing.T) {
 
 func TestTagParserRegistry_All_MapKeys(t *testing.T) {
 	registry := NewTagParserRegistry(
-		WithTagParser("json", mockParser),
+		WithTagParser(tagJSON, mockParser),
 		WithTagParser("xml", mockParser),
 		WithTagParser("yaml", mockParser),
 	)
 
 	all := registry.All()
-	assert.Contains(t, all, "json")
+	assert.Contains(t, all, tagJSON)
 	assert.Contains(t, all, "xml")
 	assert.Contains(t, all, "yaml")
-	assert.NotContains(t, all, "unknown")
+	assert.NotContains(t, all, valueUnknown)
 }
 
 func TestTagParserRegistry_All_MapValues(t *testing.T) {
 	registry := NewTagParserRegistry(
-		WithTagParser("test", mockParser),
+		WithTagParser(valueTest, mockParser),
 	)
 
 	all := registry.All()
-	assert.Equal(t, reflect.ValueOf(mockParser).Pointer(), reflect.ValueOf(all["test"]).Pointer())
+	assert.Equal(t, reflect.ValueOf(mockParser).Pointer(), reflect.ValueOf(all[valueTest]).Pointer())
 }
 
 func TestWithTagParser_BasicRegistration(t *testing.T) {
@@ -266,11 +266,11 @@ func TestWithTagParser_OverrideExisting(t *testing.T) {
 	}
 
 	registry := NewTagParserRegistry(
-		WithTagParser("test", parser1),
-		WithTagParser("test", parser2),
+		WithTagParser(valueTest, parser1),
+		WithTagParser(valueTest, parser2),
 	)
 
-	parser := registry.Get("test")
+	parser := registry.Get(valueTest)
 	assert.NotNil(t, parser)
 	assert.Equal(t, reflect.ValueOf(parser2).Pointer(), reflect.ValueOf(parser).Pointer())
 }
@@ -284,23 +284,23 @@ func TestWithTagParser_OverrideWithDefault(t *testing.T) {
 	}
 
 	registry := NewTagParserRegistry(
-		WithTagParser("test", mockParser, default1),
-		WithTagParser("test", mockParser, default2),
+		WithTagParser(valueTest, mockParser, default1),
+		WithTagParser(valueTest, mockParser, default2),
 	)
 
-	defaultFunc := registry.GetDefault("test")
+	defaultFunc := registry.GetDefault(valueTest)
 	assert.NotNil(t, defaultFunc)
 	assert.Equal(t, reflect.ValueOf(default2).Pointer(), reflect.ValueOf(defaultFunc).Pointer())
 }
 
 func TestWithTagParser_KeepDefaultWhenNotProvided(t *testing.T) {
 	registry := NewTagParserRegistry(
-		WithTagParser("test", mockParser, mockDefault),
-		WithTagParser("test", mockParser), // Register without default - should keep existing
+		WithTagParser(valueTest, mockParser, mockDefault),
+		WithTagParser(valueTest, mockParser), // Register without default - should keep existing
 	)
 
 	// Default should still exist because we didn't explicitly remove it
-	defaultFunc := registry.GetDefault("test")
+	defaultFunc := registry.GetDefault(valueTest)
 	assert.NotNil(t, defaultFunc)
 	assert.Equal(t, reflect.ValueOf(mockDefault).Pointer(), reflect.ValueOf(defaultFunc).Pointer())
 }
@@ -326,12 +326,12 @@ func TestWithTagParser_MultipleDefaults(t *testing.T) {
 
 func TestTagParserRegistry_Integration_CreateGetAll(t *testing.T) {
 	registry := NewTagParserRegistry(
-		WithTagParser("json", mockParser),
+		WithTagParser(tagJSON, mockParser),
 		WithTagParser("xml", mockParser),
 	)
 
 	// Get individual parsers
-	jsonParser := registry.Get("json")
+	jsonParser := registry.Get(tagJSON)
 	xmlParser := registry.Get("xml")
 
 	assert.NotNil(t, jsonParser)
@@ -340,7 +340,7 @@ func TestTagParserRegistry_Integration_CreateGetAll(t *testing.T) {
 	// Get all parsers
 	all := registry.All()
 	require.Len(t, all, 2)
-	assert.NotNil(t, all["json"])
+	assert.NotNil(t, all[tagJSON])
 	assert.NotNil(t, all["xml"])
 }
 
@@ -367,11 +367,11 @@ func TestTagParserRegistry_Integration_OverrideWorkflow(t *testing.T) {
 	}
 
 	registry := NewTagParserRegistry(
-		WithTagParser("test", parser1),
-		WithTagParser("test", parser2),
+		WithTagParser(valueTest, parser1),
+		WithTagParser(valueTest, parser2),
 	)
 
-	parser := registry.Get("test")
+	parser := registry.Get(valueTest)
 	assert.Equal(t, reflect.ValueOf(parser2).Pointer(), reflect.ValueOf(parser).Pointer())
 }
 
@@ -397,17 +397,17 @@ func TestTagParserRegistry_CustomTagParser(t *testing.T) {
 	}
 
 	registry := NewTagParserRegistry(
-		WithTagParser("json", customParser),
+		WithTagParser(tagJSON, customParser),
 	)
 
-	parser := registry.Get("json")
+	parser := registry.Get(tagJSON)
 	assert.NotNil(t, parser)
 	assert.Equal(t, reflect.ValueOf(customParser).Pointer(), reflect.ValueOf(parser).Pointer())
 }
 
 func TestTagParserRegistry_MultipleCustomTags(t *testing.T) {
 	jsonParser := func(field reflect.StructField, index int, tagValue string) (any, error) {
-		return "json", nil
+		return tagJSON, nil
 	}
 	xmlParser := func(field reflect.StructField, index int, tagValue string) (any, error) {
 		return "xml", nil
@@ -417,12 +417,12 @@ func TestTagParserRegistry_MultipleCustomTags(t *testing.T) {
 	}
 
 	registry := NewTagParserRegistry(
-		WithTagParser("json", jsonParser),
+		WithTagParser(tagJSON, jsonParser),
 		WithTagParser("xml", xmlParser),
 		WithTagParser("yaml", yamlParser),
 	)
 
-	assert.NotNil(t, registry.Get("json"))
+	assert.NotNil(t, registry.Get(tagJSON))
 	assert.NotNil(t, registry.Get("xml"))
 	assert.NotNil(t, registry.Get("yaml"))
 

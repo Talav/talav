@@ -15,7 +15,7 @@ import (
 func newTestDecoder() *defaultDecoder {
 	metadata := NewDefaultMetadata()
 
-	decoder := NewDecoder(metadata, "schema", "body")
+	decoder := NewDecoder(metadata, defaultSchemaTag, "body")
 	d, ok := decoder.(*defaultDecoder)
 	if !ok {
 		panic("NewDecoder returned unexpected type")
@@ -53,14 +53,14 @@ func TestDecoder_Decode(t *testing.T) {
 	}{
 		{
 			name:        "query parameters only",
-			queryString: "name=john&age=30",
+			queryString: queryNameAge,
 			metadata: createParamMetadata(struct {
 				Name string `schema:"name,location=query,style=form,explode=true"`
 				Age  string `schema:"age,location=query,style=form,explode=true"`
 			}{}),
 			want: map[string]any{
-				"name": "john",
-				"age":  "30",
+				keyName: valueJohnLower,
+				keyAge:  "30",
 			},
 		},
 		{
@@ -77,14 +77,14 @@ func TestDecoder_Decode(t *testing.T) {
 		},
 		{
 			name:    "header parameters only",
-			headers: map[string]string{"X-Request-ID": "abc123", "X-Client-Version": "1.0"},
+			headers: map[string]string{headerRequestID: valueABC123, headerClientVersion: "1.0"},
 			metadata: createParamMetadata(struct {
 				RequestID     string `schema:"X-Request-ID,location=header"`
 				ClientVersion string `schema:"X-Client-Version,location=header"`
 			}{}),
 			want: map[string]any{
-				"X-Request-ID":     "abc123",
-				"X-Client-Version": "1.0",
+				headerRequestID:     valueABC123,
+				headerClientVersion: "1.0",
 			},
 		},
 		{
@@ -137,14 +137,14 @@ func TestDecoder_DecodeQuery(t *testing.T) {
 	}{
 		{
 			name:        "simple query parameters",
-			queryString: "name=john&age=30",
+			queryString: queryNameAge,
 			structVal: struct {
 				Name string `schema:"name,location=query,style=form,explode=true"`
 				Age  string `schema:"age,location=query,style=form,explode=true"`
 			}{},
 			want: map[string]any{
-				"name": "john",
-				"age":  "30",
+				keyName: valueJohnLower,
+				keyAge:  "30",
 			},
 		},
 		{
@@ -154,7 +154,7 @@ func TestDecoder_DecodeQuery(t *testing.T) {
 				IDs []string `schema:"ids,location=query,style=form,explode=true"`
 			}{},
 			want: map[string]any{
-				"ids": []any{"1", "2", "3"},
+				keyIDs: []any{"1", "2", "3"},
 			},
 		},
 		{
@@ -164,7 +164,7 @@ func TestDecoder_DecodeQuery(t *testing.T) {
 				IDs []string `schema:"ids,location=query,style=form,explode=false"`
 			}{},
 			want: map[string]any{
-				"ids": []any{"1", "2", "3"},
+				keyIDs: []any{"1", "2", "3"},
 			},
 		},
 		{
@@ -174,35 +174,35 @@ func TestDecoder_DecodeQuery(t *testing.T) {
 				Filter map[string]any `schema:"filter,location=query,style=deepObject,explode=true"`
 			}{},
 			want: map[string]any{
-				"filter": map[string]any{
-					"type":  "car",
-					"color": "red",
+				keyFilter: map[string]any{
+					keyType:  valueCar,
+					keyColor: valueRed,
 				},
 			},
 		},
 		{
 			name:        "space delimited style",
-			queryString: "ids=1%202%203",
+			queryString: queryIDsSpaceDelimited,
 			structVal: struct {
 				IDs []string `schema:"ids,location=query,style=spaceDelimited"`
 			}{},
 			want: map[string]any{
-				"ids": []any{"1", "2", "3"},
+				keyIDs: []any{"1", "2", "3"},
 			},
 		},
 		{
 			name:        "pipe delimited style",
-			queryString: "ids=1%7C2%7C3",
+			queryString: queryIDsPipeDelimited,
 			structVal: struct {
 				IDs []string `schema:"ids,location=query,style=pipeDelimited"`
 			}{},
 			want: map[string]any{
-				"ids": []any{"1", "2", "3"},
+				keyIDs: []any{"1", "2", "3"},
 			},
 		},
 		{
 			name:        "no query fields in metadata",
-			queryString: "name=john",
+			queryString: queryName,
 			structVal: struct {
 				ID string `schema:"id,location=path"`
 			}{},
@@ -224,9 +224,9 @@ func TestDecoder_DecodeQuery(t *testing.T) {
 				Filter map[string]any `schema:"filter,location=query,style=deepObject,explode=true"`
 			}{},
 			want: map[string]any{
-				"name": "john",
-				"filter": map[string]any{
-					"type": "car",
+				keyName: valueJohnLower,
+				keyFilter: map[string]any{
+					keyType: valueCar,
 				},
 			},
 		},
@@ -295,7 +295,7 @@ func TestDecoder_DecodePath(t *testing.T) {
 		{
 			name: "label style path parameter",
 			routerParams: map[string]string{
-				"values": ".1.2.3",
+				"values": labelOneTwoThree,
 			},
 			structType: reflect.TypeOf(struct {
 				Values []string `schema:"values,location=path,style=label,explode=true"`
@@ -359,28 +359,28 @@ func TestDecoder_DecodeHeader(t *testing.T) {
 		{
 			name: "simple header parameter",
 			headers: map[string]string{
-				"X-Request-ID": "abc123",
+				headerRequestID: valueABC123,
 			},
 			structType: reflect.TypeOf(struct {
 				RequestID string `schema:"X-Request-ID,location=header"`
 			}{}),
 			want: map[string]any{
-				"X-Request-ID": "abc123",
+				headerRequestID: valueABC123,
 			},
 		},
 		{
 			name: "multiple header parameters",
 			headers: map[string]string{
-				"X-Request-ID":     "abc123",
-				"X-Client-Version": "2.0",
+				headerRequestID:     valueABC123,
+				headerClientVersion: "2.0",
 			},
 			structType: reflect.TypeOf(struct {
 				RequestID     string `schema:"X-Request-ID,location=header"`
 				ClientVersion string `schema:"X-Client-Version,location=header"`
 			}{}),
 			want: map[string]any{
-				"X-Request-ID":     "abc123",
-				"X-Client-Version": "2.0",
+				headerRequestID:     valueABC123,
+				headerClientVersion: "2.0",
 			},
 		},
 		{
@@ -390,13 +390,13 @@ func TestDecoder_DecodeHeader(t *testing.T) {
 				RequestID string `schema:"X-Request-ID,location=header"`
 			}{}),
 			want: map[string]any{
-				"X-Request-ID": "",
+				headerRequestID: "",
 			},
 		},
 		{
 			name: "no header fields in metadata",
 			headers: map[string]string{
-				"X-Request-ID": "abc123",
+				headerRequestID: valueABC123,
 			},
 			structType: reflect.TypeOf(struct {
 				Name string `schema:"name,location=query"`
@@ -501,74 +501,74 @@ func TestFilterQueryValuesByFields(t *testing.T) {
 		{
 			name: "filters matching fields",
 			allValues: map[string][]string{
-				"name":    {"john"},
-				"age":     {"30"},
-				"unknown": {"value"},
+				keyName:      {valueJohnLower},
+				keyAge:       {"30"},
+				valueUnknown: {valuePlain},
 			},
 			fields: []FieldMetadata{
 				{
 					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{ParamName: "name", MapKey: "Name"},
+						defaultSchemaTag: &SchemaMetadata{ParamName: keyName, MapKey: goFieldName},
 					},
 				},
 				{
 					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{ParamName: "age", MapKey: "Age"},
+						defaultSchemaTag: &SchemaMetadata{ParamName: keyAge, MapKey: goFieldAge},
 					},
 				},
 			},
 			want: map[string][]string{
-				"name": {"john"},
-				"age":  {"30"},
+				keyName: {valueJohnLower},
+				keyAge:  {"30"},
 			},
 		},
 		{
 			name: "handles deep object notation",
 			allValues: map[string][]string{
-				"filter[type]":  {"car"},
-				"filter[color]": {"red"},
-				"other":         {"value"},
+				"filter[type]":  {valueCar},
+				"filter[color]": {valueRed},
+				"other":         {valuePlain},
 			},
 			fields: []FieldMetadata{
 				{
 					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{ParamName: "filter", MapKey: "Filter"},
+						defaultSchemaTag: &SchemaMetadata{ParamName: keyFilter, MapKey: goFieldFilter},
 					},
 				},
 			},
 			want: map[string][]string{
-				"filter[type]":  {"car"},
-				"filter[color]": {"red"},
+				"filter[type]":  {valueCar},
+				"filter[color]": {valueRed},
 			},
 		},
 		{
 			name: "handles dotted notation",
 			allValues: map[string][]string{
-				"user.name": {"john"},
+				"user.name": {valueJohnLower},
 				"user.age":  {"30"},
-				"other":     {"value"},
+				"other":     {valuePlain},
 			},
 			fields: []FieldMetadata{
 				{
 					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{ParamName: "user", MapKey: "User"},
+						defaultSchemaTag: &SchemaMetadata{ParamName: keyUser, MapKey: goFieldUser},
 					},
 				},
 			},
 			want: map[string][]string{
-				"user.name": {"john"},
+				"user.name": {valueJohnLower},
 				"user.age":  {"30"},
 			},
 		},
 		{
 			name: "no matching fields",
 			allValues: map[string][]string{
-				"unknown": {"value"},
+				valueUnknown: {valuePlain},
 			},
 			fields: []FieldMetadata{
 				{
 					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{ParamName: "name", MapKey: "Name"},
+						defaultSchemaTag: &SchemaMetadata{ParamName: keyName, MapKey: goFieldName},
 					},
 				},
 			},
@@ -580,7 +580,7 @@ func TestFilterQueryValuesByFields(t *testing.T) {
 			fields: []FieldMetadata{
 				{
 					TagMetadata: map[string]any{
-						"schema": &SchemaMetadata{ParamName: "name", MapKey: "Name"},
+						defaultSchemaTag: &SchemaMetadata{ParamName: keyName, MapKey: goFieldName},
 					},
 				},
 			},

@@ -7,6 +7,69 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	labelOneTwoThree       = ".1.2.3"
+	labelRed               = ".red"
+	csvOneTwoThree         = "1,2,3"
+	matrixColorSize        = ";color=blue;size=large"
+	goFieldAPIKey          = "APIKey"
+	goFieldAge             = "Age"
+	goFieldBody            = "Body"
+	goFieldEmail           = "Email"
+	goFieldFile            = "File"
+	goFieldFilter          = "Filter"
+	goFieldForm            = "Form"
+	goFieldItems           = "Items"
+	valueJane              = "Jane"
+	valueJohn              = "John"
+	valueNYC               = "NYC"
+	goFieldName            = "Name"
+	goFieldTags            = "Tags"
+	goFieldUser            = "User"
+	headerClientVersion    = "X-Client-Version"
+	headerRequestID        = "X-Request-ID"
+	valueABC123            = "abc123"
+	keyAge                 = "age"
+	mimeJSON               = "application/json"
+	mimeOctetStream        = "application/octet-stream"
+	valueBlue              = "blue"
+	valueCar               = "car"
+	keyCity                = "city"
+	keyColor               = "color"
+	keyEmail               = "email"
+	caseEmptyString        = "empty string"
+	bodyFile               = "file"
+	keyFilter              = "filter"
+	keyIDs                 = "ids"
+	queryIDsSingle         = "ids=1"
+	queryIDsSpaceDelimited = "ids=1%202%203"
+	queryIDsPipeDelimited  = "ids=1%7C2%7C3"
+	msgInvalidBodyType     = "invalid body type"
+	msgInvalidStyle        = "invalid style"
+	keyItems               = "items"
+	valueJaneLower         = "jane"
+	valueJohnLower         = "john"
+	valueEmailJohn         = "john@example.com"
+	tagJSON                = "json"
+	valueLarge             = "large"
+	bodyMultipart          = "multipart"
+	keyName                = "name"
+	queryName              = "name=john"
+	queryNameAge           = "name=john&age=30"
+	valueRed               = "red"
+	caseSingleValue        = "single value"
+	keySize                = "size"
+	bodyStructured         = "structured"
+	keyTag                 = "tag"
+	keyTags                = "tags"
+	valueTest              = "test"
+	keyType                = "type"
+	valueUnknown           = "unknown"
+	keyUser                = "user"
+	keyUserName            = "user_name"
+	valuePlain             = "value"
+)
+
 func TestDecoder_DecodeFormStyle(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -16,41 +79,41 @@ func TestDecoder_DecodeFormStyle(t *testing.T) {
 	}{
 		{
 			name: "single key-value",
-			data: "name=john",
+			data: queryName,
 			want: map[string]any{
-				"name": "john",
+				keyName: valueJohnLower,
 			},
 		},
 		{
 			name: "multiple key-values",
 			data: "name=john&age=30&city=NYC",
 			want: map[string]any{
-				"name": "john",
-				"age":  "30",
-				"city": "NYC",
+				keyName: valueJohnLower,
+				keyAge:  "30",
+				keyCity: valueNYC,
 			},
 		},
 		{
 			name: "comma separated values",
 			data: "ids=1,2,3",
 			want: map[string]any{
-				"ids": []any{"1", "2", "3"},
+				keyIDs: []any{"1", "2", "3"},
 			},
 		},
 		{
 			name: "repeated keys (explode)",
 			data: "ids=1&ids=2&ids=3",
 			want: map[string]any{
-				"ids": []any{"1", "2", "3"},
+				keyIDs: []any{"1", "2", "3"},
 			},
 		},
 		{
 			name: "dotted notation (nested)",
 			data: "filter.type=car&filter.color=red",
 			want: map[string]any{
-				"filter": map[string]any{
-					"type":  "car",
-					"color": "red",
+				keyFilter: map[string]any{
+					keyType:  valueCar,
+					keyColor: valueRed,
 				},
 			},
 		},
@@ -58,16 +121,16 @@ func TestDecoder_DecodeFormStyle(t *testing.T) {
 			name: "deeply nested dotted notation",
 			data: "user.profile.name=john&user.profile.age=30",
 			want: map[string]any{
-				"user": map[string]any{
+				keyUser: map[string]any{
 					"profile": map[string]any{
-						"name": "john",
-						"age":  "30",
+						keyName: valueJohnLower,
+						keyAge:  "30",
 					},
 				},
 			},
 		},
 		{
-			name: "empty string",
+			name: caseEmptyString,
 			data: "",
 			want: map[string]any{},
 		},
@@ -80,8 +143,8 @@ func TestDecoder_DecodeFormStyle(t *testing.T) {
 			name: "URL encoded values",
 			data: "name=John%20Doe&email=john%40example.com",
 			want: map[string]any{
-				"name":  "John Doe",
-				"email": "john@example.com",
+				keyName:  "John Doe",
+				keyEmail: valueEmailJohn,
 			},
 		},
 		{
@@ -89,7 +152,7 @@ func TestDecoder_DecodeFormStyle(t *testing.T) {
 			data: "query=hello+world&tag=%23golang",
 			want: map[string]any{
 				"query": "hello world",
-				"tag":   "#golang",
+				keyTag:  "#golang",
 			},
 		},
 	}
@@ -120,11 +183,11 @@ func TestDecoder_DecodeSimpleStyle(t *testing.T) {
 	}{
 		{
 			name: "simple value",
-			data: "john",
-			want: "john",
+			data: valueJohnLower,
+			want: valueJohnLower,
 		},
 		{
-			name: "empty string",
+			name: caseEmptyString,
 			data: "",
 			want: "",
 		},
@@ -135,8 +198,8 @@ func TestDecoder_DecodeSimpleStyle(t *testing.T) {
 		},
 		{
 			name: "comma separated (returned as-is)",
-			data: "1,2,3",
-			want: "1,2,3",
+			data: csvOneTwoThree,
+			want: csvOneTwoThree,
 		},
 	}
 
@@ -161,9 +224,9 @@ func TestDecoder_DecodeLabelStyle(t *testing.T) {
 	}{
 		{
 			name:    "single value non-exploded",
-			data:    ".red",
+			data:    labelRed,
 			explode: false,
-			want:    "red",
+			want:    valueRed,
 		},
 		{
 			name:    "array non-exploded (comma-separated)",
@@ -182,7 +245,7 @@ func TestDecoder_DecodeLabelStyle(t *testing.T) {
 		},
 		{
 			name:    "array exploded (period-separated)",
-			data:    ".1.2.3",
+			data:    labelOneTwoThree,
 			explode: true,
 			want:    []any{"1", "2", "3"},
 		},
@@ -203,15 +266,15 @@ func TestDecoder_DecodeLabelStyle(t *testing.T) {
 		},
 		{
 			name:    "single value exploded",
-			data:    ".red",
+			data:    labelRed,
 			explode: true,
-			want:    "red",
+			want:    valueRed,
 		},
 		{
 			name:    "without leading dot (handled)",
-			data:    "red",
+			data:    valueRed,
 			explode: false,
-			want:    "red",
+			want:    valueRed,
 		},
 	}
 
@@ -240,7 +303,7 @@ func TestDecoder_DecodeMatrixStyle(t *testing.T) {
 			data:    ";color=blue",
 			explode: false,
 			want: map[string]any{
-				"color": "blue",
+				keyColor: valueBlue,
 			},
 		},
 		{
@@ -248,7 +311,7 @@ func TestDecoder_DecodeMatrixStyle(t *testing.T) {
 			data:    ";ids=1,2,3",
 			explode: false,
 			want: map[string]any{
-				"ids": []any{"1", "2", "3"},
+				keyIDs: []any{"1", "2", "3"},
 			},
 		},
 		{
@@ -256,29 +319,29 @@ func TestDecoder_DecodeMatrixStyle(t *testing.T) {
 			data:    ";ids=1;ids=2;ids=3",
 			explode: true,
 			want: map[string]any{
-				"ids": []any{"1", "2", "3"},
+				keyIDs: []any{"1", "2", "3"},
 			},
 		},
 		{
 			name:    "multiple keys non-exploded",
-			data:    ";color=blue;size=large",
+			data:    matrixColorSize,
 			explode: false,
 			want: map[string]any{
-				"color": "blue",
-				"size":  "large",
+				keyColor: valueBlue,
+				keySize:  valueLarge,
 			},
 		},
 		{
 			name:    "multiple keys exploded",
-			data:    ";color=blue;size=large",
+			data:    matrixColorSize,
 			explode: true,
 			want: map[string]any{
-				"color": []any{"blue"},
-				"size":  []any{"large"},
+				keyColor: []any{valueBlue},
+				keySize:  []any{valueLarge},
 			},
 		},
 		{
-			name:    "empty string",
+			name:    caseEmptyString,
 			data:    ";",
 			explode: false,
 			want:    map[string]any{},
@@ -288,7 +351,7 @@ func TestDecoder_DecodeMatrixStyle(t *testing.T) {
 			data:    "color=blue",
 			explode: false,
 			want: map[string]any{
-				"color": "blue",
+				keyColor: valueBlue,
 			},
 		},
 		{
@@ -345,21 +408,21 @@ func TestDecoder_DecodeDelimitedStyles(t *testing.T) {
 			}{
 				{
 					name: "single key with separated values",
-					data: "ids=1%202%203",
-					want: map[string]any{"ids": []any{"1", "2", "3"}},
+					data: queryIDsSpaceDelimited,
+					want: map[string]any{keyIDs: []any{"1", "2", "3"}},
 				},
 				{
-					name: "single value",
-					data: "ids=1",
-					want: map[string]any{"ids": "1"},
+					name: caseSingleValue,
+					data: queryIDsSingle,
+					want: map[string]any{keyIDs: "1"},
 				},
 				{
 					name: "multiple keys",
 					data: "ids=1%202&names=john%20jane",
-					want: map[string]any{"ids": []any{"1", "2"}, "names": []any{"john", "jane"}},
+					want: map[string]any{keyIDs: []any{"1", "2"}, "names": []any{valueJohnLower, valueJaneLower}},
 				},
 				{
-					name: "empty string",
+					name: caseEmptyString,
 					data: "",
 					want: map[string]any{},
 				},
@@ -377,21 +440,21 @@ func TestDecoder_DecodeDelimitedStyles(t *testing.T) {
 			}{
 				{
 					name: "single key with separated values",
-					data: "ids=1%7C2%7C3",
-					want: map[string]any{"ids": []any{"1", "2", "3"}},
+					data: queryIDsPipeDelimited,
+					want: map[string]any{keyIDs: []any{"1", "2", "3"}},
 				},
 				{
-					name: "single value",
-					data: "ids=1",
-					want: map[string]any{"ids": "1"},
+					name: caseSingleValue,
+					data: queryIDsSingle,
+					want: map[string]any{keyIDs: "1"},
 				},
 				{
 					name: "multiple keys",
 					data: "ids=1%7C2&names=john%7Cjane",
-					want: map[string]any{"ids": []any{"1", "2"}, "names": []any{"john", "jane"}},
+					want: map[string]any{keyIDs: []any{"1", "2"}, "names": []any{valueJohnLower, valueJaneLower}},
 				},
 				{
-					name: "empty string",
+					name: caseEmptyString,
 					data: "",
 					want: map[string]any{},
 				},
@@ -430,8 +493,8 @@ func TestDecoder_DecodeDeepObject(t *testing.T) {
 			name: "simple deep object",
 			data: "filter%5Btype%5D=car",
 			want: map[string]any{
-				"filter": map[string]any{
-					"type": "car",
+				keyFilter: map[string]any{
+					keyType: valueCar,
 				},
 			},
 		},
@@ -439,9 +502,9 @@ func TestDecoder_DecodeDeepObject(t *testing.T) {
 			name: "multiple nested properties",
 			data: "filter%5Btype%5D=car&filter%5Bcolor%5D=red",
 			want: map[string]any{
-				"filter": map[string]any{
-					"type":  "car",
-					"color": "red",
+				keyFilter: map[string]any{
+					keyType:  valueCar,
+					keyColor: valueRed,
 				},
 			},
 		},
@@ -449,10 +512,10 @@ func TestDecoder_DecodeDeepObject(t *testing.T) {
 			name: "deeply nested",
 			data: "user%5Bprofile%5D%5Baddress%5D%5Bcity%5D=NYC",
 			want: map[string]any{
-				"user": map[string]any{
+				keyUser: map[string]any{
 					"profile": map[string]any{
 						"address": map[string]any{
-							"city": "NYC",
+							keyCity: valueNYC,
 						},
 					},
 				},
@@ -462,7 +525,7 @@ func TestDecoder_DecodeDeepObject(t *testing.T) {
 			name: "multiple values for same key",
 			data: "ids%5B%5D=1&ids%5B%5D=2&ids%5B%5D=3",
 			want: map[string]any{
-				"ids": map[string]any{
+				keyIDs: map[string]any{
 					"": []any{"1", "2", "3"},
 				},
 			},
@@ -471,22 +534,22 @@ func TestDecoder_DecodeDeepObject(t *testing.T) {
 			name: "mixed bracket and regular keys",
 			data: "filter%5Btype%5D=car&sort=name",
 			want: map[string]any{
-				"filter": map[string]any{
-					"type": "car",
+				keyFilter: map[string]any{
+					keyType: valueCar,
 				},
-				"sort": "name",
+				"sort": keyName,
 			},
 		},
 		{
-			name: "empty string",
+			name: caseEmptyString,
 			data: "",
 			want: map[string]any{},
 		},
 		{
 			name: "regular key-value (no brackets)",
-			data: "name=john",
+			data: queryName,
 			want: map[string]any{
-				"name": "john",
+				keyName: valueJohnLower,
 			},
 		},
 	}
@@ -521,9 +584,9 @@ func TestDecoder_ProcessFormValue(t *testing.T) {
 			want:     nil,
 		},
 		{
-			name:     "single value",
-			valSlice: []string{"john"},
-			want:     "john",
+			name:     caseSingleValue,
+			valSlice: []string{valueJohnLower},
+			want:     valueJohnLower,
 		},
 		{
 			name:     "single empty value",
@@ -532,12 +595,12 @@ func TestDecoder_ProcessFormValue(t *testing.T) {
 		},
 		{
 			name:     "multiple values",
-			valSlice: []string{"john", "jane"},
-			want:     []any{"john", "jane"},
+			valSlice: []string{valueJohnLower, valueJaneLower},
+			want:     []any{valueJohnLower, valueJaneLower},
 		},
 		{
 			name:     "comma separated in single value",
-			valSlice: []string{"1,2,3"},
+			valSlice: []string{csvOneTwoThree},
 			want:     []any{"1", "2", "3"},
 		},
 		{
@@ -568,18 +631,18 @@ func TestDecoder_DecodeDelimited(t *testing.T) {
 	}{
 		{
 			name:  "pipe delimiter",
-			query: "ids=1%7C2%7C3",
+			query: queryIDsPipeDelimited,
 			sep:   "|",
 			want: map[string]any{
-				"ids": []any{"1", "2", "3"},
+				keyIDs: []any{"1", "2", "3"},
 			},
 		},
 		{
 			name:  "space delimiter",
-			query: "ids=1%202%203",
+			query: queryIDsSpaceDelimited,
 			sep:   " ",
 			want: map[string]any{
-				"ids": []any{"1", "2", "3"},
+				keyIDs: []any{"1", "2", "3"},
 			},
 		},
 		{
@@ -587,15 +650,15 @@ func TestDecoder_DecodeDelimited(t *testing.T) {
 			query: "ids=1%3B2%3B3",
 			sep:   ";",
 			want: map[string]any{
-				"ids": []any{"1", "2", "3"},
+				keyIDs: []any{"1", "2", "3"},
 			},
 		},
 		{
 			name:  "single value (no delimiter)",
-			query: "ids=1",
+			query: queryIDsSingle,
 			sep:   "|",
 			want: map[string]any{
-				"ids": "1",
+				keyIDs: "1",
 			},
 		},
 		{
@@ -641,50 +704,50 @@ func TestDecoder_DecodeValueByStyle(t *testing.T) {
 	}{
 		{
 			name:    "simple style",
-			value:   "john",
+			value:   valueJohnLower,
 			style:   StyleSimple,
 			explode: false,
-			want:    "john",
+			want:    valueJohnLower,
 		},
 		{
 			name:    "label style non-exploded",
-			value:   ".red",
+			value:   labelRed,
 			style:   StyleLabel,
 			explode: false,
-			want:    "red",
+			want:    valueRed,
 		},
 		{
 			name:    "label style exploded array",
-			value:   ".1.2.3",
+			value:   labelOneTwoThree,
 			style:   StyleLabel,
 			explode: true,
 			want:    []any{"1", "2", "3"},
 		},
 		{
 			name:    "invalid style for single value - form",
-			value:   "test",
+			value:   valueTest,
 			style:   StyleForm,
 			explode: false,
 			wantErr: true,
 		},
 		{
 			name:    "invalid style for single value - matrix",
-			value:   "test",
+			value:   valueTest,
 			style:   StyleMatrix,
 			explode: false,
 			wantErr: true,
 		},
 		{
 			name:    "invalid style for single value - deepObject",
-			value:   "test",
+			value:   valueTest,
 			style:   StyleDeepObject,
 			explode: false,
 			wantErr: true,
 		},
 		{
 			name:    "unknown style",
-			value:   "test",
-			style:   "unknown",
+			value:   valueTest,
+			style:   valueUnknown,
 			explode: false,
 			wantErr: true,
 		},
@@ -719,40 +782,40 @@ func TestDecoder_DecodeByStyle(t *testing.T) {
 	}{
 		{
 			name:    "form style",
-			value:   "name=john&age=30",
+			value:   queryNameAge,
 			style:   StyleForm,
 			explode: true,
 			want: map[string]any{
-				"name": "john",
-				"age":  "30",
+				keyName: valueJohnLower,
+				keyAge:  "30",
 			},
 		},
 		{
 			name:    "matrix style",
-			value:   ";color=blue;size=large",
+			value:   matrixColorSize,
 			style:   StyleMatrix,
 			explode: false,
 			want: map[string]any{
-				"color": "blue",
-				"size":  "large",
+				keyColor: valueBlue,
+				keySize:  valueLarge,
 			},
 		},
 		{
 			name:    "space delimited",
-			value:   "ids=1%202%203",
+			value:   queryIDsSpaceDelimited,
 			style:   StyleSpaceDelimited,
 			explode: false,
 			want: map[string]any{
-				"ids": []any{"1", "2", "3"},
+				keyIDs: []any{"1", "2", "3"},
 			},
 		},
 		{
 			name:    "pipe delimited",
-			value:   "ids=1%7C2%7C3",
+			value:   queryIDsPipeDelimited,
 			style:   StylePipeDelimited,
 			explode: false,
 			want: map[string]any{
-				"ids": []any{"1", "2", "3"},
+				keyIDs: []any{"1", "2", "3"},
 			},
 		},
 		{
@@ -761,14 +824,14 @@ func TestDecoder_DecodeByStyle(t *testing.T) {
 			style:   StyleDeepObject,
 			explode: true,
 			want: map[string]any{
-				"filter": map[string]any{
-					"type": "car",
+				keyFilter: map[string]any{
+					keyType: valueCar,
 				},
 			},
 		},
 		{
 			name:    "invalid style for map - simple",
-			value:   "test",
+			value:   valueTest,
 			style:   StyleSimple,
 			explode: false,
 			wantErr: true,
@@ -782,8 +845,8 @@ func TestDecoder_DecodeByStyle(t *testing.T) {
 		},
 		{
 			name:    "unknown style",
-			value:   "test",
-			style:   "unknown",
+			value:   valueTest,
+			style:   valueUnknown,
 			explode: false,
 			wantErr: true,
 		},
@@ -826,9 +889,9 @@ func TestDecoder_StyleDecoders_UsesTagNames(t *testing.T) {
 				return decoder.decodeFormStyle(d)
 			},
 			expected: map[string]any{
-				"user_name":     "John",             // Tag name, not "UserName"
-				"age":           "30",               // Tag name, not "UserAge"
-				"email_address": "john@example.com", // Tag name, not "Email"
+				keyUserName:     valueJohn,      // Tag name, not "UserName"
+				keyAge:          "30",           // Tag name, not "UserAge"
+				"email_address": valueEmailJohn, // Tag name, not "Email"
 			},
 		},
 		{
@@ -840,8 +903,8 @@ func TestDecoder_StyleDecoders_UsesTagNames(t *testing.T) {
 				return decoder.decodeMatrixStyle(d, true)
 			},
 			expected: map[string]any{
-				"user_name": []any{"John"}, // Tag name, not "UserName" (explode=true creates arrays)
-				"age":       []any{"30"},   // Tag name, not "UserAge"
+				keyUserName: []any{valueJohn}, // Tag name, not "UserName" (explode=true creates arrays)
+				keyAge:      []any{"30"},      // Tag name, not "UserAge"
 			},
 		},
 		{
@@ -852,8 +915,8 @@ func TestDecoder_StyleDecoders_UsesTagNames(t *testing.T) {
 				return decoder.decodeSpaceDelimited(d)
 			},
 			expected: map[string]any{
-				"user_name": []any{"1", "2", "3"}, // Tag name, not "UserName"
-				"age":       []any{"30", "40"},    // Tag name, not "UserAge"
+				keyUserName: []any{"1", "2", "3"}, // Tag name, not "UserName"
+				keyAge:      []any{"30", "40"},    // Tag name, not "UserAge"
 			},
 		},
 		{
@@ -864,8 +927,8 @@ func TestDecoder_StyleDecoders_UsesTagNames(t *testing.T) {
 				return decoder.decodePipeDelimited(d)
 			},
 			expected: map[string]any{
-				"user_name": []any{"1", "2", "3"}, // Tag name, not "UserName"
-				"age":       []any{"30", "40"},    // Tag name, not "UserAge"
+				keyUserName: []any{"1", "2", "3"}, // Tag name, not "UserName"
+				keyAge:      []any{"30", "40"},    // Tag name, not "UserAge"
 			},
 		},
 		{
@@ -876,12 +939,12 @@ func TestDecoder_StyleDecoders_UsesTagNames(t *testing.T) {
 				return decoder.decodeDeepObject(d)
 			},
 			expected: map[string]any{
-				"user_name": map[string]any{ // Tag name, not "UserName"
-					"first": "John",
+				keyUserName: map[string]any{ // Tag name, not "UserName"
+					"first": valueJohn,
 					"last":  "Doe",
 				},
-				"age": map[string]any{ // Tag name, not "UserAge"
-					"value": "30",
+				keyAge: map[string]any{ // Tag name, not "UserAge"
+					valuePlain: "30",
 				},
 			},
 		},
@@ -900,7 +963,7 @@ func TestDecoder_StyleDecoders_UsesTagNames(t *testing.T) {
 			}
 
 			// Verify that field names (MapKey) are NOT in the result
-			fieldNames := []string{"UserName", "UserAge", "Email"}
+			fieldNames := []string{"UserName", "UserAge", goFieldEmail}
 			for _, fieldName := range fieldNames {
 				_, exists := result[fieldName]
 				assert.False(t, exists, "Field name %q should NOT be in result (should use tag name instead)", fieldName)
@@ -927,9 +990,9 @@ func TestDecoder_StyleDecoders_UnknownFields(t *testing.T) {
 				return decoder.decodeFormStyle(d)
 			},
 			expected: map[string]any{
-				"user_name":       "John",  // Tag name, not "UserName"
-				"unknown_field":   "value", // Unknown fields are not filtered at style decoder level
-				"another_unknown": "test",  // Unknown fields are not filtered at style decoder level
+				keyUserName:       valueJohn,  // Tag name, not "UserName"
+				"unknown_field":   valuePlain, // Unknown fields are not filtered at style decoder level
+				"another_unknown": valueTest,  // Unknown fields are not filtered at style decoder level
 			},
 		},
 		{
@@ -939,9 +1002,9 @@ func TestDecoder_StyleDecoders_UnknownFields(t *testing.T) {
 				return decoder.decodeFormStyle(d)
 			},
 			expected: map[string]any{
-				"user_name": "John", // Tag name, not "UserName"
+				keyUserName: valueJohn, // Tag name, not "UserName"
 				"nested": map[string]any{
-					"unknown": "value", // Nested unknown fields are included
+					valueUnknown: valuePlain, // Nested unknown fields are included
 				},
 			},
 		},
@@ -979,13 +1042,13 @@ func TestDecoder_StyleDecoders_NestedStructures(t *testing.T) {
 				return decoder.decodeFormStyle(d)
 			},
 			expected: map[string]any{
-				"filter": map[string]any{
-					"type1": "car", // Tag name, not "Type"
-					"color": "red", // Tag name, not "Color"
+				keyFilter: map[string]any{
+					"type1":  valueCar, // Tag name, not "Type"
+					keyColor: valueRed, // Tag name, not "Color"
 				},
-				"user": map[string]any{
-					"name": "John", // Tag name, not "Name"
-					"age":  "30",   // Tag name, not "Age"
+				keyUser: map[string]any{
+					keyName: valueJohn, // Tag name, not "Name"
+					keyAge:  "30",      // Tag name, not "Age"
 				},
 			},
 		},
@@ -996,13 +1059,13 @@ func TestDecoder_StyleDecoders_NestedStructures(t *testing.T) {
 				return decoder.decodeDeepObject(d)
 			},
 			expected: map[string]any{
-				"filter": map[string]any{
-					"type1": "car", // Tag name, not "Type"
-					"color": "red", // Tag name, not "Color"
+				keyFilter: map[string]any{
+					"type1":  valueCar, // Tag name, not "Type"
+					keyColor: valueRed, // Tag name, not "Color"
 				},
-				"user": map[string]any{
-					"name": "John", // Tag name, not "Name"
-					"age":  "30",   // Tag name, not "Age"
+				keyUser: map[string]any{
+					keyName: valueJohn, // Tag name, not "Name"
+					keyAge:  "30",      // Tag name, not "Age"
 				},
 			},
 		},
@@ -1017,7 +1080,7 @@ func TestDecoder_StyleDecoders_NestedStructures(t *testing.T) {
 			assertNestedMap(t, result, tt.expected, "")
 
 			// Verify that field names are NOT present at any level
-			assertNoFieldNames(t, result, []string{"Filter", "Type", "Color", "User", "Name", "Age"})
+			assertNoFieldNames(t, result, []string{goFieldFilter, "Type", "Color", goFieldUser, goFieldName, goFieldAge})
 		})
 	}
 }

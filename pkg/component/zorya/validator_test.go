@@ -37,7 +37,7 @@ func TestPlaygroundValidator_Validate_Success(t *testing.T) {
 			Name string `json:"name" validate:"required,min=3"`
 			Age  int    `json:"age" validate:"min=0,max=150"`
 		}{
-			Name: "John Doe",
+			Name: valueJohnDoe,
 			Age:  30,
 		},
 	}
@@ -89,7 +89,7 @@ func TestPlaygroundValidator_Validate_Errors(t *testing.T) {
 
 	// Check path parameter error
 	if pathErr, ok := errorMap["path.id"]; ok {
-		assert.Equal(t, "required", pathErr.Code)
+		assert.Equal(t, keyRequired, pathErr.Code)
 		assert.Contains(t, pathErr.Location, "path")
 	}
 
@@ -101,19 +101,19 @@ func TestPlaygroundValidator_Validate_Errors(t *testing.T) {
 
 	// Check header error
 	if headerErr, ok := errorMap["header.X-API-Key"]; ok {
-		assert.Equal(t, "required", headerErr.Code)
+		assert.Equal(t, keyRequired, headerErr.Code)
 		assert.Contains(t, headerErr.Location, "header")
 	}
 
 	// Check cookie error
 	if cookieErr, ok := errorMap["cookie.session_id"]; ok {
-		assert.Equal(t, "required", cookieErr.Code)
+		assert.Equal(t, keyRequired, cookieErr.Code)
 		assert.Contains(t, cookieErr.Location, "cookie")
 	}
 
 	// Check body errors
 	if bodyNameErr, ok := errorMap["body.TestValidationInput.Body.name"]; ok {
-		assert.True(t, bodyNameErr.Code == "required" || bodyNameErr.Code == "min", "Should be required or min")
+		assert.True(t, bodyNameErr.Code == keyRequired || bodyNameErr.Code == "min", "Should be required or min")
 		assert.Contains(t, bodyNameErr.Location, "body")
 	}
 

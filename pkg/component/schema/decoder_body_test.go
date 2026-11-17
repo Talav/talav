@@ -34,7 +34,7 @@ func createBodyMetadata(bodyType BodyType, fieldType reflect.Type) *StructMetada
 	}
 	structType := reflect.StructOf([]reflect.StructField{
 		{
-			Name: "Body",
+			Name: goFieldBody,
 			Type: fieldType,
 			Tag:  reflect.StructTag(tagValue),
 		},
@@ -68,10 +68,10 @@ func TestDecoder_DecodeBody_JSON(t *testing.T) {
 		{
 			name:        "valid JSON object",
 			body:        `{"name": "test", "count": 42}`,
-			contentType: "application/json",
+			contentType: mimeJSON,
 			want: map[string]any{
-				"Body": map[string]any{
-					"name":  "test",
+				goFieldBody: map[string]any{
+					keyName: valueTest,
 					"count": float64(42), // JSON numbers are float64
 				},
 			},
@@ -80,15 +80,15 @@ func TestDecoder_DecodeBody_JSON(t *testing.T) {
 		{
 			name:        "nested objects",
 			body:        `{"user": {"name": "john", "age": 30}, "address": {"city": "NYC", "country": "USA"}}`,
-			contentType: "application/json",
+			contentType: mimeJSON,
 			want: map[string]any{
-				"Body": map[string]any{
-					"user": map[string]any{
-						"name": "john",
-						"age":  float64(30),
+				goFieldBody: map[string]any{
+					keyUser: map[string]any{
+						keyName: valueJohnLower,
+						keyAge:  float64(30),
 					},
 					"address": map[string]any{
-						"city":    "NYC",
+						keyCity:   valueNYC,
 						"country": "USA",
 					},
 				},
@@ -98,13 +98,13 @@ func TestDecoder_DecodeBody_JSON(t *testing.T) {
 		{
 			name:        "deeply nested objects",
 			body:        `{"level1": {"level2": {"level3": {"value": "deep"}}}}`,
-			contentType: "application/json",
+			contentType: mimeJSON,
 			want: map[string]any{
-				"Body": map[string]any{
+				goFieldBody: map[string]any{
 					"level1": map[string]any{
 						"level2": map[string]any{
 							"level3": map[string]any{
-								"value": "deep",
+								valuePlain: "deep",
 							},
 						},
 					},
@@ -115,11 +115,11 @@ func TestDecoder_DecodeBody_JSON(t *testing.T) {
 		{
 			name:        "JSON with array field",
 			body:        `{"items": [1, 2, 3], "tags": ["a", "b"]}`,
-			contentType: "application/json",
+			contentType: mimeJSON,
 			want: map[string]any{
-				"Body": map[string]any{
-					"items": []any{float64(1), float64(2), float64(3)},
-					"tags":  []any{"a", "b"},
+				goFieldBody: map[string]any{
+					keyItems: []any{float64(1), float64(2), float64(3)},
+					keyTags:  []any{"a", "b"},
 				},
 			},
 			wantErr: false,
@@ -127,41 +127,41 @@ func TestDecoder_DecodeBody_JSON(t *testing.T) {
 		{
 			name:        "JSON array as body",
 			body:        `[1, 2, 3]`,
-			contentType: "application/json",
+			contentType: mimeJSON,
 			want: map[string]any{
-				"Body": []any{float64(1), float64(2), float64(3)},
+				goFieldBody: []any{float64(1), float64(2), float64(3)},
 			},
 			wantErr: false,
 		},
 		{
 			name:        "JSON string as body",
 			body:        `"hello"`,
-			contentType: "application/json",
+			contentType: mimeJSON,
 			want: map[string]any{
-				"Body": "hello",
+				goFieldBody: "hello",
 			},
 			wantErr: false,
 		},
 		{
 			name:        "JSON number as body",
 			body:        `42`,
-			contentType: "application/json",
+			contentType: mimeJSON,
 			want: map[string]any{
-				"Body": float64(42),
+				goFieldBody: float64(42),
 			},
 			wantErr: false,
 		},
 		{
 			name:        "empty body returns empty map",
 			body:        "",
-			contentType: "application/json",
+			contentType: mimeJSON,
 			want:        map[string]any{},
 			wantErr:     false,
 		},
 		{
 			name:        "invalid JSON",
 			body:        `{"name": "test"`,
-			contentType: "application/json",
+			contentType: mimeJSON,
 			want:        nil,
 			wantErr:     true,
 		},
@@ -198,25 +198,25 @@ func TestDecoder_DecodeBody_File(t *testing.T) {
 		{
 			name:        "binary file content",
 			body:        []byte{0x00, 0x01, 0x02, 0x03, 0xFF, 0xFE, 0xFD},
-			contentType: "application/octet-stream",
+			contentType: mimeOctetStream,
 			wantData:    []byte{0x00, 0x01, 0x02, 0x03, 0xFF, 0xFE, 0xFD},
 		},
 		{
 			name:        "text file as binary",
 			body:        []byte("Hello, World!"),
-			contentType: "application/octet-stream",
+			contentType: mimeOctetStream,
 			wantData:    []byte("Hello, World!"),
 		},
 		{
 			name:        "empty file",
 			body:        []byte{},
-			contentType: "application/octet-stream",
+			contentType: mimeOctetStream,
 			wantData:    nil, // empty body returns empty map
 		},
 		{
 			name:        "large binary content",
 			body:        bytes.Repeat([]byte{0xAB, 0xCD}, 1024),
-			contentType: "application/octet-stream",
+			contentType: mimeOctetStream,
 			wantData:    bytes.Repeat([]byte{0xAB, 0xCD}, 1024),
 		},
 	}
@@ -240,7 +240,7 @@ func TestDecoder_DecodeBody_File(t *testing.T) {
 			}
 
 			// File content is stored under the MapKey "Body"
-			data, ok := result["Body"]
+			data, ok := result[goFieldBody]
 			require.True(t, ok, "expected Body key in result")
 
 			//nolint:forcetypeassert // Test code - safe to assert
@@ -254,13 +254,13 @@ func TestDecoder_DecodeBody_FileWithReader(t *testing.T) {
 	metadata := createBodyMetadata(BodyTypeFile, reflect.TypeFor[io.ReadCloser]())
 
 	body := []byte("file content for reader test")
-	req := createBodyRequest("application/octet-stream", body)
+	req := createBodyRequest(mimeOctetStream, body)
 
 	result, err := decoder.Decode(req, nil, metadata)
 
 	require.NoError(t, err)
 
-	data, ok := result["Body"]
+	data, ok := result[goFieldBody]
 	require.True(t, ok, "expected Body key in result")
 
 	//nolint:forcetypeassert // Test code - safe to assert
@@ -273,7 +273,7 @@ func TestDecoder_DecodeBody_NoBodyField(t *testing.T) {
 	// Metadata without body field
 	structType := reflect.StructOf([]reflect.StructField{
 		{
-			Name: "Name",
+			Name: goFieldName,
 			Type: reflect.TypeFor[string](),
 			Tag:  reflect.StructTag(`schema:"name,location=query"`),
 		},
@@ -283,7 +283,7 @@ func TestDecoder_DecodeBody_NoBodyField(t *testing.T) {
 	require.NoError(t, err)
 
 	body := []byte(`{"ignored": "data"}`)
-	req := createBodyRequest("application/json", body)
+	req := createBodyRequest(mimeJSON, body)
 
 	result, err := decoder.Decode(req, nil, structMeta)
 
@@ -367,13 +367,13 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 			name: "single text field",
 			formData: multipartFormData{
 				fields: map[string][]string{
-					"Name": {"John"},
+					goFieldName: {valueJohn},
 				},
 			},
 			bodyType: reflect.TypeFor[multipartFormStruct](),
 			want: map[string]any{
-				"Body": map[string]any{
-					"Name": "John",
+				goFieldBody: map[string]any{
+					goFieldName: valueJohn,
 				},
 			},
 		},
@@ -381,17 +381,17 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 			name: "multiple text fields",
 			formData: multipartFormData{
 				fields: map[string][]string{
-					"Name":  {"John"},
-					"email": {"john@example.com"},
-					"Age":   {"30"},
+					goFieldName: {valueJohn},
+					keyEmail:    {valueEmailJohn},
+					goFieldAge:  {"30"},
 				},
 			},
 			bodyType: reflect.TypeFor[multipartFormStruct](),
 			want: map[string]any{
-				"Body": map[string]any{
-					"Name":  "John",             // No tag, uses field name
-					"email": "john@example.com", // Tag name "email", not field name "Email"
-					"Age":   "30",               // No name in tag, uses field name
+				goFieldBody: map[string]any{
+					goFieldName: valueJohn,      // No tag, uses field name
+					keyEmail:    valueEmailJohn, // Tag name "email", not field name "Email"
+					goFieldAge:  "30",           // No name in tag, uses field name
 				},
 			},
 		},
@@ -399,13 +399,13 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 			name: "field with multiple values",
 			formData: multipartFormData{
 				fields: map[string][]string{
-					"Name": {"John", "Jane"},
+					goFieldName: {valueJohn, valueJane},
 				},
 			},
 			bodyType: reflect.TypeFor[multipartFormStruct](),
 			want: map[string]any{
-				"Body": map[string]any{
-					"Name": []any{"John", "Jane"},
+				goFieldBody: map[string]any{
+					goFieldName: []any{valueJohn, valueJane},
 				},
 			},
 		},
@@ -416,21 +416,21 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 			},
 			bodyType: reflect.TypeFor[multipartFormStruct](),
 			want: map[string]any{
-				"Body": map[string]any{},
+				goFieldBody: map[string]any{},
 			},
 		},
 		{
 			name: "unknown fields ignored",
 			formData: multipartFormData{
 				fields: map[string][]string{
-					"Name":    {"John"},
-					"unknown": {"should be ignored"},
+					goFieldName:  {valueJohn},
+					valueUnknown: {"should be ignored"},
 				},
 			},
 			bodyType: reflect.TypeFor[multipartFormStruct](),
 			want: map[string]any{
-				"Body": map[string]any{
-					"Name": "John",
+				goFieldBody: map[string]any{
+					goFieldName: valueJohn,
 				},
 			},
 		},
@@ -438,20 +438,20 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 			name: "single file upload",
 			formData: multipartFormData{
 				fields: map[string][]string{
-					"name": {"document"},
+					keyName: {"document"},
 				},
 				files: map[string][]fileData{
-					"file": {{filename: "test.txt", content: []byte("file content")}},
+					bodyFile: {{filename: "test.txt", content: []byte("file content")}},
 				},
 			},
 			bodyType: reflect.TypeFor[multipartFileStruct](),
 			//nolint:thelper // inline test validation
 			checkFunc: func(t *testing.T, result map[string]any) {
-				body, ok := result["Body"].(map[string]any)
+				body, ok := result[goFieldBody].(map[string]any)
 				require.True(t, ok)
-				assert.Equal(t, "document", body["name"])
+				assert.Equal(t, "document", body[keyName])
 
-				file, ok := body["file"].(io.ReadCloser)
+				file, ok := body[bodyFile].(io.ReadCloser)
 				require.True(t, ok)
 				defer file.Close() //nolint:errcheck // test cleanup
 
@@ -473,7 +473,7 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 			bodyType: reflect.TypeFor[multipartMultiFileStruct](),
 			//nolint:thelper // inline test validation
 			checkFunc: func(t *testing.T, result map[string]any) {
-				body, ok := result["Body"].(map[string]any)
+				body, ok := result[goFieldBody].(map[string]any)
 				require.True(t, ok)
 
 				files, ok := body["files"].([]io.ReadCloser)
@@ -501,7 +501,7 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 			bodyType: reflect.TypeFor[multipartMixedStruct](),
 			//nolint:thelper // inline test validation
 			checkFunc: func(t *testing.T, result map[string]any) {
-				body, ok := result["Body"].(map[string]any)
+				body, ok := result[goFieldBody].(map[string]any)
 				require.True(t, ok)
 				assert.Equal(t, "My Document", body["title"])
 
@@ -518,19 +518,19 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 			name: "empty file",
 			formData: multipartFormData{
 				fields: map[string][]string{
-					"name": {"empty"},
+					keyName: {"empty"},
 				},
 				files: map[string][]fileData{
-					"file": {{filename: "empty.txt", content: []byte{}}},
+					bodyFile: {{filename: "empty.txt", content: []byte{}}},
 				},
 			},
 			bodyType: reflect.TypeFor[multipartFileStruct](),
 			//nolint:thelper // inline test validation
 			checkFunc: func(t *testing.T, result map[string]any) {
-				body, ok := result["Body"].(map[string]any)
+				body, ok := result[goFieldBody].(map[string]any)
 				require.True(t, ok)
 
-				file, ok := body["file"].(io.ReadCloser)
+				file, ok := body[bodyFile].(io.ReadCloser)
 				require.True(t, ok)
 				defer file.Close() //nolint:errcheck // test cleanup
 
@@ -543,14 +543,14 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 			name: "field in metadata but missing in form",
 			formData: multipartFormData{
 				fields: map[string][]string{
-					"Name": {"John"},
+					goFieldName: {valueJohn},
 					// email and Age are missing
 				},
 			},
 			bodyType: reflect.TypeFor[multipartFormStruct](),
 			want: map[string]any{
-				"Body": map[string]any{
-					"Name": "John",
+				goFieldBody: map[string]any{
+					goFieldName: valueJohn,
 				},
 			},
 		},
@@ -558,13 +558,13 @@ func TestDecoder_DecodeBody_Multipart(t *testing.T) {
 			name: "unicode field values",
 			formData: multipartFormData{
 				fields: map[string][]string{
-					"Name": {"日本語テスト"},
+					goFieldName: {"日本語テスト"},
 				},
 			},
 			bodyType: reflect.TypeFor[multipartFormStruct](),
 			want: map[string]any{
-				"Body": map[string]any{
-					"Name": "日本語テスト",
+				goFieldBody: map[string]any{
+					goFieldName: "日本語テスト",
 				},
 			},
 		},
@@ -631,8 +631,8 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 			body:     "Name=John",
 			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
-				"Body": map[string]any{
-					"Name": "John",
+				goFieldBody: map[string]any{
+					goFieldName: valueJohn,
 				},
 			},
 		},
@@ -641,10 +641,10 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 			body:     "Name=John&email=john@example.com&Age=30",
 			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
-				"Body": map[string]any{
-					"Name":  "John",
-					"email": "john@example.com", // Tag name "email", not field name "Email"
-					"Age":   "30",
+				goFieldBody: map[string]any{
+					goFieldName: valueJohn,
+					keyEmail:    valueEmailJohn, // Tag name "email", not field name "Email"
+					goFieldAge:  "30",
 				},
 			},
 		},
@@ -659,8 +659,8 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 			body:     "Name=&email=test@example.com",
 			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
-				"Body": map[string]any{
-					"email": "test@example.com",
+				goFieldBody: map[string]any{
+					keyEmail: "test@example.com",
 				},
 			},
 		},
@@ -669,8 +669,8 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 			body:     "Name=John&unknown=ignored&other=also_ignored",
 			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
-				"Body": map[string]any{
-					"Name": "John",
+				goFieldBody: map[string]any{
+					goFieldName: valueJohn,
 				},
 			},
 		},
@@ -679,8 +679,8 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 			body:     "Name=John&Name=Jane",
 			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
-				"Body": map[string]any{
-					"Name": []any{"John", "Jane"},
+				goFieldBody: map[string]any{
+					goFieldName: []any{valueJohn, valueJane},
 				},
 			},
 		},
@@ -689,8 +689,8 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 			body:     "Name=John,Jane,Bob",
 			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
-				"Body": map[string]any{
-					"Name": []any{"John", "Jane", "Bob"},
+				goFieldBody: map[string]any{
+					goFieldName: []any{valueJohn, valueJane, "Bob"},
 				},
 			},
 		},
@@ -699,9 +699,9 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 			body:     "Name=John%20Doe&email=john%2Bdoe%40example.com",
 			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
-				"Body": map[string]any{
-					"Name":  "John Doe",
-					"email": "john+doe@example.com",
+				goFieldBody: map[string]any{
+					goFieldName: "John Doe",
+					keyEmail:    "john+doe@example.com",
 				},
 			},
 		},
@@ -710,8 +710,8 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 			body:     "Name=%E6%97%A5%E6%9C%AC%E8%AA%9E",
 			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
-				"Body": map[string]any{
-					"Name": "日本語",
+				goFieldBody: map[string]any{
+					goFieldName: "日本語",
 				},
 			},
 		},
@@ -720,8 +720,8 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 			body:     "Name=John",
 			bodyType: reflect.TypeFor[urlEncodedFormStruct](),
 			want: map[string]any{
-				"Body": map[string]any{
-					"Name": "John",
+				goFieldBody: map[string]any{
+					goFieldName: valueJohn,
 				},
 			},
 		},
@@ -730,9 +730,9 @@ func TestDecoder_DecodeBody_URLEncodedForm(t *testing.T) {
 			body:     "Name=John&email=john@example.com",
 			bodyType: reflect.TypeFor[*urlEncodedFormStruct](),
 			want: map[string]any{
-				"Body": map[string]any{
-					"Name":  "John",
-					"email": "john@example.com", // Tag name "email", not field name "Email"
+				goFieldBody: map[string]any{
+					goFieldName: valueJohn,
+					keyEmail:    valueEmailJohn, // Tag name "email", not field name "Email"
 				},
 			},
 		},

@@ -62,7 +62,7 @@ func TestOpenAPIEndpoint_EndToEnd(t *testing.T) {
 	Get(api, "/users/{id}", func(ctx context.Context, input *GetUserInput) (*GetUserOutput, error) {
 		output := &GetUserOutput{}
 		output.Body.ID = input.ID
-		output.Body.Name = "John Doe"
+		output.Body.Name = valueJohnDoe
 
 		return output, nil
 	})
@@ -1239,7 +1239,7 @@ func TestDocsEndpoint_EndToEnd(t *testing.T) {
 	Get(api, "/users/{id}", func(ctx context.Context, input *GetUserInput) (*GetUserOutput, error) {
 		output := &GetUserOutput{}
 		output.Body.ID = input.ID
-		output.Body.Name = "John Doe"
+		output.Body.Name = valueJohnDoe
 
 		return output, nil
 	})

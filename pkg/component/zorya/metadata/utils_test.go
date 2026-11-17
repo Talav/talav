@@ -61,19 +61,19 @@ func TestParseFloat64(t *testing.T) {
 			name:        "invalid string",
 			input:       "not a number",
 			wantErr:     true,
-			errContains: "invalid syntax",
+			errContains: msgInvalidSyntax,
 		},
 		{
 			name:        "partial number",
 			input:       "123abc",
 			wantErr:     true,
-			errContains: "invalid syntax",
+			errContains: msgInvalidSyntax,
 		},
 		{
 			name:        "only decimal point",
 			input:       ".",
 			wantErr:     true,
-			errContains: "invalid syntax",
+			errContains: msgInvalidSyntax,
 		},
 	}
 
@@ -136,25 +136,25 @@ func TestParseInt(t *testing.T) {
 			name:        "invalid string",
 			input:       "not a number",
 			wantErr:     true,
-			errContains: "invalid syntax",
+			errContains: msgInvalidSyntax,
 		},
 		{
 			name:        "partial number",
 			input:       "123abc",
 			wantErr:     true,
-			errContains: "invalid syntax",
+			errContains: msgInvalidSyntax,
 		},
 		{
 			name:        "float string",
 			input:       "3.14",
 			wantErr:     true,
-			errContains: "invalid syntax",
+			errContains: msgInvalidSyntax,
 		},
 		{
 			name:        "only minus sign",
 			input:       "-",
 			wantErr:     true,
-			errContains: "invalid syntax",
+			errContains: msgInvalidSyntax,
 		},
 	}
 

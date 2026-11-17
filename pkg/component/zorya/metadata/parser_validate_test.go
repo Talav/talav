@@ -8,6 +8,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	goFieldAge            = "Age"
+	goFieldCode           = "Code"
+	goFieldCreditCard     = "CreditCard"
+	goFieldEmail          = "Email"
+	goFieldGeneric        = "Field"
+	goFieldName           = "Name"
+	goFieldPrice          = "Price"
+	goFieldStatus         = "Status"
+	valueActive           = "active"
+	keyBillingAddress     = "billing_address"
+	caseEmptyTag          = "empty tag"
+	valueInactive         = "inactive"
+	msgInvalidSyntax      = "invalid syntax"
+	caseInvalidTagParsing = "invalid tag parsing"
+	valuePending          = "pending"
+	valuePlain            = "value"
+	keyCustomExtension    = "x-custom"
+)
+
 func floatPtr(f float64) *float64 {
 	return &f
 }
@@ -27,8 +47,8 @@ func TestParseValidateTag(t *testing.T) {
 		errContains string
 	}{
 		{
-			name:      "empty tag",
-			fieldName: "Field",
+			name:      caseEmptyTag,
+			fieldName: goFieldGeneric,
 			tagValue:  "",
 			want:      &ValidateMetadata{},
 		},
@@ -50,7 +70,7 @@ func TestParseValidateTag(t *testing.T) {
 		},
 		{
 			name:      "min constraint",
-			fieldName: "Age",
+			fieldName: goFieldAge,
 			tagValue:  "min=18",
 			want: &ValidateMetadata{
 				Minimum: floatPtr(18),
@@ -58,7 +78,7 @@ func TestParseValidateTag(t *testing.T) {
 		},
 		{
 			name:      "max constraint",
-			fieldName: "Age",
+			fieldName: goFieldAge,
 			tagValue:  "max=100",
 			want: &ValidateMetadata{
 				Maximum: floatPtr(100),
@@ -66,7 +86,7 @@ func TestParseValidateTag(t *testing.T) {
 		},
 		{
 			name:      "min and max together",
-			fieldName: "Age",
+			fieldName: goFieldAge,
 			tagValue:  "min=18,max=100",
 			want: &ValidateMetadata{
 				Minimum: floatPtr(18),
@@ -91,7 +111,7 @@ func TestParseValidateTag(t *testing.T) {
 		},
 		{
 			name:      "gt constraint",
-			fieldName: "Price",
+			fieldName: goFieldPrice,
 			tagValue:  "gt=0",
 			want: &ValidateMetadata{
 				ExclusiveMinimum: floatPtr(0),
@@ -99,7 +119,7 @@ func TestParseValidateTag(t *testing.T) {
 		},
 		{
 			name:      "lt constraint",
-			fieldName: "Price",
+			fieldName: goFieldPrice,
 			tagValue:  "lt=1000",
 			want: &ValidateMetadata{
 				ExclusiveMaximum: floatPtr(1000),
@@ -115,7 +135,7 @@ func TestParseValidateTag(t *testing.T) {
 		},
 		{
 			name:      "len constraint",
-			fieldName: "Code",
+			fieldName: goFieldCode,
 			tagValue:  "len=6",
 			want: &ValidateMetadata{
 				Minimum: floatPtr(6),
@@ -124,7 +144,7 @@ func TestParseValidateTag(t *testing.T) {
 		},
 		{
 			name:      "email format",
-			fieldName: "Email",
+			fieldName: goFieldEmail,
 			tagValue:  "email",
 			want: &ValidateMetadata{
 				Format: "email",
@@ -140,7 +160,7 @@ func TestParseValidateTag(t *testing.T) {
 		},
 		{
 			name:      "alpha pattern",
-			fieldName: "Name",
+			fieldName: goFieldName,
 			tagValue:  "alpha",
 			want: &ValidateMetadata{
 				Pattern: "^[a-zA-Z]+$",
@@ -156,7 +176,7 @@ func TestParseValidateTag(t *testing.T) {
 		},
 		{
 			name:      "alphaunicode pattern",
-			fieldName: "Name",
+			fieldName: goFieldName,
 			tagValue:  "alphaunicode",
 			want: &ValidateMetadata{
 				Pattern: "^[\\p{L}]+$",
@@ -172,7 +192,7 @@ func TestParseValidateTag(t *testing.T) {
 		},
 		{
 			name:      "pattern constraint",
-			fieldName: "Code",
+			fieldName: goFieldCode,
 			tagValue:  "pattern=^[A-Z0-9]+$",
 			want: &ValidateMetadata{
 				Pattern: "^[A-Z0-9]+$",
@@ -180,7 +200,7 @@ func TestParseValidateTag(t *testing.T) {
 		},
 		{
 			name:      "pattern with quoted value",
-			fieldName: "Code",
+			fieldName: goFieldCode,
 			tagValue:  "pattern='^[a-z]+$'",
 			want: &ValidateMetadata{
 				Pattern: "^[a-z]+$",
@@ -188,10 +208,10 @@ func TestParseValidateTag(t *testing.T) {
 		},
 		{
 			name:      "oneof enum",
-			fieldName: "Status",
+			fieldName: goFieldStatus,
 			tagValue:  "oneof=active inactive pending",
 			want: &ValidateMetadata{
-				Enum: []any{"active", "inactive", "pending"},
+				Enum: []any{valueActive, valueInactive, valuePending},
 			},
 		},
 		{
@@ -204,46 +224,46 @@ func TestParseValidateTag(t *testing.T) {
 		},
 		{
 			name:      "oneof enum with extra spaces",
-			fieldName: "Status",
+			fieldName: goFieldStatus,
 			tagValue:  "oneof=  active  inactive  pending  ",
 			want: &ValidateMetadata{
-				Enum: []any{"active", "inactive", "pending"},
+				Enum: []any{valueActive, valueInactive, valuePending},
 			},
 		},
 		{
-			name:        "invalid tag parsing",
-			fieldName:   "Field",
+			name:        caseInvalidTagParsing,
+			fieldName:   goFieldGeneric,
 			tagValue:    "required,'unclosed quote",
 			wantErr:     true,
 			errContains: "failed to parse validate tag",
 		},
 		{
 			name:        "invalid min value",
-			fieldName:   "Field",
+			fieldName:   goFieldGeneric,
 			tagValue:    "min=invalid",
 			wantErr:     true,
 			errContains: "invalid min value",
 		},
 		{
 			name:        "invalid len value",
-			fieldName:   "Field",
+			fieldName:   goFieldGeneric,
 			tagValue:    "len=invalid",
 			wantErr:     true,
 			errContains: "invalid len value",
 		},
 		{
 			name:        "empty oneof",
-			fieldName:   "Field",
+			fieldName:   goFieldGeneric,
 			tagValue:    "oneof=",
 			wantErr:     true,
 			errContains: "oneof requires at least one value",
 		},
 		{
 			name:      "oneof with empty values filtered",
-			fieldName: "Status",
+			fieldName: goFieldStatus,
 			tagValue:  "oneof=active  pending",
 			want: &ValidateMetadata{
-				Enum: []any{"active", "pending"},
+				Enum: []any{valueActive, valuePending},
 			},
 		},
 	}
@@ -312,7 +332,7 @@ func TestParseValidateTag(t *testing.T) {
 func TestParseValidateTag_RealWorldScenarios(t *testing.T) {
 	t.Run("user registration email", func(t *testing.T) {
 		field := reflect.StructField{
-			Name: "Email",
+			Name: goFieldEmail,
 		}
 
 		tagValue := "required,email,max=255"
@@ -347,7 +367,7 @@ func TestParseValidateTag_RealWorldScenarios(t *testing.T) {
 
 	t.Run("age with range", func(t *testing.T) {
 		field := reflect.StructField{
-			Name: "Age",
+			Name: goFieldAge,
 		}
 
 		tagValue := "gte=18,lte=120"
@@ -363,7 +383,7 @@ func TestParseValidateTag_RealWorldScenarios(t *testing.T) {
 
 	t.Run("status enum", func(t *testing.T) {
 		field := reflect.StructField{
-			Name: "Status",
+			Name: goFieldStatus,
 		}
 
 		tagValue := "required,oneof=active inactive suspended deleted"
@@ -374,12 +394,12 @@ func TestParseValidateTag_RealWorldScenarios(t *testing.T) {
 		vm, ok := result.(*ValidateMetadata)
 		require.True(t, ok)
 		assert.Equal(t, boolPtr(true), vm.Required)
-		assert.Equal(t, []any{"active", "inactive", "suspended", "deleted"}, vm.Enum)
+		assert.Equal(t, []any{valueActive, valueInactive, "suspended", "deleted"}, vm.Enum)
 	})
 
 	t.Run("price with exclusive bounds", func(t *testing.T) {
 		field := reflect.StructField{
-			Name: "Price",
+			Name: goFieldPrice,
 		}
 
 		tagValue := "gt=0,lt=10000"

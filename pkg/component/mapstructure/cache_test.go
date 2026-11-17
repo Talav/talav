@@ -19,43 +19,43 @@ func TestParseFieldTag(t *testing.T) {
 		{
 			name:      "empty tag uses field name",
 			tagValue:  "",
-			fieldName: "MyField",
-			wantKey:   "MyField",
+			fieldName: goFieldMyField,
+			wantKey:   goFieldMyField,
 			wantSkip:  false,
 		},
 		{
 			name:      "simple name",
-			tagValue:  "custom_name",
-			fieldName: "MyField",
-			wantKey:   "custom_name",
+			tagValue:  keyCustomName,
+			fieldName: goFieldMyField,
+			wantKey:   keyCustomName,
 			wantSkip:  false,
 		},
 		{
 			name:      "dash skips field",
 			tagValue:  "-",
-			fieldName: "MyField",
+			fieldName: goFieldMyField,
 			wantKey:   "",
 			wantSkip:  true,
 		},
 		{
 			name:      "name with options",
 			tagValue:  "custom_name,omitempty",
-			fieldName: "MyField",
-			wantKey:   "custom_name",
+			fieldName: goFieldMyField,
+			wantKey:   keyCustomName,
 			wantSkip:  false,
 		},
 		{
 			name:      "dash with options still skips",
 			tagValue:  "-,omitempty",
-			fieldName: "MyField",
+			fieldName: goFieldMyField,
 			wantKey:   "",
 			wantSkip:  true,
 		},
 		{
 			name:      "name with key-value option",
 			tagValue:  "custom_name,format:date",
-			fieldName: "MyField",
-			wantKey:   "custom_name",
+			fieldName: goFieldMyField,
+			wantKey:   keyCustomName,
 			wantSkip:  false,
 		},
 	}
@@ -91,7 +91,7 @@ func TestNewTagCacheBuilder(t *testing.T) {
 			fieldMap[f.StructFieldName] = f.MapKey
 		}
 
-		assert.Equal(t, "name", fieldMap["Name"])
+		assert.Equal(t, "name", fieldMap[goFieldName])
 		assert.Equal(t, "age", fieldMap["Age"])
 		assert.Equal(t, "NoTag", fieldMap["NoTag"])
 		assert.Equal(t, "JSONOnly", fieldMap["JSONOnly"]) // No schema tag, uses field name
@@ -112,7 +112,7 @@ func TestNewTagCacheBuilder(t *testing.T) {
 		// JSONOnly should use json tag value
 		assert.Equal(t, "json_field", fieldMap["JSONOnly"])
 		// Others use field name (no json tag)
-		assert.Equal(t, "Name", fieldMap["Name"])
+		assert.Equal(t, goFieldName, fieldMap[goFieldName])
 	})
 }
 
@@ -157,7 +157,7 @@ func TestNewTagCacheBuilder_EmbeddedStruct(t *testing.T) {
 
 	var embeddedField *FieldMetadata
 	for i := range metadata.Fields {
-		if metadata.Fields[i].StructFieldName == "Inner" {
+		if metadata.Fields[i].StructFieldName == goFieldInner {
 			embeddedField = &metadata.Fields[i]
 
 			break

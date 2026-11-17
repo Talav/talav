@@ -19,8 +19,8 @@ func TestParseOpenAPI(t *testing.T) {
 		errContains string
 	}{
 		{
-			name:      "empty tag",
-			fieldName: "Field",
+			name:      caseEmptyTag,
+			fieldName: goFieldGeneric,
 			tagValue:  "",
 			want:      &OpenAPIMetadata{},
 		},
@@ -90,7 +90,7 @@ func TestParseOpenAPI(t *testing.T) {
 		},
 		{
 			name:      "title",
-			fieldName: "Name",
+			fieldName: goFieldName,
 			tagValue:  "title=User Name",
 			want: &OpenAPIMetadata{
 				Title: "User Name",
@@ -98,7 +98,7 @@ func TestParseOpenAPI(t *testing.T) {
 		},
 		{
 			name:      "description",
-			fieldName: "Email",
+			fieldName: goFieldEmail,
 			tagValue:  "description=User email address",
 			want: &OpenAPIMetadata{
 				Description: "User email address",
@@ -106,7 +106,7 @@ func TestParseOpenAPI(t *testing.T) {
 		},
 		{
 			name:      "example",
-			fieldName: "Age",
+			fieldName: goFieldAge,
 			tagValue:  "example=25",
 			want: &OpenAPIMetadata{
 				Examples: []any{25.0},
@@ -114,25 +114,25 @@ func TestParseOpenAPI(t *testing.T) {
 		},
 		{
 			name:      "examples as JSON array",
-			fieldName: "Status",
+			fieldName: goFieldStatus,
 			tagValue:  "examples='[\"active\",\"inactive\"]'",
 			want: &OpenAPIMetadata{
-				Examples: []any{"active", "inactive"},
+				Examples: []any{valueActive, valueInactive},
 			},
 		},
 		{
 			name:      "single extension",
-			fieldName: "Field",
+			fieldName: goFieldGeneric,
 			tagValue:  "x-custom=value",
 			want: &OpenAPIMetadata{
 				Extensions: map[string]any{
-					"x-custom": "value",
+					keyCustomExtension: valuePlain,
 				},
 			},
 		},
 		{
 			name:      "extension with hyphen",
-			fieldName: "Field",
+			fieldName: goFieldGeneric,
 			tagValue:  "x-custom-feature=enabled",
 			want: &OpenAPIMetadata{
 				Extensions: map[string]any{
@@ -142,23 +142,23 @@ func TestParseOpenAPI(t *testing.T) {
 		},
 		{
 			name:      "multiple extensions",
-			fieldName: "Field",
+			fieldName: goFieldGeneric,
 			tagValue:  "x-custom=value,x-vendor-tool=test,x-rate-limit=100",
 			want: &OpenAPIMetadata{
 				Extensions: map[string]any{
-					"x-custom":      "value",
-					"x-vendor-tool": "test",
-					"x-rate-limit":  "100",
+					keyCustomExtension: valuePlain,
+					"x-vendor-tool":    "test",
+					"x-rate-limit":     "100",
 				},
 			},
 		},
 		{
 			name:      "extension with quoted value",
-			fieldName: "Field",
+			fieldName: goFieldGeneric,
 			tagValue:  "x-custom='value with spaces'",
 			want: &OpenAPIMetadata{
 				Extensions: map[string]any{
-					"x-custom": "value with spaces",
+					keyCustomExtension: "value with spaces",
 				},
 			},
 		},
@@ -171,14 +171,14 @@ func TestParseOpenAPI(t *testing.T) {
 				Deprecated: boolPtr(true),
 				Title:      "User ID",
 				Extensions: map[string]any{
-					"x-custom": "value",
-					"x-vendor": "test",
+					keyCustomExtension: valuePlain,
+					"x-vendor":         "test",
 				},
 			},
 		},
 		{
 			name:      "all standard fields",
-			fieldName: "Field",
+			fieldName: goFieldGeneric,
 			tagValue:  "readOnly,writeOnly,deprecated,hidden,title=Title,description=Description,example=123,examples='[1,2,3]'",
 			want: &OpenAPIMetadata{
 				ReadOnly:    boolPtr(true),
@@ -192,37 +192,37 @@ func TestParseOpenAPI(t *testing.T) {
 		},
 		{
 			name:      "extension with empty value",
-			fieldName: "Field",
+			fieldName: goFieldGeneric,
 			tagValue:  "x-custom=",
 			want: &OpenAPIMetadata{
 				Extensions: map[string]any{
-					"x-custom": "",
+					keyCustomExtension: "",
 				},
 			},
 		},
 		{
 			name:      "invalid extension key - too short (ignored)",
-			fieldName: "Field",
+			fieldName: goFieldGeneric,
 			tagValue:  "x-=",
 			want:      &OpenAPIMetadata{}, // "x-=" is too short, so it's ignored
 		},
 		{
 			name:      "non-extension key ignored",
-			fieldName: "Field",
+			fieldName: goFieldGeneric,
 			tagValue:  "x=value",
 			// "x" doesn't start with "x-", so it's ignored
 			want: &OpenAPIMetadata{},
 		},
 		{
-			name:        "invalid tag parsing",
-			fieldName:   "Field",
+			name:        caseInvalidTagParsing,
+			fieldName:   goFieldGeneric,
 			tagValue:    "readOnly,'unclosed quote",
 			wantErr:     true,
 			errContains: "failed to parse openapi tag",
 		},
 		{
 			name:      "extension with special characters",
-			fieldName: "Field",
+			fieldName: goFieldGeneric,
 			tagValue:  "x-custom-value=test-value-123",
 			want: &OpenAPIMetadata{
 				Extensions: map[string]any{
@@ -232,7 +232,7 @@ func TestParseOpenAPI(t *testing.T) {
 		},
 		{
 			name:      "description with comma",
-			fieldName: "Field",
+			fieldName: goFieldGeneric,
 			tagValue:  "description='Description, with comma'",
 			want: &OpenAPIMetadata{
 				Description: "Description, with comma",
@@ -240,7 +240,7 @@ func TestParseOpenAPI(t *testing.T) {
 		},
 		{
 			name:      "multiple boolean flags",
-			fieldName: "Field",
+			fieldName: goFieldGeneric,
 			tagValue:  "readOnly,writeOnly,deprecated,hidden",
 			want: &OpenAPIMetadata{
 				ReadOnly:   boolPtr(true),
@@ -251,11 +251,11 @@ func TestParseOpenAPI(t *testing.T) {
 		},
 		{
 			name:      "extension overwrites previous value",
-			fieldName: "Field",
+			fieldName: goFieldGeneric,
 			tagValue:  "x-custom=first,x-custom=second",
 			want: &OpenAPIMetadata{
 				Extensions: map[string]any{
-					"x-custom": "second",
+					keyCustomExtension: "second",
 				},
 			},
 		},
@@ -385,7 +385,7 @@ func TestParseOpenAPI_ComplexScenarios(t *testing.T) {
 
 	t.Run("all boolean flags with explicit values", func(t *testing.T) {
 		field := reflect.StructField{
-			Name: "Field",
+			Name: goFieldGeneric,
 		}
 
 		tagValue := "readOnly=true,writeOnly=false,deprecated=true,hidden=false"

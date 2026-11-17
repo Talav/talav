@@ -20,11 +20,11 @@ func TestParseSchemaTag(t *testing.T) {
 	}{
 		{
 			name:      "simple tag with name only",
-			fieldName: "Name",
-			tagValue:  "name",
+			fieldName: goFieldName,
+			tagValue:  keyName,
 			want: &SchemaMetadata{
-				ParamName: "name",
-				MapKey:    "Name",
+				ParamName: keyName,
+				MapKey:    goFieldName,
 				Location:  LocationQuery,
 				Style:     StyleForm,
 				Explode:   true,
@@ -33,11 +33,11 @@ func TestParseSchemaTag(t *testing.T) {
 		},
 		{
 			name:      "empty tag name uses field name",
-			fieldName: "Email",
+			fieldName: goFieldEmail,
 			tagValue:  "",
 			want: &SchemaMetadata{
-				ParamName: "Email",
-				MapKey:    "Email",
+				ParamName: goFieldEmail,
+				MapKey:    goFieldEmail,
 				Location:  LocationQuery,
 				Style:     StyleForm,
 				Explode:   true,
@@ -46,11 +46,11 @@ func TestParseSchemaTag(t *testing.T) {
 		},
 		{
 			name:      "tag with location query",
-			fieldName: "Filter",
+			fieldName: goFieldFilter,
 			tagValue:  "filter,location=query",
 			want: &SchemaMetadata{
-				ParamName: "filter",
-				MapKey:    "Filter",
+				ParamName: keyFilter,
+				MapKey:    goFieldFilter,
 				Location:  LocationQuery,
 				Style:     StyleForm,
 				Explode:   true,
@@ -72,11 +72,11 @@ func TestParseSchemaTag(t *testing.T) {
 		},
 		{
 			name:      "tag with location header",
-			fieldName: "APIKey",
+			fieldName: goFieldAPIKey,
 			tagValue:  "X-API-Key,location=header",
 			want: &SchemaMetadata{
 				ParamName: "X-API-Key",
-				MapKey:    "APIKey",
+				MapKey:    goFieldAPIKey,
 				Location:  LocationHeader,
 				Style:     StyleSimple,
 				Explode:   false,
@@ -98,11 +98,11 @@ func TestParseSchemaTag(t *testing.T) {
 		},
 		{
 			name:      "tag with explicit style",
-			fieldName: "Tags",
+			fieldName: goFieldTags,
 			tagValue:  "tags,location=query,style=spaceDelimited",
 			want: &SchemaMetadata{
-				ParamName: "tags",
-				MapKey:    "Tags",
+				ParamName: keyTags,
+				MapKey:    goFieldTags,
 				Location:  LocationQuery,
 				Style:     StyleSpaceDelimited,
 				Explode:   false,
@@ -111,11 +111,11 @@ func TestParseSchemaTag(t *testing.T) {
 		},
 		{
 			name:      "tag with explode true",
-			fieldName: "Items",
+			fieldName: goFieldItems,
 			tagValue:  "items,location=query,explode=true",
 			want: &SchemaMetadata{
-				ParamName: "items",
-				MapKey:    "Items",
+				ParamName: keyItems,
+				MapKey:    goFieldItems,
 				Location:  LocationQuery,
 				Style:     StyleForm,
 				Explode:   true,
@@ -124,11 +124,11 @@ func TestParseSchemaTag(t *testing.T) {
 		},
 		{
 			name:      "tag with explode false",
-			fieldName: "Items",
+			fieldName: goFieldItems,
 			tagValue:  "items,location=query,explode=false",
 			want: &SchemaMetadata{
-				ParamName: "items",
-				MapKey:    "Items",
+				ParamName: keyItems,
+				MapKey:    goFieldItems,
 				Location:  LocationQuery,
 				Style:     StyleForm,
 				Explode:   false,
@@ -137,11 +137,11 @@ func TestParseSchemaTag(t *testing.T) {
 		},
 		{
 			name:      "tag with explode flag form",
-			fieldName: "Items",
+			fieldName: goFieldItems,
 			tagValue:  "items,location=query,explode",
 			want: &SchemaMetadata{
-				ParamName: "items",
-				MapKey:    "Items",
+				ParamName: keyItems,
+				MapKey:    goFieldItems,
 				Location:  LocationQuery,
 				Style:     StyleForm,
 				Explode:   true,
@@ -150,11 +150,11 @@ func TestParseSchemaTag(t *testing.T) {
 		},
 		{
 			name:      "tag with required true",
-			fieldName: "Name",
+			fieldName: goFieldName,
 			tagValue:  "name,required=true",
 			want: &SchemaMetadata{
-				ParamName: "name",
-				MapKey:    "Name",
+				ParamName: keyName,
+				MapKey:    goFieldName,
 				Location:  LocationQuery,
 				Style:     StyleForm,
 				Explode:   true,
@@ -163,11 +163,11 @@ func TestParseSchemaTag(t *testing.T) {
 		},
 		{
 			name:      "tag with required flag form",
-			fieldName: "Name",
+			fieldName: goFieldName,
 			tagValue:  "name,required",
 			want: &SchemaMetadata{
-				ParamName: "name",
-				MapKey:    "Name",
+				ParamName: keyName,
+				MapKey:    goFieldName,
 				Location:  LocationQuery,
 				Style:     StyleForm,
 				Explode:   true,
@@ -189,11 +189,11 @@ func TestParseSchemaTag(t *testing.T) {
 		},
 		{
 			name:      "query with deepObject style",
-			fieldName: "Filter",
+			fieldName: goFieldFilter,
 			tagValue:  "filter,location=query,style=deepObject",
 			want: &SchemaMetadata{
-				ParamName: "filter",
-				MapKey:    "Filter",
+				ParamName: keyFilter,
+				MapKey:    goFieldFilter,
 				Location:  LocationQuery,
 				Style:     StyleDeepObject,
 				Explode:   true, // deepObject defaults to explode=true
@@ -228,11 +228,11 @@ func TestParseSchemaTag(t *testing.T) {
 		},
 		{
 			name:      "query with pipeDelimited style",
-			fieldName: "Tags",
+			fieldName: goFieldTags,
 			tagValue:  "tags,location=query,style=pipeDelimited",
 			want: &SchemaMetadata{
-				ParamName: "tags",
-				MapKey:    "Tags",
+				ParamName: keyTags,
+				MapKey:    goFieldTags,
 				Location:  LocationQuery,
 				Style:     StylePipeDelimited,
 				Explode:   false,
@@ -241,11 +241,11 @@ func TestParseSchemaTag(t *testing.T) {
 		},
 		{
 			name:      "all options combined",
-			fieldName: "Filter",
+			fieldName: goFieldFilter,
 			tagValue:  "filter,location=query,style=form,explode=true,required=true",
 			want: &SchemaMetadata{
-				ParamName: "filter",
-				MapKey:    "Filter",
+				ParamName: keyFilter,
+				MapKey:    goFieldFilter,
 				Location:  LocationQuery,
 				Style:     StyleForm,
 				Explode:   true,
@@ -254,38 +254,38 @@ func TestParseSchemaTag(t *testing.T) {
 		},
 		{
 			name:        "invalid location",
-			fieldName:   "Name",
+			fieldName:   goFieldName,
 			tagValue:    "name,location=invalid",
 			wantErr:     true,
 			errContains: "invalid location",
 		},
 		{
 			name:        "invalid style for query location",
-			fieldName:   "Name",
+			fieldName:   goFieldName,
 			tagValue:    "name,location=query,style=simple",
 			wantErr:     true,
-			errContains: "invalid style",
+			errContains: msgInvalidStyle,
 		},
 		{
 			name:        "invalid style for path location",
 			fieldName:   "ID",
 			tagValue:    "id,location=path,style=form",
 			wantErr:     true,
-			errContains: "invalid style",
+			errContains: msgInvalidStyle,
 		},
 		{
 			name:        "invalid style for header location",
 			fieldName:   "Key",
 			tagValue:    "key,location=header,style=form",
 			wantErr:     true,
-			errContains: "invalid style",
+			errContains: msgInvalidStyle,
 		},
 		{
 			name:        "invalid style for cookie location",
 			fieldName:   "Session",
 			tagValue:    "session,location=cookie,style=simple",
 			wantErr:     true,
-			errContains: "invalid style",
+			errContains: msgInvalidStyle,
 		},
 	}
 
@@ -332,11 +332,11 @@ func TestDefaultSchemaMetadata(t *testing.T) {
 	}{
 		{
 			name:      "string field",
-			fieldName: "Name",
+			fieldName: goFieldName,
 			fieldType: reflect.TypeFor[string](),
 			want: &SchemaMetadata{
-				ParamName: "Name",
-				MapKey:    "Name",
+				ParamName: goFieldName,
+				MapKey:    goFieldName,
 				Location:  LocationQuery,
 				Style:     StyleForm,
 				Explode:   true,
@@ -345,11 +345,11 @@ func TestDefaultSchemaMetadata(t *testing.T) {
 		},
 		{
 			name:      "int field",
-			fieldName: "Age",
+			fieldName: goFieldAge,
 			fieldType: reflect.TypeFor[int](),
 			want: &SchemaMetadata{
-				ParamName: "Age",
-				MapKey:    "Age",
+				ParamName: goFieldAge,
+				MapKey:    goFieldAge,
 				Location:  LocationQuery,
 				Style:     StyleForm,
 				Explode:   true,
@@ -358,11 +358,11 @@ func TestDefaultSchemaMetadata(t *testing.T) {
 		},
 		{
 			name:      "slice field",
-			fieldName: "Tags",
+			fieldName: goFieldTags,
 			fieldType: reflect.TypeFor[[]string](),
 			want: &SchemaMetadata{
-				ParamName: "Tags",
-				MapKey:    "Tags",
+				ParamName: goFieldTags,
+				MapKey:    goFieldTags,
 				Location:  LocationQuery,
 				Style:     StyleForm,
 				Explode:   true,
@@ -371,11 +371,11 @@ func TestDefaultSchemaMetadata(t *testing.T) {
 		},
 		{
 			name:      "struct field",
-			fieldName: "User",
+			fieldName: goFieldUser,
 			fieldType: reflect.TypeFor[struct{}](),
 			want: &SchemaMetadata{
-				ParamName: "User",
-				MapKey:    "User",
+				ParamName: goFieldUser,
+				MapKey:    goFieldUser,
 				Location:  LocationQuery,
 				Style:     StyleForm,
 				Explode:   true,
@@ -418,7 +418,7 @@ func TestParseSchemaTag_DefaultValues(t *testing.T) {
 	}{
 		{
 			name:             "no location defaults to query",
-			tagValue:         "name",
+			tagValue:         keyName,
 			expectedLocation: LocationQuery,
 			expectedStyle:    StyleForm,
 			expectedExplode:  true,
@@ -533,11 +533,11 @@ func TestParseSchemaTag_EdgeCases(t *testing.T) {
 	}{
 		{
 			name:      "tag with comma in name",
-			fieldName: "Name",
+			fieldName: goFieldName,
 			tagValue:  "name,value",
 			want: &SchemaMetadata{
-				ParamName: "name",
-				MapKey:    "Name",
+				ParamName: keyName,
+				MapKey:    goFieldName,
 				Location:  LocationQuery,
 				Style:     StyleForm,
 				Explode:   true,
@@ -546,11 +546,11 @@ func TestParseSchemaTag_EdgeCases(t *testing.T) {
 		},
 		{
 			name:      "tag with multiple options",
-			fieldName: "Filter",
+			fieldName: goFieldFilter,
 			tagValue:  "filter,location=query,style=form,explode=true,required=true",
 			want: &SchemaMetadata{
-				ParamName: "filter",
-				MapKey:    "Filter",
+				ParamName: keyFilter,
+				MapKey:    goFieldFilter,
 				Location:  LocationQuery,
 				Style:     StyleForm,
 				Explode:   true,
@@ -559,11 +559,11 @@ func TestParseSchemaTag_EdgeCases(t *testing.T) {
 		},
 		{
 			name:      "tag with empty value options",
-			fieldName: "Name",
+			fieldName: goFieldName,
 			tagValue:  "name,required,explode",
 			want: &SchemaMetadata{
-				ParamName: "name",
-				MapKey:    "Name",
+				ParamName: keyName,
+				MapKey:    goFieldName,
 				Location:  LocationQuery,
 				Style:     StyleForm,
 				Explode:   true,
@@ -572,11 +572,11 @@ func TestParseSchemaTag_EdgeCases(t *testing.T) {
 		},
 		{
 			name:      "tag with false values",
-			fieldName: "Name",
+			fieldName: goFieldName,
 			tagValue:  "name,required=false,explode=false",
 			want: &SchemaMetadata{
-				ParamName: "name",
-				MapKey:    "Name",
+				ParamName: keyName,
+				MapKey:    goFieldName,
 				Location:  LocationQuery,
 				Style:     StyleForm,
 				Explode:   false,
@@ -598,11 +598,11 @@ func TestParseSchemaTag_EdgeCases(t *testing.T) {
 		},
 		{
 			name:      "special characters in param name",
-			fieldName: "APIKey",
+			fieldName: goFieldAPIKey,
 			tagValue:  "X-API-Key,location=header",
 			want: &SchemaMetadata{
 				ParamName: "X-API-Key",
-				MapKey:    "APIKey",
+				MapKey:    goFieldAPIKey,
 				Location:  LocationHeader,
 				Style:     StyleSimple,
 				Explode:   false,

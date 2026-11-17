@@ -49,7 +49,7 @@ func TestHeader_NormalizedValue(t *testing.T) {
 			expected: "text/html; a=b; c=d; z=y",
 		},
 		{
-			name:     "with quality",
+			name:     caseWithQuality,
 			header:   "application/pdf; q=1; param=p",
 			expected: "application/pdf; param=p",
 		},
@@ -70,19 +70,19 @@ func TestHeader_Type(t *testing.T) {
 		header   string
 		expected string
 	}{
-		{"with parameters", "text/html;hello=world", "text/html"},
-		{"simple", "application/pdf", "application/pdf"},
-		{"with quality", "application/xhtml+xml;q=0.9", "application/xhtml+xml"},
+		{"with parameters", "text/html;hello=world", mimeHTML},
+		{caseSimple, mimePDF, mimePDF},
+		{caseWithQuality, "application/xhtml+xml;q=0.9", "application/xhtml+xml"},
 		{"with quality and space", "text/plain; q=0.5", "text/plain"},
-		{"with level", "text/html;level=2;q=0.4", "text/html"},
-		{"with spaces", "text/html ; level = 2   ; q = 0.4", "text/html"},
-		{"wildcard subtype", "text/*", "text/*"},
-		{"wildcard with params", "text/* ;q=1 ;level=2", "text/*"},
-		{"full wildcard", "*/*", "*/*"},
-		{"single wildcard", "*", "*/*"},
-		{"wildcard with params", "*/* ; param=555", "*/*"},
-		{"single wildcard with params", "* ; param=555", "*/*"},
-		{"case insensitive", "TEXT/hTmL;leVel=2; Q=0.4", "text/html"},
+		{"with level", "text/html;level=2;q=0.4", mimeHTML},
+		{caseWithSpaces, "text/html ; level = 2   ; q = 0.4", mimeHTML},
+		{"wildcard subtype", mimeTextAny, mimeTextAny},
+		{"wildcard with params", "text/* ;q=1 ;level=2", mimeTextAny},
+		{"full wildcard", mimeAny, mimeAny},
+		{"single wildcard", "*", mimeAny},
+		{"wildcard with params", "*/* ; param=555", mimeAny},
+		{"single wildcard with params", "* ; param=555", mimeAny},
+		{"case insensitive", "TEXT/hTmL;leVel=2; Q=0.4", mimeHTML},
 	}
 
 	for _, tt := range tests {
@@ -100,8 +100,8 @@ func TestHeader_Value(t *testing.T) {
 		header   string
 		expected string
 	}{
-		{"with spaces", "text/html;hello=world  ;q=0.5", "text/html;hello=world  ;q=0.5"},
-		{"simple", "application/pdf", "application/pdf"},
+		{caseWithSpaces, "text/html;hello=world  ;q=0.5", "text/html;hello=world  ;q=0.5"},
+		{caseSimple, mimePDF, mimePDF},
 	}
 
 	for _, tt := range tests {
@@ -118,7 +118,7 @@ func TestHeader_ParametersMap(t *testing.T) {
 	require.NoError(t, err)
 
 	params := acc.Parameters
-	assert.Equal(t, "UTF-8", params["charset"])
+	assert.Equal(t, charsetUTF8, params[paramCharset])
 	assert.Equal(t, "2", params["level"])
 
 	// Modify returned map - should not affect original (need to copy)
@@ -126,6 +126,6 @@ func TestHeader_ParametersMap(t *testing.T) {
 	for k, v := range acc.Parameters {
 		paramsCopy[k] = v
 	}
-	paramsCopy["charset"] = "ISO-8859-1"
-	assert.Equal(t, "UTF-8", acc.Parameters["charset"])
+	paramsCopy[paramCharset] = "ISO-8859-1"
+	assert.Equal(t, charsetUTF8, acc.Parameters[paramCharset])
 }

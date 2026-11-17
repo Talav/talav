@@ -71,13 +71,13 @@ func TestUnmarshaler_Unmarshal_Slices(t *testing.T) {
 		},
 		{
 			name:     "slice of bytes direct",
-			data:     map[string]any{"Data": []byte{1, 2, 3, 4, 5}},
+			data:     map[string]any{goFieldData: []byte{1, 2, 3, 4, 5}},
 			target:   &SliceByte{},
 			expected: &SliceByte{Data: []byte{1, 2, 3, 4, 5}},
 		},
 		{
 			name:     "slice of any to bytes",
-			data:     map[string]any{"Data": []any{1, 2, 3, 4, 5}},
+			data:     map[string]any{goFieldData: []any{1, 2, 3, 4, 5}},
 			target:   &SliceByte{},
 			expected: &SliceByte{Data: []byte{1, 2, 3, 4, 5}},
 		},
@@ -89,7 +89,7 @@ func TestUnmarshaler_Unmarshal_Slices(t *testing.T) {
 		},
 		{
 			name:     "nil slice",
-			data:     map[string]any{"Data": nil},
+			data:     map[string]any{goFieldData: nil},
 			target:   &SliceByte{},
 			expected: &SliceByte{Data: nil},
 		},
@@ -123,19 +123,19 @@ func TestUnmarshaler_Unmarshal_BasicTypes(t *testing.T) {
 		{
 			name: "all fields",
 			data: map[string]any{
-				"Name":   "test",
-				"Age":    25,
-				"Score":  95.5,
-				"Active": true,
+				goFieldName: valueTest,
+				"Age":       25,
+				"Score":     95.5,
+				"Active":    true,
 			},
-			expected: Basic{Name: "test", Age: 25, Score: 95.5, Active: true},
+			expected: Basic{Name: valueTest, Age: 25, Score: 95.5, Active: true},
 		},
 		{
 			name: "missing field uses zero value",
 			data: map[string]any{
-				"Name": "test",
+				goFieldName: valueTest,
 			},
-			expected: Basic{Name: "test", Age: 0, Score: 0, Active: false},
+			expected: Basic{Name: valueTest, Age: 0, Score: 0, Active: false},
 		},
 		{
 			name:     "empty map",
@@ -181,7 +181,7 @@ func TestUnmarshaler_Unmarshal_NestedStruct(t *testing.T) {
 		{
 			name: "single level nested",
 			data: map[string]any{
-				"Inner": map[string]any{"Value": 42},
+				goFieldInner: map[string]any{goFieldValue: 42},
 			},
 			target:   &Outer{},
 			expected: &Outer{Inner: Inner{Value: 42}},
@@ -191,7 +191,7 @@ func TestUnmarshaler_Unmarshal_NestedStruct(t *testing.T) {
 			data: map[string]any{
 				"Level1": map[string]any{
 					"Level2": map[string]any{
-						"Value": "deep",
+						goFieldValue: "deep",
 					},
 				},
 			},
@@ -221,7 +221,7 @@ func TestUnmarshaler_Unmarshal_Pointers(t *testing.T) {
 	}
 
 	intVal := 42
-	strVal := "test"
+	strVal := valueTest
 
 	tests := []struct {
 		name     string
@@ -231,19 +231,19 @@ func TestUnmarshaler_Unmarshal_Pointers(t *testing.T) {
 	}{
 		{
 			name:     "non-nil pointer",
-			data:     map[string]any{"Value": 42},
+			data:     map[string]any{goFieldValue: 42},
 			target:   &WithPointer{},
 			expected: &WithPointer{Value: &intVal},
 		},
 		{
 			name:     "nil pointer",
-			data:     map[string]any{"Value": nil},
+			data:     map[string]any{goFieldValue: nil},
 			target:   &WithPointer{},
 			expected: &WithPointer{Value: nil},
 		},
 		{
 			name:     "string pointer",
-			data:     map[string]any{"Name": "test"},
+			data:     map[string]any{goFieldName: valueTest},
 			target:   &WithPointerString{},
 			expected: &WithPointerString{Name: &strVal},
 		},
@@ -275,21 +275,21 @@ func TestUnmarshaler_Unmarshal_Errors(t *testing.T) {
 	}{
 		{
 			name:        "invalid slice data",
-			data:        map[string]any{"Data": "not a slice"},
+			data:        map[string]any{goFieldData: "not a slice"},
 			target:      &Target{},
 			errContains: "cannot convert",
 		},
 		{
 			name:        "non-pointer result",
-			data:        map[string]any{"Name": "test"},
+			data:        map[string]any{goFieldName: valueTest},
 			target:      Target{},
 			errContains: "must be a pointer",
 		},
 		{
 			name:        "nil pointer result",
-			data:        map[string]any{"Name": "test"},
+			data:        map[string]any{goFieldName: valueTest},
 			target:      (*Target)(nil),
-			errContains: "nil",
+			errContains: caseNil,
 		},
 	}
 
@@ -350,7 +350,7 @@ func TestUnmarshaler_Unmarshal_DirectAssignment(t *testing.T) {
 	}{
 		{
 			name:   "[]byte direct assignment",
-			data:   map[string]any{"Data": []byte{0x01, 0x02, 0x03}},
+			data:   map[string]any{goFieldData: []byte{0x01, 0x02, 0x03}},
 			target: &WithBytes{},
 			validate: func(t *testing.T, target any) {
 				r := target.(*WithBytes)
@@ -359,7 +359,7 @@ func TestUnmarshaler_Unmarshal_DirectAssignment(t *testing.T) {
 		},
 		{
 			name:   "[]byte empty",
-			data:   map[string]any{"Data": []byte{}},
+			data:   map[string]any{goFieldData: []byte{}},
 			target: &WithBytes{},
 			validate: func(t *testing.T, target any) {
 				r := target.(*WithBytes)
@@ -368,14 +368,14 @@ func TestUnmarshaler_Unmarshal_DirectAssignment(t *testing.T) {
 		},
 		{
 			name:   "io.Reader direct assignment",
-			data:   map[string]any{"Reader": bytes.NewReader([]byte("hello"))},
+			data:   map[string]any{"Reader": bytes.NewReader([]byte(valueHello))},
 			target: &WithReader{},
 			validate: func(t *testing.T, target any) {
 				r := target.(*WithReader)
 				require.NotNil(t, r.Reader)
 				content, err := io.ReadAll(r.Reader)
 				require.NoError(t, err)
-				assert.Equal(t, []byte("hello"), content)
+				assert.Equal(t, []byte(valueHello), content)
 			},
 		},
 		{
@@ -397,22 +397,22 @@ func TestUnmarshaler_Unmarshal_DirectAssignment(t *testing.T) {
 			validate: func(t *testing.T, target any) {
 				r := target.(*WithWriter)
 				require.NotNil(t, r.Writer)
-				_, err := r.Writer.Write([]byte("test"))
+				_, err := r.Writer.Write([]byte(valueTest))
 				assert.NoError(t, err)
 			},
 		},
 		{
 			name:   "custom struct direct assignment",
-			data:   map[string]any{"Inner": Inner{Value: 42, Name: "test"}},
+			data:   map[string]any{goFieldInner: Inner{Value: 42, Name: valueTest}},
 			target: &WithInner{},
 			validate: func(t *testing.T, target any) {
 				r := target.(*WithInner)
-				assert.Equal(t, Inner{Value: 42, Name: "test"}, r.Inner)
+				assert.Equal(t, Inner{Value: 42, Name: valueTest}, r.Inner)
 			},
 		},
 		{
 			name:   "custom struct pointer direct assignment",
-			data:   map[string]any{"Inner": &Inner{Value: 99, Name: "ptr"}},
+			data:   map[string]any{goFieldInner: &Inner{Value: 99, Name: "ptr"}},
 			target: &WithInnerPtr{},
 			validate: func(t *testing.T, target any) {
 				r := target.(*WithInnerPtr)
@@ -476,17 +476,17 @@ func TestUnmarshaler_Unmarshal_DirectAssignment_FallbackToConverter(t *testing.T
 	}{
 		{
 			name:     "string to int uses converter",
-			data:     map[string]any{"Count": "42"},
+			data:     map[string]any{goFieldCount: "42"},
 			expected: 42,
 		},
 		{
 			name:     "int64 to int uses converter",
-			data:     map[string]any{"Count": int64(42)},
+			data:     map[string]any{goFieldCount: int64(42)},
 			expected: 42,
 		},
 		{
 			name:     "float64 to int uses converter",
-			data:     map[string]any{"Count": float64(42.0)},
+			data:     map[string]any{goFieldCount: float64(42.0)},
 			expected: 42,
 		},
 	}

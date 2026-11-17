@@ -18,6 +18,10 @@ import (
 	"go.uber.org/fx/fxtest"
 )
 
+const (
+	msgUnknownMode = "unknown mode"
+)
+
 const fakeClockConfig = `clock:
   mode: fake
   initial_time: "2024-02-29T09:30:00.123456789-04:00"
@@ -177,9 +181,9 @@ func TestModule_FxClockModule_InvalidConfiguration(t *testing.T) {
 		config string
 		err    string
 	}{
-		{name: "unknown mode", config: "clock:\n  mode: unknown\n", err: "unknown mode"},
-		{name: "fixed mode", config: "clock:\n  mode: fixed\n", err: "unknown mode"},
-		{name: "offset mode", config: "clock:\n  mode: offset\n", err: "unknown mode"},
+		{name: msgUnknownMode, config: "clock:\n  mode: unknown\n", err: msgUnknownMode},
+		{name: "fixed mode", config: "clock:\n  mode: fixed\n", err: msgUnknownMode},
+		{name: "offset mode", config: "clock:\n  mode: offset\n", err: msgUnknownMode},
 		{
 			name:   "invalid initial time",
 			config: "clock:\n  mode: fake\n  initial_time: invalid\n",

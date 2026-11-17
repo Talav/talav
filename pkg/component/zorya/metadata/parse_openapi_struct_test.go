@@ -18,7 +18,7 @@ func TestParseOpenAPIStructTag(t *testing.T) {
 		errContains string
 	}{
 		{
-			name:      "empty tag",
+			name:      caseEmptyTag,
 			fieldName: "_",
 			tagValue:  "",
 			want:      &OpenAPIStructMetadata{},
@@ -98,7 +98,7 @@ func TestParseOpenAPIStructTag(t *testing.T) {
 			},
 		},
 		{
-			name:        "invalid tag parsing",
+			name:        caseInvalidTagParsing,
 			fieldName:   "_",
 			tagValue:    "additionalProperties=true,'unclosed quote",
 			wantErr:     true,

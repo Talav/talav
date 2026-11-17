@@ -359,6 +359,6 @@ func TestRegistry_RecursiveTypes(t *testing.T) {
 	require.True(t, ok, "next property should exist")
 
 	// Verify that next property references Node (breaking the cycle)
-	assert.Contains(t, nextProp, "$ref", "next property should have $ref to break recursion")
-	assert.Equal(t, "#/components/schemas/Node", nextProp["$ref"], "next should reference Node schema")
+	assert.Contains(t, nextProp, keyRef, "next property should have $ref to break recursion")
+	assert.Equal(t, "#/components/schemas/Node", nextProp[keyRef], "next should reference Node schema")
 }

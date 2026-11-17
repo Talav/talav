@@ -26,6 +26,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	aspectThreeToOne  = "3:1"
+	valueInvalid      = "invalid"
+	optionJPEGQuality = "jpeg_quality"
+	formatJPG         = "jpg"
+)
+
 // setupCropResizer creates a new CropResizer with ImagingCodec for testing.
 func setupCropResizer(t *testing.T) *CropResizer {
 	t.Helper()
@@ -56,7 +63,7 @@ func TestCropResizer_Resize_BasicCases(t *testing.T) {
 			name:           "exact-dimensions",
 			inputWidth:     200,
 			inputHeight:    100,
-			opts:           ResizeOptions{Width: 150, Height: 75, Format: "jpg"},
+			opts:           ResizeOptions{Width: 150, Height: 75, Format: formatJPG},
 			expectedWidth:  150,
 			expectedHeight: 75,
 		},
@@ -64,7 +71,7 @@ func TestCropResizer_Resize_BasicCases(t *testing.T) {
 			name:           "wider-input-to-narrower-output",
 			inputWidth:     400,
 			inputHeight:    200,
-			opts:           ResizeOptions{Width: 200, Height: 200, Format: "jpg"},
+			opts:           ResizeOptions{Width: 200, Height: 200, Format: formatJPG},
 			expectedWidth:  200,
 			expectedHeight: 200,
 		},
@@ -72,7 +79,7 @@ func TestCropResizer_Resize_BasicCases(t *testing.T) {
 			name:           "taller-input-to-wider-output",
 			inputWidth:     200,
 			inputHeight:    400,
-			opts:           ResizeOptions{Width: 400, Height: 200, Format: "jpg"},
+			opts:           ResizeOptions{Width: 400, Height: 200, Format: formatJPG},
 			expectedWidth:  400,
 			expectedHeight: 200,
 		},
@@ -80,7 +87,7 @@ func TestCropResizer_Resize_BasicCases(t *testing.T) {
 			name:           "square-input-to-rectangular",
 			inputWidth:     200,
 			inputHeight:    200,
-			opts:           ResizeOptions{Width: 300, Height: 150, Format: "jpg"},
+			opts:           ResizeOptions{Width: 300, Height: 150, Format: formatJPG},
 			expectedWidth:  300,
 			expectedHeight: 150,
 		},
@@ -88,7 +95,7 @@ func TestCropResizer_Resize_BasicCases(t *testing.T) {
 			name:           "rectangular-to-square",
 			inputWidth:     400,
 			inputHeight:    200,
-			opts:           ResizeOptions{Width: 200, Height: 200, Format: "jpg"},
+			opts:           ResizeOptions{Width: 200, Height: 200, Format: formatJPG},
 			expectedWidth:  200,
 			expectedHeight: 200,
 		},
@@ -96,7 +103,7 @@ func TestCropResizer_Resize_BasicCases(t *testing.T) {
 			name:           "downscale",
 			inputWidth:     800,
 			inputHeight:    600,
-			opts:           ResizeOptions{Width: 200, Height: 150, Format: "jpg"},
+			opts:           ResizeOptions{Width: 200, Height: 150, Format: formatJPG},
 			expectedWidth:  200,
 			expectedHeight: 150,
 		},
@@ -104,7 +111,7 @@ func TestCropResizer_Resize_BasicCases(t *testing.T) {
 			name:           "upscale",
 			inputWidth:     200,
 			inputHeight:    150,
-			opts:           ResizeOptions{Width: 800, Height: 600, Format: "jpg"},
+			opts:           ResizeOptions{Width: 800, Height: 600, Format: formatJPG},
 			expectedWidth:  800,
 			expectedHeight: 600,
 		},
@@ -112,7 +119,7 @@ func TestCropResizer_Resize_BasicCases(t *testing.T) {
 			name:           "same-aspect-ratio",
 			inputWidth:     400,
 			inputHeight:    200,
-			opts:           ResizeOptions{Width: 200, Height: 100, Format: "jpg"},
+			opts:           ResizeOptions{Width: 200, Height: 100, Format: formatJPG},
 			expectedWidth:  200,
 			expectedHeight: 100,
 		},
@@ -147,7 +154,7 @@ func TestCropResizer_Resize_DifferentAspectRatios(t *testing.T) {
 			inputHeight:  200,
 			outputWidth:  200,
 			outputHeight: 400,
-			inputAspect:  "3:1",
+			inputAspect:  aspectThreeToOne,
 			outputAspect: "1:2",
 		},
 		{
@@ -157,7 +164,7 @@ func TestCropResizer_Resize_DifferentAspectRatios(t *testing.T) {
 			outputWidth:  600,
 			outputHeight: 200,
 			inputAspect:  "1:3",
-			outputAspect: "3:1",
+			outputAspect: aspectThreeToOne,
 		},
 		{
 			name:         "wide_to_square",
@@ -165,7 +172,7 @@ func TestCropResizer_Resize_DifferentAspectRatios(t *testing.T) {
 			inputHeight:  200,
 			outputWidth:  200,
 			outputHeight: 200,
-			inputAspect:  "3:1",
+			inputAspect:  aspectThreeToOne,
 			outputAspect: "1:1",
 		},
 	}
@@ -179,7 +186,7 @@ func TestCropResizer_Resize_DifferentAspectRatios(t *testing.T) {
 			opts := ResizeOptions{
 				Width:  tc.outputWidth,
 				Height: tc.outputHeight,
-				Format: "jpg",
+				Format: formatJPG,
 			}
 
 			var outputBuf bytes.Buffer
@@ -222,7 +229,7 @@ func TestCropResizer_Resize_DecodeError(t *testing.T) {
 	opts := ResizeOptions{
 		Width:  150,
 		Height: 75,
-		Format: "jpg",
+		Format: formatJPG,
 	}
 
 	var outputBuf bytes.Buffer
@@ -244,7 +251,7 @@ func TestCropResizer_Resize_EncodeError(t *testing.T) {
 	opts := ResizeOptions{
 		Width:  150,
 		Height: 75,
-		Format: "invalid",
+		Format: valueInvalid,
 	}
 
 	var outputBuf bytes.Buffer
@@ -263,7 +270,7 @@ func TestCropResizer_Resize_InvalidImageData(t *testing.T) {
 	opts := ResizeOptions{
 		Width:  150,
 		Height: 75,
-		Format: "jpg",
+		Format: formatJPG,
 	}
 
 	var outputBuf bytes.Buffer
@@ -283,7 +290,7 @@ func TestCropResizer_Resize_ValidImageRoundTrip(t *testing.T) {
 	resizer := setupCropResizer(t)
 	testResizeValidImageRoundTrip(t, resizer, "crop",
 		200, 100,
-		ResizeOptions{Width: 150, Height: 75, Format: "jpg"},
+		ResizeOptions{Width: 150, Height: 75, Format: formatJPG},
 		150, 75,
 	)
 }

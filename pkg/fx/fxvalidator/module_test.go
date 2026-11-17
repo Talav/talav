@@ -16,6 +16,12 @@ import (
 	"go.uber.org/fx/fxtest"
 )
 
+const (
+	valueABC           = "abc"
+	valueLettersDigits = "password123"
+	tagUppercase       = "uppercase"
+)
+
 // Test helper types
 
 type testValidationDefinition struct {
@@ -62,7 +68,7 @@ func TestModule_NewFxValidator_FieldValidator(t *testing.T) {
 		t,
 		fx.NopLogger,
 		FxValidatorModule,
-		AsValidator(&testValidationDefinition{tag: "uppercase", fn: upperCaseFn, callEvenIfNull: false}),
+		AsValidator(&testValidationDefinition{tag: tagUppercase, fn: upperCaseFn, callEvenIfNull: false}),
 		fx.Populate(&v),
 	).RequireStart().RequireStop()
 
@@ -77,11 +83,11 @@ func TestModule_NewFxValidator_FieldValidator(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Invalid case - lowercase string
-	err = v.Struct(FieldTest{Code: "abc"})
+	err = v.Struct(FieldTest{Code: valueABC})
 	require.Error(t, err)
 	var validationErrors playgroundvalidator.ValidationErrors
 	require.True(t, errors.As(err, &validationErrors))
-	assert.Equal(t, "uppercase", validationErrors[0].Tag())
+	assert.Equal(t, tagUppercase, validationErrors[0].Tag())
 }
 
 func TestModule_NewFxValidator_StructValidator(t *testing.T) {
@@ -123,8 +129,8 @@ func TestModule_NewFxValidator_StructValidator(t *testing.T) {
 	// Struct validators are registered and will be called during validation
 	// Note: Struct validators are called after field-level validations pass
 	testStruct := PasswordStruct{
-		Password:        "password123",
-		PasswordConfirm: "password123",
+		Password:        valueLettersDigits,
+		PasswordConfirm: valueLettersDigits,
 	}
 
 	// Valid case - passwords match (field validations pass, struct validator should pass)
@@ -134,7 +140,7 @@ func TestModule_NewFxValidator_StructValidator(t *testing.T) {
 	// Invalid case - passwords don't match
 	// Struct validator should report an error when passwords don't match
 	err = v.StructCtx(context.Background(), PasswordStruct{
-		Password:        "password123",
+		Password:        valueLettersDigits,
 		PasswordConfirm: "different",
 	})
 	require.Error(t, err, "struct validator should report error when passwords don't match")
@@ -200,7 +206,7 @@ func TestModule_NewFxValidator_CustomTypeValidator(t *testing.T) {
 	assert.Equal(t, "min", validationErrors[0].Tag())
 
 	// Valid case - meets requirements
-	err = v.Struct(TestStruct{Value: "abc"})
+	err = v.Struct(TestStruct{Value: valueABC})
 	assert.NoError(t, err)
 }
 
@@ -219,9 +225,9 @@ func TestModule_NewFxTranslator_RegistersTranslations(t *testing.T) {
 		t,
 		fx.NopLogger,
 		FxValidatorModule,
-		AsValidator(&testValidationDefinition{tag: "uppercase", fn: upperCaseFn, callEvenIfNull: false}),
+		AsValidator(&testValidationDefinition{tag: tagUppercase, fn: upperCaseFn, callEvenIfNull: false}),
 		AsTranslation(&testTranslationDefinition{
-			tag:     "uppercase",
+			tag:     tagUppercase,
 			message: "{0} must be in UPPERCASE format",
 		}),
 		fx.Populate(&trans, &v),
@@ -235,7 +241,7 @@ func TestModule_NewFxTranslator_RegistersTranslations(t *testing.T) {
 		Code string `validate:"uppercase" json:"code"`
 	}
 
-	err := v.Struct(TestStruct{Code: "abc"})
+	err := v.Struct(TestStruct{Code: valueABC})
 	require.Error(t, err)
 	var validationErrors playgroundvalidator.ValidationErrors
 	require.True(t, errors.As(err, &validationErrors))
@@ -249,7 +255,7 @@ func TestModule_NewFxTranslator_RegistersTranslations(t *testing.T) {
 	assert.Contains(t, translated, "code")
 
 	// Verify that the translation contains information about the validation failure
-	assert.True(t, strings.Contains(strings.ToLower(translated), "uppercase") ||
+	assert.True(t, strings.Contains(strings.ToLower(translated), tagUppercase) ||
 		strings.Contains(strings.ToLower(translated), "upper"))
 }
 

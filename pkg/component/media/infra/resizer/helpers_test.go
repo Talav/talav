@@ -84,7 +84,7 @@ func testResizeWithRealImageFile(
 	opts := ResizeOptions{
 		Width:  targetWidth,
 		Height: targetHeight,
-		Format: "jpg",
+		Format: formatJPG,
 	}
 
 	var outputBuf bytes.Buffer
@@ -209,7 +209,7 @@ func testResizeDifferentFormats(
 		name   string
 		format string
 	}{
-		{"JPEG", "jpg"},
+		{"JPEG", formatJPG},
 		{"PNG", "png"},
 		{"GIF", "gif"},
 	}
@@ -268,9 +268,9 @@ func testResizeWithEncodingOptions(
 	optsHigh := ResizeOptions{
 		Width:  150,
 		Height: 75,
-		Format: "jpg",
+		Format: formatJPG,
 		Options: map[string]any{
-			"jpeg_quality": 95,
+			optionJPEGQuality: 95,
 		},
 	}
 
@@ -285,9 +285,9 @@ func testResizeWithEncodingOptions(
 	optsLow := ResizeOptions{
 		Width:  150,
 		Height: 75,
-		Format: "jpg",
+		Format: formatJPG,
 		Options: map[string]any{
-			"jpeg_quality": 50,
+			optionJPEGQuality: 50,
 		},
 	}
 

@@ -18,31 +18,31 @@ func TestParseDependentRequiredTag(t *testing.T) {
 	}{
 		{
 			name:      "single dependent",
-			fieldName: "CreditCard",
-			tagValue:  "billing_address",
+			fieldName: goFieldCreditCard,
+			tagValue:  keyBillingAddress,
 			want: &DependentRequiredMetadata{
-				Dependents: []string{"billing_address"},
+				Dependents: []string{keyBillingAddress},
 			},
 		},
 		{
 			name:      "multiple dependents",
-			fieldName: "CreditCard",
+			fieldName: goFieldCreditCard,
 			tagValue:  "billing_address,cardholder_name",
 			want: &DependentRequiredMetadata{
-				Dependents: []string{"billing_address", "cardholder_name"},
+				Dependents: []string{keyBillingAddress, "cardholder_name"},
 			},
 		},
 		{
 			name:      "multiple dependents with spaces",
-			fieldName: "CreditCard",
+			fieldName: goFieldCreditCard,
 			tagValue:  "billing_address, cardholder_name, phone_number",
 			want: &DependentRequiredMetadata{
-				Dependents: []string{"billing_address", "cardholder_name", "phone_number"},
+				Dependents: []string{keyBillingAddress, "cardholder_name", "phone_number"},
 			},
 		},
 		{
-			name:      "empty tag",
-			fieldName: "Field",
+			name:      caseEmptyTag,
+			fieldName: goFieldGeneric,
 			tagValue:  "",
 			want: &DependentRequiredMetadata{
 				Dependents: []string{},
@@ -50,13 +50,13 @@ func TestParseDependentRequiredTag(t *testing.T) {
 		},
 		{
 			name:      "whitespace only",
-			fieldName: "Field",
+			fieldName: goFieldGeneric,
 			tagValue:  "   ",
 			wantErr:   true, // tagparser doesn't allow whitespace-only keys
 		},
 		{
 			name:      "quoted field names",
-			fieldName: "Field",
+			fieldName: goFieldGeneric,
 			tagValue:  "'field1','field2 with spaces','field3'",
 			want: &DependentRequiredMetadata{
 				Dependents: []string{"field1", "field2 with spaces", "field3"},
@@ -64,7 +64,7 @@ func TestParseDependentRequiredTag(t *testing.T) {
 		},
 		{
 			name:      "quoted field with comma",
-			fieldName: "Field",
+			fieldName: goFieldGeneric,
 			tagValue:  "field1,'field,with,comma',field2",
 			want: &DependentRequiredMetadata{
 				Dependents: []string{"field1", "field,with,comma", "field2"},
@@ -72,7 +72,7 @@ func TestParseDependentRequiredTag(t *testing.T) {
 		},
 		{
 			name:      "empty values filtered",
-			fieldName: "Field",
+			fieldName: goFieldGeneric,
 			tagValue:  "field1,,field2,  ,field3",
 			wantErr:   true, // tagparser doesn't allow empty keys
 		},

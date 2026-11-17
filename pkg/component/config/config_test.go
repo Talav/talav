@@ -35,9 +35,9 @@ func TestStringParserHook(t *testing.T) {
 		{name: "string", raw: "25", wantCalls: 1},
 		{name: "typed", raw: typed},
 		{name: "typed_pointer", raw: &typed},
-		{name: "float", raw: 2.25, wantError: "expected a string"},
-		{name: "integer", raw: int64(25), wantError: "expected a string"},
-		{name: "boolean", raw: true, wantError: "expected a string"},
+		{name: "float", raw: 2.25, wantError: msgExpectedString},
+		{name: "integer", raw: int64(25), wantError: msgExpectedString},
+		{name: "boolean", raw: true, wantError: msgExpectedString},
 		{name: "parse_error", raw: "invalid", wantCalls: 1, wantError: "invalid syntax"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -63,14 +63,14 @@ func TestStringParserHook(t *testing.T) {
 }
 
 func TestStringParserHook_StringTarget(t *testing.T) {
-	cfg := loadYAMLConfig(t, "scenario_merge_keys").WithDecodeHooks(
+	cfg := loadYAMLConfig(t, scenarioMergeKeys).WithDecodeHooks(
 		StringParserHook(func(raw string) (string, error) { return strings.ToUpper(raw), nil }),
 	)
 	var got struct {
 		Host string `config:"host"`
 		Port int    `config:"port"`
 	}
-	require.NoError(t, cfg.UnmarshalKey("merge_base", &got))
+	require.NoError(t, cfg.UnmarshalKey(keyMergeBase, &got))
 	assert.Equal(t, "LOCALHOST", got.Host)
 	assert.Equal(t, 8080, got.Port)
 }
@@ -111,13 +111,13 @@ func TestUnmarshalKey_ErrorUnset(t *testing.T) {
 		raw       any
 		wantError string
 	}{
-		{name: "missing_field", raw: map[string]any{"count": 0}, wantError: "enabled"},
-		{name: "explicit_zero", raw: map[string]any{"count": 0, "enabled": false}},
-		{name: "null_field", raw: map[string]any{"count": nil, "enabled": false}},
+		{name: "missing_field", raw: map[string]any{keyCount: 0}, wantError: keyEnabled},
+		{name: "explicit_zero", raw: map[string]any{keyCount: 0, keyEnabled: false}},
+		{name: "null_field", raw: map[string]any{keyCount: nil, keyEnabled: false}},
 		{name: "null_block", raw: nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := loadYAMLConfig(t, "scenario_merge_keys")
+			cfg := loadYAMLConfig(t, scenarioMergeKeys)
 			require.NoError(t, cfg.Koanf().Set("options", tc.raw))
 			var got struct {
 				Count    int     `config:"count"`
@@ -139,7 +139,7 @@ func TestUnmarshalKey_ErrorUnset(t *testing.T) {
 }
 
 func TestUnmarshalKey_DecoderOptions(t *testing.T) {
-	cfg := loadYAMLConfig(t, "scenario_merge_keys").WithDecodeHooks(
+	cfg := loadYAMLConfig(t, scenarioMergeKeys).WithDecodeHooks(
 		StringParserHook(func(string) (string, error) { return "registered", nil }),
 	)
 	for _, tag := range []string{"custom", ""} {
@@ -147,7 +147,7 @@ func TestUnmarshalKey_DecoderOptions(t *testing.T) {
 			var got, other struct {
 				Name string `custom:"host" koanf:"host"`
 			}
-			err := cfg.UnmarshalKey("merge_base", &got,
+			err := cfg.UnmarshalKey(keyMergeBase, &got,
 				func(dc *mapstructure.DecoderConfig) {
 					dc.TagName = tag
 					dc.DecodeHook = StringParserHook(func(raw string) (string, error) {
@@ -171,18 +171,18 @@ func TestUnmarshalKey_DecoderOptions(t *testing.T) {
 	var got struct {
 		Host string `config:"host"`
 	}
-	require.NoError(t, cfg.UnmarshalKey("merge_base", &got))
+	require.NoError(t, cfg.UnmarshalKey(keyMergeBase, &got))
 	assert.Equal(t, "registered", got.Host)
-	require.Error(t, cfg.UnmarshalKey("merge_base", got))
+	require.Error(t, cfg.UnmarshalKey(keyMergeBase, got))
 }
 
 func TestUnmarshalMergeKeys_ErrorUnset(t *testing.T) {
-	cfg := loadYAMLConfig(t, "scenario_merge_keys")
+	cfg := loadYAMLConfig(t, scenarioMergeKeys)
 	var got struct {
 		Host string `config:"host"`
 		Port int    `config:"port"`
 	}
-	err := cfg.UnmarshalMergeKeys([]string{"merge_base", "merge_overlay"}, &got, func(dc *mapstructure.DecoderConfig) {
+	err := cfg.UnmarshalMergeKeys([]string{keyMergeBase, keyMergeOverlay}, &got, func(dc *mapstructure.DecoderConfig) {
 		dc.ErrorUnset = true
 	})
 	require.ErrorContains(t, err, `config key "merge_overlay"`)
@@ -195,7 +195,7 @@ func loadYAMLConfig(t *testing.T, relDir string) *Config {
 	factory := NewDefaultConfigFactory()
 	cfg, err := factory.Create(ConfigSource{
 		Path:     filepath.Join("testdata", relDir),
-		Patterns: []string{"config.yaml"},
+		Patterns: []string{configPattern},
 		Parser:   yaml.Parser(),
 	})
 	require.NoError(t, err)
@@ -211,14 +211,14 @@ func TestUnmarshalMergeKeys(t *testing.T) {
 	}{
 		{
 			name:   "two_keys_overlay",
-			relDir: "scenario_merge_keys",
+			relDir: scenarioMergeKeys,
 			run: func(t *testing.T, cfg *Config) {
 				t.Helper()
 				var s struct {
 					Host string `config:"host"`
 					Port int    `config:"port"`
 				}
-				require.NoError(t, cfg.UnmarshalMergeKeys([]string{"merge_base", "merge_overlay"}, &s))
+				require.NoError(t, cfg.UnmarshalMergeKeys([]string{keyMergeBase, keyMergeOverlay}, &s))
 				assert.Equal(t, "localhost", s.Host)
 				assert.Equal(t, 9090, s.Port)
 			},
@@ -232,14 +232,14 @@ func TestUnmarshalMergeKeys(t *testing.T) {
 					Host string `config:"host"`
 					Port int    `config:"port"`
 				}
-				err := cfg.UnmarshalMergeKeys([]string{"merge_base", "merge_bad"}, &s)
+				err := cfg.UnmarshalMergeKeys([]string{keyMergeBase, "merge_bad"}, &s)
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), `config key "merge_bad"`)
 			},
 		},
 		{
 			name:   "slice_replaced_by_later_key",
-			relDir: "scenario_merge_keys",
+			relDir: scenarioMergeKeys,
 			run: func(t *testing.T, cfg *Config) {
 				t.Helper()
 				var tc struct {
@@ -251,7 +251,7 @@ func TestUnmarshalMergeKeys(t *testing.T) {
 		},
 		{
 			name:   "empty_keys_no_op",
-			relDir: "scenario_merge_keys",
+			relDir: scenarioMergeKeys,
 			run: func(t *testing.T, cfg *Config) {
 				t.Helper()
 				var s struct {
@@ -280,7 +280,7 @@ func TestUnmarshalKey_TimeDurationHook(t *testing.T) {
 
 	cfg, err := factory.Create(ConfigSource{
 		Path:     testdataDir,
-		Patterns: []string{"config.yaml"},
+		Patterns: []string{configPattern},
 		Parser:   yaml.Parser(),
 	})
 	require.NoError(t, err)
@@ -357,7 +357,7 @@ func TestUnmarshalMergeKeys_SubtreeWithSliceReplacedByLaterKey(t *testing.T) {
 		Items []item `config:"items"`
 	}
 
-	require.NoError(t, cfg.UnmarshalMergeKeys([]string{"merge_base", "merge_overlay"}, &got))
+	require.NoError(t, cfg.UnmarshalMergeKeys([]string{keyMergeBase, keyMergeOverlay}, &got))
 	require.Len(t, got.Items, 1)
 	assert.Equal(t, "overlay-replaces", got.Items[0].ID)
 	assert.Equal(t, "overlay", got.Items[0].Label)
@@ -406,7 +406,7 @@ func TestUnmarshalMergeKeys_LeafScalarSecondMergeKey(t *testing.T) {
 }
 
 func TestConfig_Koanf(t *testing.T) {
-	cfg := loadYAMLConfig(t, "scenario_merge_keys")
+	cfg := loadYAMLConfig(t, scenarioMergeKeys)
 
 	k := cfg.Koanf()
 	require.NotNil(t, k)

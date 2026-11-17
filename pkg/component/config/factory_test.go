@@ -9,6 +9,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	dotenvPattern         = ".env"
+	dotenvLocalPattern    = ".env.local"
+	dotenvEnvPattern      = ".env.{env}"
+	dotenvEnvLocalPattern = ".env.{env}.local"
+	configPattern         = "config.yaml"
+	configEnvPattern      = "config_{env}.yaml"
+	configEnvLocalPattern = "config_{env}_local.yaml"
+	keyCount              = "count"
+	keyEnabled            = "enabled"
+	msgExpectedString     = "expected a string"
+	keyMergeBase          = "merge_base"
+	keyMergeOverlay       = "merge_overlay"
+	scenarioMergeKeys     = "scenario_merge_keys"
+)
+
 func TestDefaultConfigFactory_Create_Scenario1_YAMLOnly(t *testing.T) {
 	factory := NewDefaultConfigFactory()
 	testdataDir := filepath.Join("testdata", "scenario1_yaml_only")
@@ -17,7 +33,7 @@ func TestDefaultConfigFactory_Create_Scenario1_YAMLOnly(t *testing.T) {
 	cfg, err := factory.Create(
 		ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml", "config_{env}.yaml", "config_{env}_local.yaml"},
+			Patterns: []string{configPattern, configEnvPattern, configEnvLocalPattern},
 			Parser:   yaml.Parser(),
 		},
 	)
@@ -36,7 +52,7 @@ func TestDefaultConfigFactory_Create_Scenario1_YAMLOnly_ProdEnv(t *testing.T) {
 	cfg, err := factory.Create(
 		ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml", "config_{env}.yaml", "config_{env}_local.yaml"},
+			Patterns: []string{configPattern, configEnvPattern, configEnvLocalPattern},
 			Parser:   yaml.Parser(),
 		},
 	)
@@ -54,7 +70,7 @@ func TestDefaultConfigFactory_Create_Scenario2_EnvOnly(t *testing.T) {
 	cfg, err := factory.Create(
 		ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{".env", ".env.{env}", ".env.local", ".env.{env}.local"},
+			Patterns: []string{dotenvPattern, dotenvEnvPattern, dotenvLocalPattern, dotenvEnvLocalPattern},
 			Parser:   NewDotenvParser(),
 		},
 	)
@@ -72,7 +88,7 @@ func TestDefaultConfigFactory_Create_Scenario2_EnvOnly_WithoutLocal(t *testing.T
 	cfg, err := factory.Create(
 		ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{".env", ".env.{env}", ".env.local", ".env.{env}.local"},
+			Patterns: []string{dotenvPattern, dotenvEnvPattern, dotenvLocalPattern, dotenvEnvLocalPattern},
 			Parser:   NewDotenvParser(),
 		},
 	)
@@ -89,12 +105,12 @@ func TestDefaultConfigFactory_Create_Scenario3_YAMLAndEnv(t *testing.T) {
 	cfg, err := factory.Create(
 		ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml", "config_{env}.yaml", "config_{env}_local.yaml"},
+			Patterns: []string{configPattern, configEnvPattern, configEnvLocalPattern},
 			Parser:   yaml.Parser(),
 		},
 		ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{".env", ".env.{env}", ".env.local", ".env.{env}.local"},
+			Patterns: []string{dotenvPattern, dotenvEnvPattern, dotenvLocalPattern, dotenvEnvLocalPattern},
 			Parser:   NewDotenvParser(),
 		},
 	)
@@ -113,12 +129,12 @@ func TestDefaultConfigFactory_Create_Scenario4_AllOverrides(t *testing.T) {
 	cfg, err := factory.Create(
 		ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml", "config_{env}.yaml", "config_{env}_local.yaml"},
+			Patterns: []string{configPattern, configEnvPattern, configEnvLocalPattern},
 			Parser:   yaml.Parser(),
 		},
 		ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{".env", ".env.{env}", ".env.local", ".env.{env}.local"},
+			Patterns: []string{dotenvPattern, dotenvEnvPattern, dotenvLocalPattern, dotenvEnvLocalPattern},
 			Parser:   NewDotenvParser(),
 		},
 	)
@@ -141,7 +157,7 @@ func TestDefaultConfigFactory_Create_Scenario5_VariableExpansion(t *testing.T) {
 	cfg, err := factory.Create(
 		ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml", "config_{env}.yaml", "config_{env}_local.yaml"},
+			Patterns: []string{configPattern, configEnvPattern, configEnvLocalPattern},
 			Parser:   yaml.Parser(),
 		},
 	)
@@ -159,12 +175,12 @@ func TestDefaultConfigFactory_Create_Scenario6_MissingFiles(t *testing.T) {
 	cfg, err := factory.Create(
 		ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml", "config_{env}.yaml", "config_{env}_local.yaml"},
+			Patterns: []string{configPattern, configEnvPattern, configEnvLocalPattern},
 			Parser:   yaml.Parser(),
 		},
 		ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{".env", ".env.{env}", ".env.local", ".env.{env}.local"},
+			Patterns: []string{dotenvPattern, dotenvEnvPattern, dotenvLocalPattern, dotenvEnvLocalPattern},
 			Parser:   NewDotenvParser(),
 		},
 	)
@@ -180,7 +196,7 @@ func TestDefaultConfigFactory_Create_CompletelyMissingDirectory(t *testing.T) {
 	cfg, err := factory.Create(
 		ConfigSource{
 			Path:     nonExistentDir,
-			Patterns: []string{"config.yaml", "config_{env}.yaml", "config_{env}_local.yaml"},
+			Patterns: []string{configPattern, configEnvPattern, configEnvLocalPattern},
 			Parser:   yaml.Parser(),
 		},
 	)
@@ -199,7 +215,7 @@ func TestDefaultConfigFactory_Create_AutomaticEnvVars(t *testing.T) {
 	cfg, err := factory.Create(
 		ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml", "config_{env}.yaml", "config_{env}_local.yaml"},
+			Patterns: []string{configPattern, configEnvPattern, configEnvLocalPattern},
 			Parser:   yaml.Parser(),
 		},
 	)
@@ -217,7 +233,7 @@ func TestDefaultConfigFactory_Create_InvalidYAML(t *testing.T) {
 	cfg, err := factory.Create(
 		ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml", "config_{env}.yaml", "config_{env}_local.yaml"},
+			Patterns: []string{configPattern, configEnvPattern, configEnvLocalPattern},
 			Parser:   yaml.Parser(),
 		},
 	)
@@ -264,12 +280,12 @@ func TestDefaultConfigFactory_Create_DefaultStructure(t *testing.T) {
 	cfg, err := factory.Create(
 		ConfigSource{
 			Path:     filepath.Join(testdataDir, "config"),
-			Patterns: []string{"config.yaml", "config_{env}.yaml", "config_{env}_local.yaml"},
+			Patterns: []string{configPattern, configEnvPattern, configEnvLocalPattern},
 			Parser:   yaml.Parser(),
 		},
 		ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{".env", ".env.{env}", ".env.local", ".env.{env}.local"},
+			Patterns: []string{dotenvPattern, dotenvEnvPattern, dotenvLocalPattern, dotenvEnvLocalPattern},
 			Parser:   NewDotenvParser(),
 		},
 	)
@@ -298,7 +314,7 @@ func TestDefaultConfigFactory_CreateWithDefaultSources_AppendsExtraSources(t *te
 	cfg, err := factory.CreateWithDefaultSources(
 		ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml", "config_{env}.yaml", "config_{env}_local.yaml"},
+			Patterns: []string{configPattern, configEnvPattern, configEnvLocalPattern},
 			Parser:   yaml.Parser(),
 		},
 	)
@@ -318,7 +334,7 @@ func TestDefaultConfigFactory_Create_VariableExpansionInLists(t *testing.T) {
 	cfg, err := factory.Create(
 		ConfigSource{
 			Path:     testdataDir,
-			Patterns: []string{"config.yaml"},
+			Patterns: []string{configPattern},
 			Parser:   yaml.Parser(),
 		},
 	)

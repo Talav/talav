@@ -11,6 +11,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	levelInfo    = "info"
+	formatJSON   = "json"
+	outputStdout = "stdout"
+	formatText   = "text"
+)
+
 func TestDefaultLoggerFactory_Create_LogLevels(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -18,7 +25,7 @@ func TestDefaultLoggerFactory_Create_LogLevels(t *testing.T) {
 		expected slog.Level
 	}{
 		{"debug level", "debug", slog.LevelDebug},
-		{"info level", "info", slog.LevelInfo},
+		{"info level", levelInfo, slog.LevelInfo},
 		{"warn level", "warn", slog.LevelWarn},
 		{"error level", "error", slog.LevelError},
 		{"invalid level defaults to info", "invalid", slog.LevelInfo},
@@ -32,8 +39,8 @@ func TestDefaultLoggerFactory_Create_LogLevels(t *testing.T) {
 
 			log, err := factory.Create(LoggerConfig{
 				Level:  tt.level,
-				Format: "text",
-				Output: "stdout",
+				Format: formatText,
+				Output: outputStdout,
 			})
 			require.NoError(t, err)
 			assert.NotNil(t, log)
@@ -67,8 +74,8 @@ func TestDefaultLoggerFactory_Create_Formats(t *testing.T) {
 		format    string
 		checkJSON bool
 	}{
-		{"json format", "json", true},
-		{"text format", "text", false},
+		{"json format", formatJSON, true},
+		{"text format", formatText, false},
 		{"empty format defaults to json", "", true},
 		{"invalid format defaults to json", "invalid", true},
 	}
@@ -79,9 +86,9 @@ func TestDefaultLoggerFactory_Create_Formats(t *testing.T) {
 			var buf bytes.Buffer
 
 			log, err := factory.Create(LoggerConfig{
-				Level:  "info",
+				Level:  levelInfo,
 				Format: tt.format,
-				Output: "stdout",
+				Output: outputStdout,
 			})
 			require.NoError(t, err)
 			assert.NotNil(t, log)
@@ -115,9 +122,9 @@ func TestDefaultLoggerFactory_Create_Output_Stdout(t *testing.T) {
 	factory := NewDefaultLoggerFactory()
 
 	log, err := factory.Create(LoggerConfig{
-		Level:  "info",
-		Format: "json",
-		Output: "stdout",
+		Level:  levelInfo,
+		Format: formatJSON,
+		Output: outputStdout,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, log)
@@ -130,8 +137,8 @@ func TestDefaultLoggerFactory_Create_Output_Empty(t *testing.T) {
 	factory := NewDefaultLoggerFactory()
 
 	log, err := factory.Create(LoggerConfig{
-		Level:  "info",
-		Format: "json",
+		Level:  levelInfo,
+		Format: formatJSON,
 		Output: "",
 	})
 	require.NoError(t, err)
@@ -148,8 +155,8 @@ func TestDefaultLoggerFactory_Create_Output_File(t *testing.T) {
 	factory := NewDefaultLoggerFactory()
 
 	log, err := factory.Create(LoggerConfig{
-		Level:  "info",
-		Format: "json",
+		Level:  levelInfo,
+		Format: formatJSON,
 		Output: filePath,
 	})
 	require.NoError(t, err)
@@ -176,8 +183,8 @@ func TestDefaultLoggerFactory_Create_Output_File_Fallback(t *testing.T) {
 	factory := NewDefaultLoggerFactory()
 
 	log, err := factory.Create(LoggerConfig{
-		Level:  "info",
-		Format: "json",
+		Level:  levelInfo,
+		Format: formatJSON,
 		Output: invalidPath,
 	})
 	// Should not error, but fall back to stdout
@@ -195,8 +202,8 @@ func TestDefaultLoggerFactory_Create_Integration(t *testing.T) {
 
 	log, err := factory.Create(LoggerConfig{
 		Level:  "debug",
-		Format: "text",
-		Output: "stdout",
+		Format: formatText,
+		Output: outputStdout,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, log)
@@ -231,8 +238,8 @@ func TestDefaultLoggerFactory_Create_FileAndStdout(t *testing.T) {
 	factory := NewDefaultLoggerFactory()
 
 	log, err := factory.Create(LoggerConfig{
-		Level:  "info",
-		Format: "text",
+		Level:  levelInfo,
+		Format: formatText,
 		Output: filePath,
 	})
 	require.NoError(t, err)
@@ -256,9 +263,9 @@ func TestDefaultLoggerFactory_Create_NoColor(t *testing.T) {
 
 	// NoColor is currently not used in the implementation, but we test it doesn't break
 	log, err := factory.Create(LoggerConfig{
-		Level:   "info",
-		Format:  "text",
-		Output:  "stdout",
+		Level:   levelInfo,
+		Format:  formatText,
+		Output:  outputStdout,
 		NoColor: true,
 	})
 	require.NoError(t, err)
