@@ -3,6 +3,7 @@ package zorya
 import (
 	"encoding/json"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -255,6 +256,8 @@ func TestRegistry_DependentRequired(t *testing.T) {
 
 	paymentType := reflect.TypeOf(PaymentInput{})
 	_ = registry.Schema(paymentType, true, "PaymentInput")
+	// The list is a set with no defined order; sort it so the JSON below can be compared.
+	slices.Sort(registry.Map()["PaymentInput"].DependentRequired["payment_method"])
 
 	// Expected JSON string - review and verify this is correct
 	wantedJSON := `{
