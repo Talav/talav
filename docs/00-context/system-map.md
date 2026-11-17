@@ -37,7 +37,7 @@ Import direction is enforced by `golangci-lint` (`depguard`). Violations fail th
 | `email` | Email delivery abstraction | [README](../../pkg/component/email/README.md) |
 | `httpserver` | Chi HTTP server with structured logging and Zorya integration | [README](../../pkg/component/httpserver/README.md) |
 | `logger` | slog-based structured logging | [README](../../pkg/component/logger/README.md) |
-| `mapstructure` | mapstructure decode hook utilities | [README](../../pkg/component/mapstructure/README.md) |
+| `mapstructure` | Map-to-struct decoding with type conversion (standalone module) | [github.com/talav/mapstructure](https://github.com/talav/mapstructure) |
 | `media` | Media upload, CDN routing, image presets *(prototype)* | [README](../../pkg/component/media/README.md) |
 | `metrics` | Isolated Prometheus registry factory | [README](../../pkg/component/metrics/README.md) |
 | `negotiation` | HTTP content negotiation | [README](../../pkg/component/negotiation/README.md) |

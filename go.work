@@ -7,7 +7,6 @@ use (
 	./pkg/component/email
 	./pkg/component/httpserver
 	./pkg/component/logger
-	./pkg/component/mapstructure
 	./pkg/component/media
 	./pkg/component/metrics
 	./pkg/component/negotiation

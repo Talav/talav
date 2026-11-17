@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/talav/talav/pkg/component/mapstructure"
+	"github.com/talav/mapstructure"
 	"github.com/talav/talav/pkg/component/negotiation"
 	"github.com/talav/talav/pkg/component/schema"
 )

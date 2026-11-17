@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/talav/talav/pkg/component/mapstructure"
+	"github.com/talav/mapstructure"
 )
 
 const (
