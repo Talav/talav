@@ -3,6 +3,10 @@ module github.com/talav/talav/pkg/fx/fxuser
 go 1.27.0
 
 require (
+	github.com/talav/talav/pkg/component/user v0.0.0-20260113034123-9da34ad44376
+	github.com/talav/talav/pkg/fx/fxconfig v0.0.0-20260110030210-f4bf852d657a
+	github.com/talav/talav/pkg/fx/fxorm v0.0.0-20260110030210-f4bf852d657a
+	github.com/talav/talav/pkg/fx/fxvalidator v0.0.0-20260110030210-f4bf852d657a
 	go.uber.org/fx v1.24.0
 	gorm.io/gorm v1.31.1
 )
@@ -23,13 +27,15 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/pgx/v5 v5.6.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/knadh/koanf/maps v0.1.2 // indirect
 	github.com/knadh/koanf/parsers/dotenv v1.1.1 // indirect
 	github.com/knadh/koanf/parsers/yaml v1.1.0 // indirect
 	github.com/knadh/koanf/providers/env/v2 v2.0.0 // indirect
 	github.com/knadh/koanf/providers/file v1.2.0 // indirect
-	github.com/knadh/koanf/v2 v2.3.0 // indirect
+	github.com/knadh/koanf/v2 v2.3.4 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
@@ -42,22 +48,13 @@ require (
 	github.com/talav/talav/pkg/component/validator v0.0.0-20260110030210-f4bf852d657a // indirect
 	github.com/talav/talav/pkg/fx/fxcore v0.0.0-20251117025947-61a2b5cde488 // indirect
 	github.com/wagslane/go-password-validator v0.3.0 // indirect
-	go.yaml.in/yaml/v3 v3.0.3 // indirect
-	golang.org/x/crypto v0.45.0 // indirect
-	golang.org/x/sync v0.18.0 // indirect
-	gorm.io/driver/postgres v1.6.0 // indirect
-)
-
-require (
-	github.com/jinzhu/inflection v1.0.0 // indirect
-	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/talav/talav/pkg/component/user v0.0.0-20260113034123-9da34ad44376
-	github.com/talav/talav/pkg/fx/fxconfig v0.0.0-20260110030210-f4bf852d657a
-	github.com/talav/talav/pkg/fx/fxorm v0.0.0-20260110030210-f4bf852d657a
-	github.com/talav/talav/pkg/fx/fxvalidator v0.0.0-20260110030210-f4bf852d657a
 	go.uber.org/dig v1.19.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.3 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
+	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
+	gorm.io/driver/postgres v1.6.0 // indirect
 )

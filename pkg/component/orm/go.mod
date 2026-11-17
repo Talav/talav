@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	github.com/go-playground/validator/v10 v10.29.0
-	github.com/go-sql-driver/mysql v1.8.1
+	github.com/go-sql-driver/mysql v1.9.3
 	github.com/golang-migrate/migrate/v4 v4.19.0
 	github.com/spf13/cobra v1.10.1
 	gorm.io/driver/mysql v1.6.0
