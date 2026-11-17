@@ -2,6 +2,7 @@ package fxconfig
 
 import (
 	"github.com/go-viper/mapstructure/v2"
+	"github.com/talav/civil"
 	"github.com/talav/talav/pkg/component/config"
 	"go.uber.org/fx"
 )
@@ -16,6 +17,10 @@ var FxConfigModule = fx.Module(
 		config.NewDefaultConfigFactory,
 		NewFxConfig,
 	),
+	// Talav's date and time types decode from their string form out of the box.
+	AsConfigParser(civil.NewDateFromString),
+	AsConfigParser(civil.NewTimeFromString),
+	AsConfigParser(civil.NewDateTimeFromString),
 )
 
 // FxConfigParam allows injection of the required dependencies in [NewFxConfig].

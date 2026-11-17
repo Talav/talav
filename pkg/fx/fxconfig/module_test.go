@@ -12,6 +12,7 @@ import (
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/talav/civil"
 	"github.com/talav/talav/pkg/component/config"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxtest"
@@ -103,6 +104,28 @@ func TestModule_AsConfigParser(t *testing.T) {
 	).RequireStart().RequireStop()
 	require.NotNil(t, got.Address)
 	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), *got.Address)
+}
+
+func TestModule_CivilTypes(t *testing.T) {
+	t.Setenv("CIVIL_DAY", "2026-03-09")
+	t.Setenv("CIVIL_OPENS", "08:30:00")
+	t.Setenv("CIVIL_STARTS", "2026-03-09T08:30:00")
+	type civilConfig struct {
+		Day    civil.Date     `config:"day"`
+		Opens  civil.Time     `config:"opens"`
+		Starts civil.DateTime `config:"starts"`
+	}
+	var got civilConfig
+	fxtest.New(t,
+		fx.NopLogger,
+		FxConfigModule,
+		AsConfig("civil", civilConfig{}),
+		fx.Populate(&got),
+	).RequireStart().RequireStop()
+
+	assert.Equal(t, "2026-03-09", got.Day.String())
+	assert.Equal(t, "08:30:00", got.Opens.String())
+	assert.Equal(t, "2026-03-09T08:30:00", got.Starts.String())
 }
 
 func TestModule_DecodeHooks(t *testing.T) {

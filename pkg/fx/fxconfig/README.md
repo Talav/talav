@@ -239,6 +239,8 @@ fx.New(
 
 `AsConfigParser` uses [`config.StringParserHook`](../../component/config/README.md#custom-decode-hooks), including its input checks. Hooks run before the built-in conversions; order between registered hooks is unspecified, so avoid competing parsers for the same type.
 
+`FxConfigModule` already registers parsers for [`civil.Date`, `civil.Time` and `civil.DateTime`](https://github.com/talav/civil), so fields of those types need no registration.
+
 Use `AsConfigDecodeHook(hook)` for a native mapstructure hook, or `AsConfigDecodeHookConstructor(constructor, annotations...)` when constructing a hook requires injected dependencies. The helpers supply the Fx result type and group annotations.
 
 ### Decoder Configuration
