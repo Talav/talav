@@ -63,7 +63,7 @@ func NewJWTService(cfg JWTConfig) (JWTService, error) {
 	var err error
 
 	switch cfg.Algorithm {
-	case "HS256":
+	case algorithmHS256:
 		strategy, err = NewHS256Strategy(cfg.Secret)
 	case "RS256":
 		strategy, err = NewRS256Strategy(cfg.PrivateKeyPath, cfg.PublicKeyPath)
@@ -198,7 +198,7 @@ func (s *HS256Strategy) Verify(tokenString string, claims jwt.Claims) error {
 
 // Algorithm returns the algorithm name.
 func (s *HS256Strategy) Algorithm() string {
-	return "HS256"
+	return algorithmHS256
 }
 
 // Sign creates a token string using RSA-SHA256.

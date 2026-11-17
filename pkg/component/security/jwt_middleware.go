@@ -39,16 +39,16 @@ func NewJWTAuthMiddleware(jwtService JWTService, cfg SecurityConfig) func(http.H
 func ExtractToken(r *http.Request, cfg TokenSourceConfig) string {
 	sources := cfg.Sources
 	if len(sources) == 0 {
-		sources = []string{"header", "cookie"}
+		sources = []string{tokenSourceHeader, tokenSourceCookie}
 	}
 
 	for _, source := range sources {
 		switch source {
-		case "header":
+		case tokenSourceHeader:
 			if token := ExtractTokenFromHeader(r, cfg.HeaderName); token != "" {
 				return token
 			}
-		case "cookie":
+		case tokenSourceCookie:
 			if token := ExtractTokenFromCookie(r, cfg.CookieName); token != "" {
 				return token
 			}
@@ -84,7 +84,7 @@ func ExtractTokenFromHeader(r *http.Request, headerName string) string {
 // If cookieName is empty, defaults to "access_token".
 func ExtractTokenFromCookie(r *http.Request, cookieName string) string {
 	if cookieName == "" {
-		cookieName = "access_token"
+		cookieName = defaultAccessTokenName
 	}
 
 	cookie, err := r.Cookie(cookieName)

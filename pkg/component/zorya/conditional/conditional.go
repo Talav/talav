@@ -35,6 +35,9 @@ import (
 	"github.com/talav/talav/pkg/component/zorya"
 )
 
+// codePreconditionFailed is the error code reported when a conditional request header does not match.
+const codePreconditionFailed = "precondition_failed"
+
 // trimETag removes quotes and W/ prefix from ETag values for comparison.
 func trimETag(value string) string {
 	if strings.HasPrefix(value, "W/") && len(value) > 2 {
@@ -97,7 +100,7 @@ func checkIfNoneMatch(ifNoneMatch []string, currentETag string, isWrite bool) (b
 		if trimmed == currentETag || (trimmed == "*" && currentETag != "") {
 			if isWrite {
 				errs = append(errs, &zorya.ErrorDetail{
-					Code:     "precondition_failed",
+					Code:     codePreconditionFailed,
 					Message:  "If-None-Match: " + match + " precondition failed, " + foundMsg,
 					Location: "headers.If-None-Match",
 				})
@@ -135,7 +138,7 @@ func checkIfMatch(ifMatch []string, currentETag string, isWrite bool) (bool, []e
 	if !found {
 		if isWrite {
 			errs = append(errs, &zorya.ErrorDetail{
-				Code:     "precondition_failed",
+				Code:     codePreconditionFailed,
 				Message:  "If-Match precondition failed, " + foundMsg,
 				Location: "headers.If-Match",
 			})
@@ -181,7 +184,7 @@ func checkIfUnmodifiedSince(ifUnmodifiedSince time.Time, currentModified time.Ti
 	if currentModified.After(ifUnmodifiedSince) {
 		if isWrite {
 			errs = append(errs, &zorya.ErrorDetail{
-				Code:     "precondition_failed",
+				Code:     codePreconditionFailed,
 				Message:  "If-Unmodified-Since: " + ifUnmodifiedSince.Format(http.TimeFormat) + " precondition failed, resource was modified at " + currentModified.Format(http.TimeFormat),
 				Location: "headers.If-Unmodified-Since",
 			})

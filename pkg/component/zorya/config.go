@@ -47,7 +47,7 @@ func DefaultConfig() *Config {
 		OpenAPIPath:      "/openapi.json",
 		DocsPath:         "/docs",
 		SchemasPath:      "/schemas",
-		DefaultFormat:    "application/json",
+		DefaultFormat:    contentTypeJSON,
 		NoFormatFallback: false,
 	}
 }

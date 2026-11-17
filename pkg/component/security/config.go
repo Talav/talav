@@ -50,6 +50,20 @@ type EnforcerConfig struct {
 	Type string `config:"type"`
 }
 
+const (
+	// algorithmHS256 names the HMAC-SHA256 signing algorithm, the default.
+	algorithmHS256 = "HS256"
+
+	// defaultAccessTokenName is the default name of the access token cookie.
+	defaultAccessTokenName = "access_token"
+
+	// tokenSourceHeader reads the token from a request header.
+	tokenSourceHeader = "header"
+
+	// tokenSourceCookie reads the token from a request cookie.
+	tokenSourceCookie = "cookie"
+)
+
 // DefaultSecurityConfig returns a SecurityConfig with all default values set.
 func DefaultSecurityConfig() SecurityConfig {
 	return SecurityConfig{
@@ -58,12 +72,12 @@ func DefaultSecurityConfig() SecurityConfig {
 			SaltLength: 32,
 		},
 		JWT: JWTConfig{
-			Algorithm:          "HS256",
+			Algorithm:          algorithmHS256,
 			AccessTokenExpiry:  15 * time.Minute,
 			RefreshTokenExpiry: 168 * time.Hour, // 7 days
 		},
 		Cookie: CookieConfig{
-			AccessTokenName:  "access_token",
+			AccessTokenName:  defaultAccessTokenName,
 			RefreshTokenName: "refresh_token",
 			Path:             "/",
 			Secure:           true,
@@ -71,9 +85,9 @@ func DefaultSecurityConfig() SecurityConfig {
 			SameSite:         "Lax",
 		},
 		TokenSource: TokenSourceConfig{
-			Sources:    []string{"header", "cookie"},
+			Sources:    []string{tokenSourceHeader, tokenSourceCookie},
 			HeaderName: "Authorization",
-			CookieName: "access_token",
+			CookieName: defaultAccessTokenName,
 		},
 		Enforcer: EnforcerConfig{
 			Type: "simple",

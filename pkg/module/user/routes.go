@@ -5,6 +5,17 @@ import (
 	"github.com/talav/talav/pkg/module/user/handler"
 )
 
+const (
+	// tagUsers groups the user routes in the OpenAPI document.
+	tagUsers = "Users"
+
+	// roleAdmin is the role allowed to manage any user.
+	roleAdmin = "admin"
+
+	// roleUser is the role of a regular signed-in user.
+	roleUser = "user"
+)
+
 // RegisterRoutes registers all user-related routes.
 func RegisterRoutes(
 	api zorya.API,
@@ -21,7 +32,7 @@ func RegisterRoutes(
 			r.Operation = &zorya.Operation{
 				Summary:     "Create User",
 				Description: "Create a new user account",
-				Tags:        []string{"Users"},
+				Tags:        []string{tagUsers},
 				OperationID: "createUser",
 			}
 		},
@@ -33,13 +44,13 @@ func RegisterRoutes(
 			r.Operation = &zorya.Operation{
 				Summary:     "List Users",
 				Description: "Retrieve a paginated list of users with optional filtering",
-				Tags:        []string{"Users"},
+				Tags:        []string{tagUsers},
 				OperationID: "listUsers",
 			}
 		},
 		zorya.Secure(
 			func(s *zorya.RouteSecurity) {
-				s.Roles = []string{"admin"}
+				s.Roles = []string{roleAdmin}
 			},
 		),
 	)
@@ -50,13 +61,13 @@ func RegisterRoutes(
 			r.Operation = &zorya.Operation{
 				Summary:     "Get Current User",
 				Description: "Retrieve the authenticated user's profile information",
-				Tags:        []string{"Users"},
+				Tags:        []string{tagUsers},
 				OperationID: "getCurrentUser",
 			}
 		},
 		zorya.Secure(
 			func(s *zorya.RouteSecurity) {
-				s.Roles = []string{"user", "admin"}
+				s.Roles = []string{roleUser, roleAdmin}
 			},
 		),
 	)
@@ -67,13 +78,13 @@ func RegisterRoutes(
 			r.Operation = &zorya.Operation{
 				Summary:     "Get User by ID",
 				Description: "Retrieve a single user by their unique ID",
-				Tags:        []string{"Users"},
+				Tags:        []string{tagUsers},
 				OperationID: "getUser",
 			}
 		},
 		zorya.Secure(
 			func(s *zorya.RouteSecurity) {
-				s.Roles = []string{"user", "admin"}
+				s.Roles = []string{roleUser, roleAdmin}
 				s.Resource = "users/{id}"
 				s.Action = "read"
 			},

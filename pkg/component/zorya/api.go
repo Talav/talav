@@ -252,7 +252,7 @@ func NewAPI(adapter Adapter, opts ...Option) API {
 	a := &api{
 		adapter:       adapter,
 		middlewares:   Middlewares{},
-		defaultFormat: "application/json",
+		defaultFormat: contentTypeJSON,
 		negotiator:    negotiation.NewMediaNegotiator(),
 		transformers:  []Transformer{},
 	}

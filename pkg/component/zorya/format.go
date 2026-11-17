@@ -43,7 +43,7 @@ func DefaultFormats() map[string]Format {
 	cborFmt := CBORFormat()
 
 	return map[string]Format{
-		"application/json": jsonFmt,
+		contentTypeJSON:    jsonFmt,
 		"json":             jsonFmt, // For +json suffix matching
 		"application/cbor": cborFmt,
 		"cbor":             cborFmt, // For +cbor suffix matching

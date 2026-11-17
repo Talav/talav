@@ -10,6 +10,21 @@ import (
 	"time"
 )
 
+const (
+	keyRef          = "$ref"
+	keyDeprecated   = "deprecated"
+	keyDescription  = "description"
+	keyExamples     = "examples"
+	keyExternalDocs = "externalDocs"
+	keyHeaders      = "headers"
+	keyName         = "name"
+	keyParameters   = "parameters"
+	keyRequired     = "required"
+	keyServers      = "servers"
+	keySummary      = "summary"
+	keyURL          = "url"
+)
+
 type omitType int
 
 const (
@@ -147,8 +162,8 @@ type Contact struct {
 
 func (c *Contact) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
-		{"name", c.Name, omitEmpty},
-		{"url", c.URL, omitEmpty},
+		{keyName, c.Name, omitEmpty},
+		{keyURL, c.URL, omitEmpty},
 		{"email", c.Email, omitEmpty},
 	}, c.Extensions)
 }
@@ -176,9 +191,9 @@ type License struct {
 
 func (l *License) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
-		{"name", l.Name, omitNever},
+		{keyName, l.Name, omitNever},
 		{"identifier", l.Identifier, omitEmpty},
-		{"url", l.URL, omitEmpty},
+		{keyURL, l.URL, omitEmpty},
 	}, l.Extensions)
 }
 
@@ -225,7 +240,7 @@ type Info struct {
 func (i *Info) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
 		{"title", i.Title, omitNever},
-		{"description", i.Description, omitEmpty},
+		{keyDescription, i.Description, omitEmpty},
 		{"termsOfService", i.TermsOfService, omitEmpty},
 		{"contact", i.Contact, omitEmpty},
 		{"license", i.License, omitEmpty},
@@ -253,7 +268,7 @@ func (v *ServerVariable) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
 		{"enum", v.Enum, omitEmpty},
 		{"default", v.Default, omitNever},
-		{"description", v.Description, omitEmpty},
+		{keyDescription, v.Description, omitEmpty},
 	}, v.Extensions)
 }
 
@@ -283,8 +298,8 @@ type Server struct {
 
 func (s *Server) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
-		{"url", s.URL, omitNever},
-		{"description", s.Description, omitEmpty},
+		{keyURL, s.URL, omitNever},
+		{keyDescription, s.Description, omitEmpty},
 		{"variables", s.Variables, omitEmpty},
 	}, s.Extensions)
 }
@@ -334,9 +349,9 @@ type Example struct {
 
 func (e *Example) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
-		{"$ref", e.Ref, omitEmpty},
-		{"summary", e.Summary, omitEmpty},
-		{"description", e.Description, omitEmpty},
+		{keyRef, e.Ref, omitEmpty},
+		{keySummary, e.Summary, omitEmpty},
+		{keyDescription, e.Description, omitEmpty},
 		{"value", e.Value, omitNil},
 		{"externalValue", e.ExternalValue, omitEmpty},
 	}, e.Extensions)
@@ -427,7 +442,7 @@ type Encoding struct {
 func (e *Encoding) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
 		{"contentType", e.ContentType, omitEmpty},
-		{"headers", e.Headers, omitEmpty},
+		{keyHeaders, e.Headers, omitEmpty},
 		{"style", e.Style, omitEmpty},
 		{"explode", e.Explode, omitEmpty},
 		{"allowReserved", e.AllowReserved, omitEmpty},
@@ -482,7 +497,7 @@ func (m *MediaType) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
 		{"schema", m.Schema, omitEmpty},
 		{"example", m.Example, omitNil},
-		{"examples", m.Examples, omitEmpty},
+		{keyExamples, m.Examples, omitEmpty},
 		{"encoding", m.Encoding, omitEmpty},
 	}, m.Extensions)
 }
@@ -585,19 +600,19 @@ type Param struct {
 
 func (p *Param) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
-		{"$ref", p.Ref, omitEmpty},
-		{"name", p.Name, omitEmpty},
+		{keyRef, p.Ref, omitEmpty},
+		{keyName, p.Name, omitEmpty},
 		{"in", p.In, omitEmpty},
-		{"description", p.Description, omitEmpty},
-		{"required", p.Required, omitEmpty},
-		{"deprecated", p.Deprecated, omitEmpty},
+		{keyDescription, p.Description, omitEmpty},
+		{keyRequired, p.Required, omitEmpty},
+		{keyDeprecated, p.Deprecated, omitEmpty},
 		{"allowEmptyValue", p.AllowEmptyValue, omitEmpty},
 		{"style", p.Style, omitEmpty},
 		{"explode", p.Explode, omitEmpty},
 		{"allowReserved", p.AllowReserved, omitEmpty},
 		{"schema", p.Schema, omitEmpty},
 		{"example", p.Example, omitNil},
-		{"examples", p.Examples, omitEmpty},
+		{keyExamples, p.Examples, omitEmpty},
 	}, p.Extensions)
 }
 
@@ -655,10 +670,10 @@ type RequestBody struct {
 
 func (r *RequestBody) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
-		{"$ref", r.Ref, omitEmpty},
-		{"description", r.Description, omitEmpty},
+		{keyRef, r.Ref, omitEmpty},
+		{keyDescription, r.Description, omitEmpty},
 		{"content", r.Content, omitNever},
-		{"required", r.Required, omitEmpty},
+		{keyRequired, r.Required, omitEmpty},
 	}, r.Extensions)
 }
 
@@ -760,12 +775,12 @@ type Link struct {
 
 func (l *Link) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
-		{"$ref", l.Ref, omitEmpty},
+		{keyRef, l.Ref, omitEmpty},
 		{"operationRef", l.OperationRef, omitEmpty},
 		{"operationId", l.OperationID, omitEmpty},
-		{"parameters", l.Parameters, omitEmpty},
+		{keyParameters, l.Parameters, omitEmpty},
 		{"requestBody", l.RequestBody, omitNil},
-		{"description", l.Description, omitEmpty},
+		{keyDescription, l.Description, omitEmpty},
 		{"server", l.Server, omitEmpty},
 	}, l.Extensions)
 }
@@ -812,9 +827,9 @@ type Response struct {
 
 func (r *Response) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
-		{"$ref", r.Ref, omitEmpty},
-		{"description", r.Description, omitEmpty},
-		{"headers", r.Headers, omitEmpty},
+		{keyRef, r.Ref, omitEmpty},
+		{keyDescription, r.Description, omitEmpty},
+		{keyHeaders, r.Headers, omitEmpty},
 		{"content", r.Content, omitEmpty},
 		{"links", r.Links, omitEmpty},
 	}, r.Extensions)
@@ -952,17 +967,17 @@ type Operation struct {
 func (o *Operation) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
 		{"tags", o.Tags, omitEmpty},
-		{"summary", o.Summary, omitEmpty},
-		{"description", o.Description, omitEmpty},
-		{"externalDocs", o.ExternalDocs, omitEmpty},
+		{keySummary, o.Summary, omitEmpty},
+		{keyDescription, o.Description, omitEmpty},
+		{keyExternalDocs, o.ExternalDocs, omitEmpty},
 		{"operationId", o.OperationID, omitEmpty},
-		{"parameters", o.Parameters, omitEmpty},
+		{keyParameters, o.Parameters, omitEmpty},
 		{"requestBody", o.RequestBody, omitEmpty},
 		{"responses", o.Responses, omitEmpty},
 		{"callbacks", o.Callbacks, omitEmpty},
-		{"deprecated", o.Deprecated, omitEmpty},
+		{keyDeprecated, o.Deprecated, omitEmpty},
 		{"security", o.Security, omitNil},
-		{"servers", o.Servers, omitEmpty},
+		{keyServers, o.Servers, omitEmpty},
 	}, o.Extensions)
 }
 
@@ -1057,9 +1072,9 @@ type PathItem struct {
 
 func (p *PathItem) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
-		{"$ref", p.Ref, omitEmpty},
-		{"summary", p.Summary, omitEmpty},
-		{"description", p.Description, omitEmpty},
+		{keyRef, p.Ref, omitEmpty},
+		{keySummary, p.Summary, omitEmpty},
+		{keyDescription, p.Description, omitEmpty},
 		{"get", p.Get, omitEmpty},
 		{"put", p.Put, omitEmpty},
 		{"post", p.Post, omitEmpty},
@@ -1068,8 +1083,8 @@ func (p *PathItem) MarshalJSON() ([]byte, error) {
 		{"head", p.Head, omitEmpty},
 		{"patch", p.Patch, omitEmpty},
 		{"trace", p.Trace, omitEmpty},
-		{"servers", p.Servers, omitEmpty},
-		{"parameters", p.Parameters, omitEmpty},
+		{keyServers, p.Servers, omitEmpty},
+		{keyParameters, p.Parameters, omitEmpty},
 	}, p.Extensions)
 }
 
@@ -1209,8 +1224,8 @@ type SecurityScheme struct {
 func (s *SecurityScheme) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
 		{"type", s.Type, omitNever},
-		{"description", s.Description, omitEmpty},
-		{"name", s.Name, omitEmpty},
+		{keyDescription, s.Description, omitEmpty},
+		{keyName, s.Name, omitEmpty},
 		{"in", s.In, omitEmpty},
 		{"scheme", s.Scheme, omitEmpty},
 		{"bearerFormat", s.BearerFormat, omitEmpty},
@@ -1331,10 +1346,10 @@ func (c *Components) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
 		{"schemas", c.Schemas, omitEmpty},
 		{"responses", c.Responses, omitEmpty},
-		{"parameters", c.Parameters, omitEmpty},
-		{"examples", c.Examples, omitEmpty},
+		{keyParameters, c.Parameters, omitEmpty},
+		{keyExamples, c.Examples, omitEmpty},
 		{"requestBodies", c.RequestBodies, omitEmpty},
-		{"headers", c.Headers, omitEmpty},
+		{keyHeaders, c.Headers, omitEmpty},
 		{"securitySchemes", c.SecuritySchemes, omitEmpty},
 		{"links", c.Links, omitEmpty},
 		{"callbacks", c.Callbacks, omitEmpty},
@@ -1363,8 +1378,8 @@ type ExternalDocs struct {
 
 func (e *ExternalDocs) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
-		{"description", e.Description, omitEmpty},
-		{"url", e.URL, omitNever},
+		{keyDescription, e.Description, omitEmpty},
+		{keyURL, e.URL, omitNever},
 	}, e.Extensions)
 }
 
@@ -1389,9 +1404,9 @@ type Tag struct {
 
 func (t *Tag) MarshalJSON() ([]byte, error) {
 	return marshalJSON([]jsonFieldInfo{
-		{"name", t.Name, omitNever},
-		{"description", t.Description, omitEmpty},
-		{"externalDocs", t.ExternalDocs, omitEmpty},
+		{keyName, t.Name, omitNever},
+		{keyDescription, t.Description, omitEmpty},
+		{keyExternalDocs, t.ExternalDocs, omitEmpty},
 	}, t.Extensions)
 }
 
@@ -1509,13 +1524,13 @@ func (o *OpenAPI) MarshalJSON() ([]byte, error) {
 		{"openapi", o.OpenAPI, omitNever},
 		{"info", o.Info, omitNever},
 		{"jsonSchemaDialect", o.JSONSchemaDialect, omitEmpty},
-		{"servers", o.Servers, omitEmpty},
+		{keyServers, o.Servers, omitEmpty},
 		{"paths", o.Paths, omitEmpty},
 		{"webhooks", o.Webhooks, omitEmpty},
 		{"components", o.Components, omitEmpty},
 		{"security", o.Security, omitNil},
 		{"tags", o.Tags, omitEmpty},
-		{"externalDocs", o.ExternalDocs, omitEmpty},
+		{keyExternalDocs, o.ExternalDocs, omitEmpty},
 	}, o.Extensions)
 }
 
@@ -1639,13 +1654,13 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	}
 	fields = append(fields,
 		jsonFieldInfo{"title", s.Title, omitEmpty},
-		jsonFieldInfo{"description", s.Description, omitEmpty},
-		jsonFieldInfo{"$ref", s.Ref, omitEmpty},
+		jsonFieldInfo{keyDescription, s.Description, omitEmpty},
+		jsonFieldInfo{keyRef, s.Ref, omitEmpty},
 		jsonFieldInfo{"format", s.Format, omitEmpty},
 		jsonFieldInfo{"contentMediaType", contentMediaType, omitEmpty},
 		jsonFieldInfo{"contentEncoding", s.ContentEncoding, omitEmpty},
 		jsonFieldInfo{"default", s.Default, omitNil},
-		jsonFieldInfo{"examples", s.Examples, omitEmpty},
+		jsonFieldInfo{keyExamples, s.Examples, omitEmpty},
 		jsonFieldInfo{"items", s.Items, omitEmpty},
 		jsonFieldInfo{"additionalProperties", s.AdditionalProperties, omitNil},
 		jsonFieldInfo{"properties", props, omitEmpty},
@@ -1663,13 +1678,13 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 		jsonFieldInfo{"minItems", s.MinItems, omitEmpty},
 		jsonFieldInfo{"maxItems", s.MaxItems, omitEmpty},
 		jsonFieldInfo{"uniqueItems", s.UniqueItems, omitNil},
-		jsonFieldInfo{"required", s.Required, omitEmpty},
+		jsonFieldInfo{keyRequired, s.Required, omitEmpty},
 		jsonFieldInfo{"dependentRequired", s.DependentRequired, omitEmpty},
 		jsonFieldInfo{"minProperties", s.MinProperties, omitEmpty},
 		jsonFieldInfo{"maxProperties", s.MaxProperties, omitEmpty},
 		jsonFieldInfo{"readOnly", s.ReadOnly, omitNil},
 		jsonFieldInfo{"writeOnly", s.WriteOnly, omitNil},
-		jsonFieldInfo{"deprecated", s.Deprecated, omitNil},
+		jsonFieldInfo{keyDeprecated, s.Deprecated, omitNil},
 		jsonFieldInfo{"oneOf", s.OneOf, omitEmpty},
 		jsonFieldInfo{"anyOf", s.AnyOf, omitEmpty},
 		jsonFieldInfo{"allOf", s.AllOf, omitEmpty},
