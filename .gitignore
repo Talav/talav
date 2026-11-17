@@ -7,3 +7,6 @@ AGENTS.md
 AGENTS.override.md
 CLAUDE.md
 CLAUDE.local.md
+
+# Images kept from media test runs (MEDIA_TEST_OUTPUT_DIR)
+pkg/component/media/testdata/output/

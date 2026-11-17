@@ -1,7 +1,8 @@
 package resizer
 
 // Test Image Naming Convention:
-// All test images are saved to testdata/output/ with the following naming pattern:
+// Test images are written to a temporary directory, or to the directory named by
+// MEDIA_TEST_OUTPUT_DIR when it is set, with the following naming pattern:
 //   square-{test-name-snake-case-lowercase}-input-{width}x{height}.{ext}
 //   square-{test-name-snake-case-lowercase}-output-{width}x{height}.{ext}
 //
@@ -93,35 +94,27 @@ func encodeImageToBuffer(t *testing.T, img *image.NRGBA) *bytes.Buffer {
 	return &buf
 }
 
-// saveImageToOutputDir saves an image to the testdata/output directory.
-//
-//nolint:unparam // Return value may be used for debugging/logging in the future
-func saveImageToOutputDir(t *testing.T, img image.Image, filename string) string {
-	t.Helper()
-	// Try relative path first (when running from package directory)
-	outputDir := filepath.Join("..", "..", "testdata", "output")
-	// Check if directory exists
-	if _, err := os.Stat(outputDir); os.IsNotExist(err) {
-		// If relative path doesn't exist, try from project root
-		outputDir = filepath.Join("internal", "module", "media", "testdata", "output")
-	}
-	// Get absolute path
-	absDir, err := filepath.Abs(outputDir)
-	require.NoError(t, err)
-	// Ensure directory exists - use absolute path for MkdirAll
-	err = os.MkdirAll(absDir, 0o750)
-	require.NoError(t, err, "Failed to create directory: %s", absDir)
-	// Verify directory was created and is accessible
-	info, err := os.Stat(absDir)
-	require.NoError(t, err, "Directory should exist after MkdirAll: %s", absDir)
-	require.True(t, info.IsDir(), "Path should be a directory: %s", absDir)
-	outputPath := filepath.Join(absDir, filename)
-	// Use absolute path for imaging.Save
-	err = imaging.Save(img, outputPath)
-	require.NoError(t, err, "Failed to save image to: %s", outputPath)
-	t.Logf("Image saved to: %s", outputPath)
+// outputDirEnv names an existing directory that keeps the images tests produce, for visual inspection.
+const outputDirEnv = "MEDIA_TEST_OUTPUT_DIR"
 
-	return outputPath
+// outputDir returns the directory test images are written to: the one named by
+// outputDirEnv, or a temporary directory that is removed when the test ends.
+func outputDir(t *testing.T) string {
+	t.Helper()
+
+	if dir := os.Getenv(outputDirEnv); dir != "" {
+		return dir
+	}
+
+	return t.TempDir()
+}
+
+// saveImageToOutputDir saves an image to the test output directory.
+func saveImageToOutputDir(t *testing.T, img image.Image, filename string) {
+	t.Helper()
+
+	outputPath := filepath.Join(outputDir(t), filename)
+	require.NoError(t, imaging.Save(img, outputPath), "Failed to save image to: %s", outputPath)
 }
 
 func TestNewSquareResizer(t *testing.T) {
@@ -389,10 +382,7 @@ func TestSquareResizer_Resize_WithRealImageFile(t *testing.T) {
 	// Note: originalImg is already decoded from the file
 	saveImageToOutputDir(t, originalImg, fmt.Sprintf("square-with-real-image-file-input-%dx%d.jpg", originalWidth, originalHeight))
 
-	outputPath := filepath.Join("..", "..", "testdata", "output")
-	err = os.MkdirAll(outputPath, 0o750)
-	require.NoError(t, err)
-	outputPath = filepath.Join(outputPath, fmt.Sprintf("square-with-real-image-file-output-%dx%d.jpg", expectedSize, expectedSize))
+	outputPath := filepath.Join(outputDir(t), fmt.Sprintf("square-with-real-image-file-output-%dx%d.jpg", expectedSize, expectedSize))
 	err = os.WriteFile(outputPath, outputBytes, 0o600)
 	require.NoError(t, err)
 	t.Logf("Output image saved to: %s", outputPath)
@@ -472,15 +462,12 @@ func TestSquareResizer_Resize_ValidImageRoundTrip(t *testing.T) {
 	saveImageToOutputDir(t, outputImg, "square-valid-image-roundtrip-output-200x200.jpg")
 
 	// Save to disk for roundtrip verification
-	outputDir := filepath.Join("..", "..", "testdata", "output")
-	err = os.MkdirAll(outputDir, 0o750)
-	require.NoError(t, err)
-	outputPath := filepath.Join(outputDir, "square-valid-image-roundtrip-saved-200x200.jpg")
+	outputPath := filepath.Join(outputDir(t), "square-valid-image-roundtrip-saved-200x200.jpg")
 	err = os.WriteFile(outputPath, outputBytes, 0o600)
 	require.NoError(t, err)
 
 	// Read back from disk
-	//nolint:gosec // Test file path is safe - it's a relative path within testdata/output
+	//nolint:gosec // Test file path is safe - it's inside the test output directory
 	file, err := os.Open(outputPath)
 	require.NoError(t, err, "Failed to open saved image file")
 	defer func() { _ = file.Close() }()

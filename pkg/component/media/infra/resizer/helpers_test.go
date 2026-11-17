@@ -108,10 +108,7 @@ func testResizeWithRealImageFile(
 	// Save input and output for visual inspection
 	saveImageToOutputDir(t, originalImg, fmt.Sprintf("%s-with-real-image-file-input-%dx%d.jpg", prefix, originalWidth, originalHeight))
 
-	outputPath := filepath.Join("..", "..", "testdata", "output")
-	err = os.MkdirAll(outputPath, 0o750)
-	require.NoError(t, err)
-	outputPath = filepath.Join(outputPath, fmt.Sprintf("%s-with-real-image-file-output-%dx%d.jpg", prefix, targetWidth, targetHeight))
+	outputPath := filepath.Join(outputDir(t), fmt.Sprintf("%s-with-real-image-file-output-%dx%d.jpg", prefix, targetWidth, targetHeight))
 	err = os.WriteFile(outputPath, outputBytes, 0o600)
 	require.NoError(t, err)
 	t.Logf("Output image saved to: %s", outputPath)
@@ -169,15 +166,12 @@ func testResizeValidImageRoundTrip(
 	saveImageToOutputDir(t, outputImg, fmt.Sprintf("%s-valid-image-roundtrip-output-%dx%d.jpg", prefix, expectedWidth, expectedHeight))
 
 	// Save to disk for roundtrip verification
-	outputDir := filepath.Join("..", "..", "testdata", "output")
-	err = os.MkdirAll(outputDir, 0o750)
-	require.NoError(t, err)
-	outputPath := filepath.Join(outputDir, fmt.Sprintf("%s-valid-image-roundtrip-saved-%dx%d.jpg", prefix, expectedWidth, expectedHeight))
+	outputPath := filepath.Join(outputDir(t), fmt.Sprintf("%s-valid-image-roundtrip-saved-%dx%d.jpg", prefix, expectedWidth, expectedHeight))
 	err = os.WriteFile(outputPath, outputBytes, 0o600)
 	require.NoError(t, err)
 
 	// Read back from disk
-	//nolint:gosec // Test file path is safe - it's a relative path within testdata/output
+	//nolint:gosec // Test file path is safe - it's inside the test output directory
 	file, err := os.Open(outputPath)
 	require.NoError(t, err, "Failed to open saved image file")
 	defer func() { _ = file.Close() }()

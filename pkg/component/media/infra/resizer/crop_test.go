@@ -1,7 +1,8 @@
 package resizer
 
 // Test Image Naming Convention:
-// All test images are saved to testdata/output/ with the following naming pattern:
+// Test images are written to a temporary directory, or to the directory named by
+// MEDIA_TEST_OUTPUT_DIR when it is set, with the following naming pattern:
 //   crop-{test-name-snake-case-lowercase}-input-{width}x{height}.{ext}
 //   crop-{test-name-snake-case-lowercase}-output-{width}x{height}.{ext}
 //
