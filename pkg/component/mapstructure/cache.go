@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/talav/talav/pkg/component/tagparser"
+	"github.com/talav/tagparser"
 )
 
 // CacheBuilderFunc builds struct metadata for caching.

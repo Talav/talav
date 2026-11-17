@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/talav/talav/pkg/component/tagparser"
+	"github.com/talav/tagparser"
 )
 
 // OpenAPIMetadata represents OpenAPI-specific field-level schema metadata extracted from the openapi tag.

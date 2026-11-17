@@ -45,7 +45,7 @@ Import direction is enforced by `golangci-lint` (`depguard`). Violations fail th
 | `schema` | HTTP request parameter decoding; struct tags `schema`, `body`, `header` | [README](../../pkg/component/schema/README.md) |
 | `security` | Auth enforcement — roles, permissions, Casbin adapter | [README](../../pkg/component/security/README.md) |
 | `seeder` | Database seeding for development and test fixtures | [README](../../pkg/component/seeder/README.md) |
-| `tagparser` | Struct tag parsing utilities | [README](../../pkg/component/tagparser/README.md) |
+| `tagparser` | Struct tag parsing utilities (standalone module) | [github.com/talav/tagparser](https://github.com/talav/tagparser) |
 | `user` | User + role management, CQRS handlers, password reset | [README](../../pkg/component/user/README.md) |
 | `validator` | go-playground/validator wrapper with custom validators and i18n | [README](../../pkg/component/validator/README.md) |
 | `zorya` | Type-safe HTTP API framework — generics, OpenAPI generation, RFC 9457 errors | [README](../../pkg/component/zorya/README.md) |

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/talav/talav/pkg/component/tagparser"
+	"github.com/talav/tagparser"
 )
 
 // BodyMetadata represents metadata for body tag fields.

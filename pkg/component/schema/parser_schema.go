@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"slices"
 
-	"github.com/talav/talav/pkg/component/tagparser"
+	"github.com/talav/tagparser"
 )
 
 // SchemaMetadata represents metadata for schema tag fields.

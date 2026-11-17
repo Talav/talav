@@ -11,6 +11,8 @@ github.com/rogpeppe/go-internal v1.13.1 h1:KvO1DLK/DRN07sQ1LQKScxyZJuNnedQ5/wKSR
 github.com/rogpeppe/go-internal v1.13.1/go.mod h1:uMEvuHeurkdAXX61udpOXGD/AzZDWNMNyH2VO9fmH0o=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
+github.com/talav/tagparser v1.0.1 h1:5CuoAU7DCvJbYsnjFQj7oKGPtHeRXAT54BPtZu23HWQ=
+github.com/talav/tagparser v1.0.1/go.mod h1:UxX/u2fXN5iklrT/Uxg9n9K1iB08+LdsN1NVw1nuW+s=
 github.com/talav/talav/pkg/component/mapstructure v0.0.0-20251212040909-717bc712a8cc h1:xJQZ8VobWaIljRZvzVsJ4MZWkaliqUVl0e4XtaflcWo=
 github.com/talav/talav/pkg/component/mapstructure v0.0.0-20251212040909-717bc712a8cc/go.mod h1:1CDFG81Tfze0FAz94enpqPVIORpr8feyUe9Uc0/EABg=
 github.com/talav/talav/pkg/component/tagparser v0.0.0-20251210172924-f671c53a0295 h1:K9ILOpSggi7AEYmurE9AWdzuwIbn7aI/8zF4+M+/ozU=

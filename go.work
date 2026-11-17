@@ -15,7 +15,6 @@ use (
 	./pkg/component/schema
 	./pkg/component/security
 	./pkg/component/seeder
-	./pkg/component/tagparser
 	./pkg/component/user
 	./pkg/component/validator
 	./pkg/component/zorya

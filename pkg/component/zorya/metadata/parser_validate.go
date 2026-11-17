@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/talav/talav/pkg/component/tagparser"
+	"github.com/talav/tagparser"
 )
 
 // ValidateMetadata represents validation constraints extracted from the validate tag.

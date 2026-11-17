@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/talav/talav/pkg/component/tagparser"
+	"github.com/talav/tagparser"
 )
 
 // OpenAPIStructMetadata represents OpenAPI-specific struct-level schema metadata extracted from the openapiStruct tag.
