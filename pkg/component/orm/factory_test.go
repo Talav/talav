@@ -38,7 +38,7 @@ func TestGORMDialector(t *testing.T) {
 			name: "SQLite",
 			config: ORMConfig{
 				Driver: DriverSQLite,
-				DSN:    "database.sqlite",
+				DSN:    sqliteDSN,
 			},
 			expected: DriverSQLite,
 		},
@@ -73,7 +73,7 @@ func TestDefaultMigrationFactory_Create_SQLite(t *testing.T) {
 
 	db, err := NewDefaultORMFactory().Create(ORMConfig{
 		Driver:                 DriverSQLite,
-		DSN:                    filepath.Join(root, "database.sqlite"),
+		DSN:                    filepath.Join(root, sqliteDSN),
 		PrepareStmt:            true,
 		SkipDefaultTransaction: true,
 	}, slog.New(slog.NewTextHandler(io.Discard, nil)))

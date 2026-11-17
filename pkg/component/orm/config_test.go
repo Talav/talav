@@ -2,6 +2,8 @@ package orm
 
 import "testing"
 
+const sqliteDSN = "database.sqlite"
+
 func TestORMConfigValidate(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -26,13 +28,13 @@ func TestORMConfigValidate(t *testing.T) {
 			name: "SQLite",
 			config: ORMConfig{
 				Driver: DriverSQLite,
-				DSN:    "database.sqlite",
+				DSN:    sqliteDSN,
 			},
 		},
 		{
 			name: "Missing driver",
 			config: ORMConfig{
-				DSN: "database.sqlite",
+				DSN: sqliteDSN,
 			},
 			wantErr: true,
 		},
